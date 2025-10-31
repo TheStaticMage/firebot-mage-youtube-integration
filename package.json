@@ -1,0 +1,34 @@
+{
+    "name": "firebot-mage-youtube-integration",
+    "scriptOutputName": "firebot-mage-youtube-integration",
+    "version": "0.0.1",
+    "description": "A YouTube integration for Firebot",
+    "main": "",
+    "scripts": {
+        "build": "npm run build:version && npm run build:webpack",
+        "build:dev": "npm run build:version && npm run build:webpack && npm run copy",
+        "build:version": "node ./scripts/update-version.js",
+        "build:webpack": "webpack",
+        "copy": "node ./scripts/copy-build.js",
+    "prepare": "",
+    "test": "jest"
+    },
+    "author": "thestaticmage",
+    "license": "GNU3",
+    "devDependencies": {
+        "@crowbartools/firebot-custom-scripts-types": "github:TheStaticMage/firebot-custom-scripts-types#running",
+        "@eslint/js": "^9.38.0",
+        "@stylistic/eslint-plugin": "^5.5.0",
+        "@types/jest": "^30.0.0",
+        "jest": "^30.2.0",
+        "terser-webpack-plugin": "^5.3.14",
+        "ts-jest": "^29.4.5",
+        "ts-loader": "^9.5.4",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.46.2",
+        "webpack": "^5.102.1",
+        "webpack-cli": "^6.0.1"
+    },
+    "dependencies": {
+    }
+}
