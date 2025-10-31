@@ -60,7 +60,7 @@ export class YouTubeIntegration extends EventEmitter {
     // Whether to insert YT chat messages into the Firebot chat dashboard.
     private chatFeed = true;
 
-    init(linked: boolean, integrationData: IntegrationData<IntegrationParameters>) {
+    init(_linked: boolean, _integrationData: IntegrationData<IntegrationParameters>) {
         logger.info("YouTube integration initializing...");
     }
 
