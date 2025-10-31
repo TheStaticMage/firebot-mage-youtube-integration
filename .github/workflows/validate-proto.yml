@@ -1,0 +1,46 @@
+name: Validate Proto Compilation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate-proto:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Check if proto is up-to-date
+      run: |
+        echo "Generating proto to verify it matches committed version..."
+        npm run gen:proto
+
+        if ! git diff --quiet src/generated/proto/stream_list.ts; then
+          echo "❌ ERROR: Generated proto file is out of date!"
+          echo ""
+          echo "The compiled TypeScript proto (src/generated/proto/stream_list.ts) does not match"
+          echo "the source proto file (proto/stream_list.proto)."
+          echo ""
+          echo "To fix this:"
+          echo "  1. Run: npm run gen:proto"
+          echo "  2. Commit the updated src/generated/proto/stream_list.ts"
+          echo ""
+          echo "Differences:"
+          git diff src/generated/proto/stream_list.ts
+          exit 1
+        fi
+
+        echo "✅ Proto compilation is up-to-date"
