@@ -18,6 +18,8 @@ For this project in particular:
 
 - Any code that you submit needs to pass the linter (ESLint).
 - Please update any documentation (see the [doc](/doc) directory) as necessary.
+- Please write tests for anything you add, where it makes sense to do so.
+- You are welcome to use AI coding agents to help you (I've even provided `CLAUDE.md` for Claude Code users). However, any PRs consisting of AI slop will be closed without comment, and repeated PRs consisting of AI slop will result in a ban.
 
 ## Branches
 
@@ -31,6 +33,7 @@ There is no specific formatting requirement for commit messages. Please use a de
 
 - Please use the provided Pull Request template. I may close any PRs that do not use the template or are missing necessary sections.
 - When you are ready for a review, on your PR under "Reviewers" add TheStaticMage.
+- I reserve the right to edit the title or description as I deem necessary.
 
 ### Title
 
