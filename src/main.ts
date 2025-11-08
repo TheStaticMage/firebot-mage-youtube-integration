@@ -28,7 +28,10 @@ const script: Firebot.CustomScript = {
         logger.info(`Mage YouTube Integration v${scriptVersion} initializing...`);
 
         const { integrationManager } = runRequest.modules;
+
+        // Register integration
         integrationManager.registerIntegration({ definition, integration });
+        logger.info(`Registered integration: ${IntegrationConstants.INTEGRATION_NAME}`);
     }
 };
 

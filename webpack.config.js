@@ -14,6 +14,7 @@ module.exports = {
         libraryExport: 'default',
         path: path.resolve(__dirname, './dist'),
         filename: `${packageJson.scriptOutputName}.js`,
+        chunkFormat: false
     },
     resolve: {
         extensions: ['.ts', '.js'],
@@ -28,7 +29,7 @@ module.exports = {
     },
     optimization: {
         minimize: true,
-
+        splitChunks: false,
         minimizer: [
             new TerserPlugin({
                 terserOptions: {

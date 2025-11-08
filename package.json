@@ -10,8 +10,13 @@
         "build:version": "node ./scripts/update-version.js",
         "build:webpack": "webpack",
         "copy": "node ./scripts/copy-build.js",
-    "prepare": "",
-    "test": "jest"
+        "prepare": "",
+        "test": "jest",
+        "gen:proto": "protoc --plugin=./node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=src/generated --ts_proto_opt=outputServices=grpc-js,esModuleInterop=true,forceLong=string ./proto/stream_list.proto",
+        "poc:compile": "tsc -p poc/tsconfig.json",
+        "poc:test": "npm run poc:compile && node dist/poc/test-chatstream.js",
+        "poc:bundle": "npm run poc:compile && webpack --config poc/webpack.config.js",
+        "poc:test:bundle": "npm run poc:bundle && tsc poc/test-bundle-e2e.ts --outDir dist/poc --esModuleInterop --resolveJsonModule --skipLibCheck && node dist/poc/test-bundle-e2e.js"
     },
     "author": "thestaticmage",
     "license": "GNU3",
@@ -21,14 +26,21 @@
         "@stylistic/eslint-plugin": "^5.5.0",
         "@types/jest": "^30.0.0",
         "jest": "^30.2.0",
+        "node-loader": "^2.1.0",
+        "protoc": "^33.0.0",
         "terser-webpack-plugin": "^5.3.14",
         "ts-jest": "^29.4.5",
         "ts-loader": "^9.5.4",
+        "ts-proto": "^2.8.3",
         "typescript": "^5.9.3",
         "typescript-eslint": "^8.46.2",
         "webpack": "^5.102.1",
         "webpack-cli": "^6.0.1"
     },
     "dependencies": {
+        "@googleapis/youtube": "^29.0.0",
+        "@grpc/grpc-js": "^1.14.0",
+        "@grpc/proto-loader": "^0.8.0",
+        "google-auth-library": "^10.5.0"
     }
 }
