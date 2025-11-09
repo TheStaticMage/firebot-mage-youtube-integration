@@ -17,7 +17,6 @@ import {
  * - Ready status management and validation
  * - Application validation (duplicate names, credentials)
  * - Active application management
- * - Application reordering
  * - Persistent storage management
  */
 export class ApplicationManager {
@@ -26,24 +25,36 @@ export class ApplicationManager {
         activeApplicationId: null
     };
     private dataFilePath = "";
+    private initialized = false;
+
+    /**
+     * Initialize the data file path (synchronous)
+     * This must be called before using the manager, typically in init()
+     */
+    initPath(): void {
+        if (!this.dataFilePath) {
+            this.dataFilePath = getDataFilePath("applications.json");
+        }
+    }
 
     /**
      * Initialize the ApplicationManager
      * Loads applications from storage and validates ready status
      */
     async initialize(): Promise<void> {
-        this.dataFilePath = getDataFilePath("applications.json");
+        this.initPath();
         await this.loadApplications();
         await this.validateAllApplications();
+        this.initialized = true;
         logger.info(`ApplicationManager initialized with ${Object.keys(this.storage.applications).length} applications`);
     }
 
     /**
      * Get all applications
-     * @returns Array of all applications
+     * @returns Map of all applications by ID
      */
-    getApplications(): YouTubeOAuthApplication[] {
-        return Object.values(this.storage.applications);
+    getApplications(): Record<string, YouTubeOAuthApplication> {
+        return { ...this.storage.applications };
     }
 
     /**
@@ -68,10 +79,17 @@ export class ApplicationManager {
 
     /**
      * Get ready applications (filtered by ready status)
-     * @returns Array of ready applications
+     * @returns Map of ready applications by ID
      */
-    getReadyApplications(): YouTubeOAuthApplication[] {
-        return this.getApplications().filter(app => isApplicationReady(app));
+    getReadyApplications(): Record<string, YouTubeOAuthApplication> {
+        const appsMap = this.getApplications();
+        const readyAppsMap: Record<string, YouTubeOAuthApplication> = {};
+        for (const [id, app] of Object.entries(appsMap)) {
+            if (isApplicationReady(app)) {
+                readyAppsMap[id] = app;
+            }
+        }
+        return readyAppsMap;
     }
 
     /**
@@ -103,12 +121,24 @@ export class ApplicationManager {
         }
 
         // Check for duplicate names
-        const existingApp = this.getApplications().find(app =>
-            app.name.toLowerCase() === name.trim().toLowerCase()
+        const trimmedName = name.trim();
+        const existingApp = Object.values(this.getApplications()).find(app =>
+            app.name.toLowerCase() === trimmedName.toLowerCase()
         );
 
         if (existingApp) {
-            throw new Error(`Application with name "${name}" already exists`);
+            throw new Error(`Application with name "${trimmedName}" already exists`);
+        }
+
+        // Check for duplicate client ID and client secret combination
+        const trimmedClientId = clientId.trim();
+        const trimmedClientSecret = clientSecret.trim();
+        const duplicateCredentials = Object.values(this.getApplications()).find(app =>
+            app.clientId === trimmedClientId && app.clientSecret === trimmedClientSecret
+        );
+
+        if (duplicateCredentials) {
+            throw new Error(`An application with the same client ID and client secret already exists`);
         }
 
         // Create new application
@@ -149,7 +179,7 @@ export class ApplicationManager {
         // Check for duplicate names if name is being updated
         if (updates.name && updates.name !== existingApp.name) {
             const trimmedName = updates.name.trim();
-            const duplicateApp = this.getApplications().find(app =>
+            const duplicateApp = Object.values(this.getApplications()).find(app =>
                 app.id !== id && app.name.toLowerCase() === trimmedName.toLowerCase()
             );
 
@@ -173,6 +203,19 @@ export class ApplicationManager {
         }
         if (updates.clientSecret) {
             updatedApp.clientSecret = updates.clientSecret.trim();
+        }
+
+        // Check for duplicate client ID and client secret combination if credentials are being updated
+        if ((updates.clientId || updates.clientSecret)) {
+            const clientIdToCheck = updatedApp.clientId;
+            const clientSecretToCheck = updatedApp.clientSecret;
+            const duplicateCredentials = Object.values(this.getApplications()).find(app =>
+                app.id !== id && app.clientId === clientIdToCheck && app.clientSecret === clientSecretToCheck
+            );
+
+            if (duplicateCredentials) {
+                throw new Error(`An application with the same client ID and client secret already exists`);
+            }
         }
 
         // Validate the updated application
@@ -249,39 +292,6 @@ export class ApplicationManager {
     }
 
     /**
-     * Reorder applications
-     * @param orderedIds Array of application IDs in desired order
-     * @throws Error if any application ID is not found
-     */
-    async reorderApplications(orderedIds: string[]): Promise<void> {
-        // Validate all IDs exist
-        for (const id of orderedIds) {
-            if (!this.getApplication(id)) {
-                throw new Error(`Application with ID "${id}" not found`);
-            }
-        }
-
-        // Reorder applications by recreating the storage object
-        const newApplications: Record<string, YouTubeOAuthApplication> = {};
-
-        for (const id of orderedIds) {
-            newApplications[id] = this.storage.applications[id];
-        }
-
-        // Add any applications not in the ordered list (preserve them)
-        for (const [id, app] of Object.entries(this.storage.applications)) {
-            if (!newApplications[id]) {
-                newApplications[id] = app;
-            }
-        }
-
-        this.storage.applications = newApplications;
-        await this.saveApplications();
-
-        logger.info(`Reordered ${orderedIds.length} applications`);
-    }
-
-    /**
      * Update application ready status
      * @param id Application ID
      * @param ready Ready status
@@ -312,7 +322,7 @@ export class ApplicationManager {
      * Validate all applications and update ready status
      */
     async validateAllApplications(): Promise<void> {
-        for (const app of this.getApplications()) {
+        for (const app of Object.values(this.getApplications())) {
             // Applications without refresh tokens are not ready
             if (!app.refreshToken) {
                 updateApplicationReadyStatus(app, false, "Authorization required");
@@ -413,6 +423,7 @@ export class ApplicationManager {
                 };
             }
 
+            logger.debug(`Saving ${Object.keys(storageToSave.applications).length} applications to storage "${this.dataFilePath}"`);
             fs.writeFileSync(this.dataFilePath, JSON.stringify(storageToSave, null, 2));
             logger.debug("Applications data saved successfully");
         } catch (error: any) {
@@ -431,7 +442,7 @@ export class ApplicationManager {
         notReady: number;
         hasActive: boolean;
     } {
-        const apps = this.getApplications();
+        const apps = Object.values(this.getApplications());
         const readyApps = apps.filter(app => isApplicationReady(app));
 
         return {
