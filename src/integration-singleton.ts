@@ -8,9 +8,11 @@ import { ChatManager } from "./internal/chat-manager";
 import { ChatStreamClient } from "./internal/chatstream-client";
 import { QuotaManager } from "./internal/quota-manager";
 import { RestApiClient } from "./internal/rest-api-client";
+import { MultiAuthManager } from "./internal/multi-auth-manager";
 import { firebot, logger } from "./main";
 import { getDataFilePath } from "./util/datafile";
 import { chatEffect } from "./effects/chat";
+import { YouTubeOAuthApplication, ApplicationStorage } from "./types";
 
 type IntegrationParameters = {
     googleApp: {
@@ -54,6 +56,7 @@ export class YouTubeIntegration extends EventEmitter {
 
     // Managers for production integration
     private authManager: AuthManager = new AuthManager();
+    private multiAuthManager: MultiAuthManager = new MultiAuthManager();
     private broadcastManager: BroadcastManager = new BroadcastManager();
     private quotaManager: QuotaManager = new QuotaManager();
     private chatManager: ChatManager | null = null;
@@ -63,8 +66,15 @@ export class YouTubeIntegration extends EventEmitter {
     private streamCheckInterval: NodeJS.Timeout | null = null;
     private currentLiveChatId: string | null = null;
 
-    // Data file path for storing refresh token
+    // Data file paths
     private dataFilePath = "";
+    private applicationsDataFilePath = "";
+
+    // Multi-application data
+    private applicationsStorage: ApplicationStorage = {
+        applications: {},
+        activeApplicationId: null
+    };
 
     private settings: IntegrationParameters = {
         googleApp: {
@@ -112,26 +122,9 @@ export class YouTubeIntegration extends EventEmitter {
         eventManager.registerEventSource(YouTubeEventSource);
         logger.info("YouTube event source registered");
 
-        // Register HTTP endpoints for OAuth
-        const authManager = new AuthManager();
-
-        // Endpoint: /integrations/{prefix}/link/streamer - Redirects to Google OAuth
-        httpServer.registerCustomRoute(
-            IntegrationConstants.INTEGRATION_ID,
-            "link/streamer",
-            "GET",
-            authManager.handleLinkCallback.bind(authManager)
-        );
-
-        // Endpoint: /integrations/{prefix}/auth/callback - Handles OAuth callback
-        httpServer.registerCustomRoute(
-            IntegrationConstants.INTEGRATION_ID,
-            "auth/callback",
-            "GET",
-            authManager.handleAuthCallback.bind(authManager)
-        );
-
-        logger.info("OAuth HTTP endpoints registered");
+        // Register HTTP endpoints for multi-application OAuth
+        this.registerHttpEndpoints(httpServer);
+        logger.info("Multi-application OAuth HTTP endpoints registered");
 
         // Register frontend communicator listeners
         const { frontendCommunicator } = firebot.modules;
@@ -374,6 +367,44 @@ export class YouTubeIntegration extends EventEmitter {
         return this.authManager;
     }
 
+    getMultiAuthManager(): MultiAuthManager {
+        return this.multiAuthManager;
+    }
+
+    getApplicationsStorage(): ApplicationStorage {
+        return this.applicationsStorage;
+    }
+
+    /**
+     * Get access token for active application
+     */
+    async getActiveApplicationAccessToken(): Promise<string> {
+        if (!this.applicationsStorage.activeApplicationId) {
+            logger.error("No active application set");
+            return "";
+        }
+
+        return await this.multiAuthManager.getAccessToken(this.applicationsStorage.activeApplicationId);
+    }
+
+    /**
+     * Set active application
+     */
+    setActiveApplication(applicationId: string): void {
+        if (!this.applicationsStorage.applications[applicationId]) {
+            throw new Error(`Application ${applicationId} not found`);
+        }
+
+        const app = this.applicationsStorage.applications[applicationId];
+        if (!app.ready) {
+            throw new Error(`Application ${applicationId} is not ready`);
+        }
+
+        this.applicationsStorage.activeApplicationId = applicationId;
+        this.saveApplicationsStorage();
+        logger.info(`Active application set to ${applicationId} (${app.name})`);
+    }
+
     sendCriticalErrorNotification(message: string) {
         const { frontendCommunicator } = firebot.modules;
         frontendCommunicator.send("error", `YouTube Integration: ${message}`);
@@ -393,6 +424,148 @@ export class YouTubeIntegration extends EventEmitter {
             icon: "fas fa-exclamation-triangle"
         });
         logger.info(`Chat feed notification sent: ${JSON.stringify(message)}`);
+    }
+
+    /**
+     * Register HTTP endpoints for multi-application OAuth
+     */
+    private registerHttpEndpoints(httpServer: any): void {
+        // Endpoint: /integrations/{prefix}/link/{appId}/streamer - Redirects to Google OAuth for specific app
+        httpServer.registerCustomRoute(
+            IntegrationConstants.INTEGRATION_ID,
+            "link/:appId/streamer",
+            "GET",
+            this.handleLinkCallback.bind(this)
+        );
+
+        // Endpoint: /integrations/{prefix}/auth/callback - Handles OAuth callback for any app
+        httpServer.registerCustomRoute(
+            IntegrationConstants.INTEGRATION_ID,
+            "auth/callback",
+            "GET",
+            this.handleAuthCallback.bind(this)
+        );
+    }
+
+    /**
+     * Handle the /link/{appId}/streamer endpoint
+     * Redirects user to Google OAuth consent screen for specific application
+     */
+    private async handleLinkCallback(req: any, res: any): Promise<void> {
+        const { appId } = req.params;
+
+        if (!appId) {
+            res.status(400).send("Missing application ID");
+            return;
+        }
+
+        // Load applications to get the specific application
+        this.loadApplicationsStorage();
+        const app = this.applicationsStorage.applications[appId];
+
+        if (!app) {
+            res.status(404).send("Application not found");
+            return;
+        }
+
+        if (!app.clientId || !app.clientSecret) {
+            res.status(400).send("Application missing client credentials");
+            return;
+        }
+
+        try {
+            // Initialize multi-auth manager with current applications
+            await this.multiAuthManager.updateApplications(Object.values(this.applicationsStorage.applications));
+
+            // Generate state with CSRF protection
+            const state = JSON.stringify({
+                appId: appId,
+                timestamp: Date.now()
+            });
+
+            const authUrl = this.multiAuthManager.generateAuthorizationUrl(appId, state);
+            logger.debug(`Redirecting user to authorization URL for application ${appId}: ${authUrl}`);
+            res.redirect(authUrl);
+        } catch (error: any) {
+            logger.error(`Error handling link callback for application ${appId}: ${error.message}`);
+            res.status(500).send(`Error handling link callback: ${error.message}`);
+        }
+    }
+
+    /**
+     * Handle the OAuth callback from Google
+     * Exchange the authorization code for tokens
+     */
+    private async handleAuthCallback(req: any, res: any): Promise<void> {
+        // Load applications to ensure multi-auth manager has current data
+        this.loadApplicationsStorage();
+        await this.multiAuthManager.updateApplications(Object.values(this.applicationsStorage.applications));
+
+        // Delegate to multi-auth manager
+        await this.multiAuthManager.handleAuthCallback(req, res);
+
+        // Save updated applications data after callback
+        this.saveApplicationsStorage();
+    }
+
+    /**
+     * Load applications storage from file
+     */
+    private loadApplicationsStorage(): void {
+        this.applicationsDataFilePath = getDataFilePath("applications.json");
+        const { fs } = firebot.modules;
+
+        if (!fs.existsSync(this.applicationsDataFilePath)) {
+            logger.debug("No applications data file found");
+            this.applicationsStorage = {
+                applications: {},
+                activeApplicationId: null
+            };
+            return;
+        }
+
+        try {
+            const data = fs.readFileSync(this.applicationsDataFilePath, "utf8");
+            const parsed = JSON.parse(data) as ApplicationStorage;
+            this.applicationsStorage = parsed;
+            logger.debug("Applications data loaded successfully");
+        } catch (error: any) {
+            logger.error(`Failed to load applications data: ${error.message}`);
+            this.applicationsStorage = {
+                applications: {},
+                activeApplicationId: null
+            };
+        }
+    }
+
+    /**
+     * Save applications storage to file
+     */
+    private saveApplicationsStorage(): void {
+        const { fs } = firebot.modules;
+
+        try {
+            // Get updated applications from multi-auth manager
+            const applications = this.multiAuthManager.getApplications();
+            const applicationsMap: Record<string, YouTubeOAuthApplication> = {};
+
+            for (const app of applications) {
+                applicationsMap[app.id] = app;
+            }
+
+            // Preserve active application ID if it still exists
+            if (this.applicationsStorage.activeApplicationId &&
+                !applicationsMap[this.applicationsStorage.activeApplicationId]) {
+                this.applicationsStorage.activeApplicationId = null;
+            }
+
+            this.applicationsStorage.applications = applicationsMap;
+
+            fs.writeFileSync(this.applicationsDataFilePath, JSON.stringify(this.applicationsStorage, null, 2));
+            logger.debug("Applications data saved successfully");
+        } catch (error: any) {
+            logger.error(`Failed to save applications data: ${error.message}`);
+        }
     }
 
     /**
