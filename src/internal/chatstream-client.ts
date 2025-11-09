@@ -6,7 +6,8 @@
  */
 
 import * as grpc from '@grpc/grpc-js';
-import { LiveChatMessage, LiveChatMessageListRequest, LiveChatMessageListResponse, LiveChatMessageSnippet_TypeWrapper_Type as MessageType, V3DataLiveChatMessageServiceClient } from '../generated/proto/stream_list';
+import { LiveChatMessage, LiveChatMessageListRequest, LiveChatMessageListResponse, V3DataLiveChatMessageServiceClient } from '../generated/proto/stream_list';
+import { YouTubeMessageTypes, YouTubeMessageTypeStrings } from '../constants';
 import { logger } from '../main';
 
 export class ChatStreamClient {
@@ -53,20 +54,18 @@ export class ChatStreamClient {
         const metadata = new grpc.Metadata();
         metadata.add('authorization', `Bearer ${accessToken}`);
 
-        logger.debug('Starting StreamList request...');
-        logger.debug(`Live Chat ID: ${liveChatId}`);
-        logger.debug(`Request: ${JSON.stringify(request, null, 2)}`);
+        logger.debug(`[chatStreamMessages] Starting StreamList request... Live Chat ID: ${liveChatId}`);
 
         // Make the streaming RPC call using generated client
         const stream = this.client.streamList(request, metadata);
 
         // Handle stream events
         stream.on('error', (error: Error) => {
-            logger.error(`Stream error: ${error.message}`);
+            logger.error(`[chatStreamMessages] error: ${error.message}`);
         });
 
         stream.on('end', () => {
-            logger.info('Stream ended');
+            logger.debug('[chatStreamMessages] chat stream ended');
         });
 
         // Yield responses as they arrive
@@ -82,7 +81,7 @@ export class ChatStreamClient {
         if (type === undefined) {
             return 'UNKNOWN';
         }
-        return MessageType[type] !== undefined ? MessageType[type] : 'UNKNOWN';
+        return YouTubeMessageTypeStrings[type as keyof typeof YouTubeMessageTypeStrings] || 'UNKNOWN';
     }
 
     /**
@@ -101,6 +100,6 @@ export class ChatStreamClient {
      * Check if message is a regular text message
      */
     static isTextMessage(message: LiveChatMessage): boolean {
-        return message.snippet?.type === MessageType.TEXT_MESSAGE_EVENT;
+        return Number(message.snippet?.type) === YouTubeMessageTypes.TEXT_MESSAGE_EVENT;
     }
 }

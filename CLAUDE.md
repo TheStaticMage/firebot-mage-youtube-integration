@@ -13,10 +13,10 @@ Key features:
 - Conscious of API quotas
 - Chat message retrieval targeted to consume no more than 80% of daily API request quota
 - Uses streamList GRPC endpoint to reduce API quota usage
+- Chat messages from YouTube show up in Firebot chat feed (dashboard)
 
 TODO:
 
-- YouTube chat messages appear in Firebot chat feed
 - Messages typed in Firebot chat feed are sent to YouTube chat
 - Create platform independent library for Twitch, Kick, YouTube supporting chat, username standardization, etc.
 - Handle commands sent via YouTube messages
@@ -24,6 +24,10 @@ TODO:
 - Detect broadcast online and broadcast offline
 - Set broadcast title and detect broadcast title change
 - Further evaluation of capabilities exposed by YouTube API
+- Visual distinction of platform in chat feed
+- Indicate YouTube broadcaster in chat feed
+- Do not display YouTube messages in chat feed or trigger events for messages before Firebot started
+- Effects to change polling interval for YouTube messages (e.g. poll more frequently at times)
 
 Tech: TypeScript, Jest
 
@@ -44,6 +48,7 @@ Conventions:
 - Build: Code and GRPC proto consolidated to one file with webpack (webpack file loaded by Firebot as startup script)
 - User ID: UserIDs from youtube are 'y' plus the given YouTube user ID
 - User name: Usernames from youtube are the given YouTube username plus '@youtube'
+- Files under `src/generated` are generated and must never be written by AI coding agents
 
 Things to check:
 

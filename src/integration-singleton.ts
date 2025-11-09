@@ -4,7 +4,8 @@ import { IntegrationConstants } from "./constants";
 import { YouTubeEventSource } from "./events";
 import { AuthManager } from "./internal/auth-manager";
 import { BroadcastManager } from "./internal/broadcast-manager";
-import { ChatStreamManager } from "./internal/chatstream-manager";
+import { ChatManager } from "./internal/chat-manager";
+import { ChatStreamClient } from "./internal/chatstream-client";
 import { QuotaManager } from "./internal/quota-manager";
 import { firebot, logger } from "./main";
 import { getDataFilePath } from "./util/datafile";
@@ -53,7 +54,7 @@ export class YouTubeIntegration extends EventEmitter {
     private authManager: AuthManager = new AuthManager();
     private broadcastManager: BroadcastManager = new BroadcastManager();
     private quotaManager: QuotaManager = new QuotaManager();
-    private chatStreamManager: ChatStreamManager | null = null;
+    private chatManager: ChatManager | null = null;
 
     // Stream monitoring
     private streamCheckInterval: NodeJS.Timeout | null = null;
@@ -200,15 +201,16 @@ export class YouTubeIntegration extends EventEmitter {
      */
     private async startChatStreaming(liveChatId: string, accessToken: string): Promise<void> {
         // Stop any existing stream first
-        if (this.chatStreamManager) {
-            await this.chatStreamManager.stopChatStreaming();
+        if (this.chatManager) {
+            await this.chatManager.stopChatStreaming();
         }
 
         this.currentLiveChatId = liveChatId;
-        this.chatStreamManager = new ChatStreamManager(logger, this.quotaManager);
+        // Create ChatManager with ChatStreamClient factory and integration reference
+        this.chatManager = new ChatManager(logger, this.quotaManager, () => new ChatStreamClient(), this);
 
-        // Start streaming (ChatStreamManager will calculate delay internally)
-        await this.chatStreamManager.startChatStreaming(liveChatId, accessToken);
+        // Start streaming (ChatManager will calculate delay internally)
+        await this.chatManager.startChatStreaming(liveChatId, accessToken);
     }
 
     /**
@@ -253,9 +255,9 @@ export class YouTubeIntegration extends EventEmitter {
             // Case 2: Stream ended
             if (this.currentLiveChatId && !liveChatId) {
                 logger.info("YouTube stream ended, stopping chat streaming");
-                if (this.chatStreamManager) {
-                    await this.chatStreamManager.stopChatStreaming();
-                    this.chatStreamManager = null;
+                if (this.chatManager) {
+                    await this.chatManager.stopChatStreaming();
+                    this.chatManager = null;
                 }
                 this.currentLiveChatId = null;
                 return;
@@ -291,9 +293,9 @@ export class YouTubeIntegration extends EventEmitter {
         }
 
         // Stop chat streaming
-        if (this.chatStreamManager) {
-            await this.chatStreamManager.stopChatStreaming();
-            this.chatStreamManager = null;
+        if (this.chatManager) {
+            await this.chatManager.stopChatStreaming();
+            this.chatManager = null;
         }
 
         // Disconnect auth manager
