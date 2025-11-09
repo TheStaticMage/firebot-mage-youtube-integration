@@ -1,0 +1,444 @@
+import { v4 as uuidv4 } from "uuid";
+import { firebot, logger } from "../main";
+import { ApplicationStorage, QuotaSettings, YouTubeOAuthApplication } from "../types";
+import { getDataFilePath } from "../util/datafile";
+import {
+    createApplication,
+    isApplicationReady,
+    updateApplicationReadyStatus,
+    validateApplication
+} from "./application-utils";
+
+/**
+ * ApplicationManager handles YouTube OAuth application storage and management
+ *
+ * Responsibilities:
+ * - CRUD operations for applications
+ * - Ready status management and validation
+ * - Application validation (duplicate names, credentials)
+ * - Active application management
+ * - Application reordering
+ * - Persistent storage management
+ */
+export class ApplicationManager {
+    private storage: ApplicationStorage = {
+        applications: {},
+        activeApplicationId: null
+    };
+    private dataFilePath = "";
+
+    /**
+     * Initialize the ApplicationManager
+     * Loads applications from storage and validates ready status
+     */
+    async initialize(): Promise<void> {
+        this.dataFilePath = getDataFilePath("applications.json");
+        await this.loadApplications();
+        await this.validateAllApplications();
+        logger.info(`ApplicationManager initialized with ${Object.keys(this.storage.applications).length} applications`);
+    }
+
+    /**
+     * Get all applications
+     * @returns Array of all applications
+     */
+    getApplications(): YouTubeOAuthApplication[] {
+        return Object.values(this.storage.applications);
+    }
+
+    /**
+     * Get application by ID
+     * @param id Application ID
+     * @returns Application or null if not found
+     */
+    getApplication(id: string): YouTubeOAuthApplication | null {
+        return this.storage.applications[id] || null;
+    }
+
+    /**
+     * Get active application
+     * @returns Active application or null if none is active
+     */
+    getActiveApplication(): YouTubeOAuthApplication | null {
+        if (!this.storage.activeApplicationId) {
+            return null;
+        }
+        return this.getApplication(this.storage.activeApplicationId);
+    }
+
+    /**
+     * Get ready applications (filtered by ready status)
+     * @returns Array of ready applications
+     */
+    getReadyApplications(): YouTubeOAuthApplication[] {
+        return this.getApplications().filter(app => isApplicationReady(app));
+    }
+
+    /**
+     * Add a new application
+     * @param name Application display name
+     * @param clientId OAuth client ID
+     * @param clientSecret OAuth client secret
+     * @param quotaSettings Quota settings for the application
+     * @returns Created application
+     * @throws Error if validation fails
+     */
+    async addApplication(
+        name: string,
+        clientId: string,
+        clientSecret: string,
+        quotaSettings?: QuotaSettings
+    ): Promise<YouTubeOAuthApplication> {
+        // Validate input
+        if (!name || !name.trim()) {
+            throw new Error("Application name is required");
+        }
+
+        if (!clientId || !clientId.trim()) {
+            throw new Error("Client ID is required");
+        }
+
+        if (!clientSecret || !clientSecret.trim()) {
+            throw new Error("Client secret is required");
+        }
+
+        // Check for duplicate names
+        const existingApp = this.getApplications().find(app =>
+            app.name.toLowerCase() === name.trim().toLowerCase()
+        );
+
+        if (existingApp) {
+            throw new Error(`Application with name "${name}" already exists`);
+        }
+
+        // Create new application
+        const newApp = createApplication(uuidv4(), name.trim());
+        newApp.clientId = clientId.trim();
+        newApp.clientSecret = clientSecret.trim();
+
+        if (quotaSettings) {
+            newApp.quotaSettings = { ...quotaSettings };
+        }
+
+        // Validate the complete application
+        if (!validateApplication(newApp)) {
+            throw new Error("Invalid application configuration");
+        }
+
+        // Add to storage
+        this.storage.applications[newApp.id] = newApp;
+        await this.saveApplications();
+
+        logger.info(`Added new YouTube application: ${newApp.name} (${newApp.id})`);
+        return newApp;
+    }
+
+    /**
+     * Update an existing application
+     * @param id Application ID
+     * @param updates Partial application updates
+     * @returns Updated application
+     * @throws Error if application not found or validation fails
+     */
+    async updateApplication(id: string, updates: Partial<YouTubeOAuthApplication>): Promise<YouTubeOAuthApplication> {
+        const existingApp = this.getApplication(id);
+        if (!existingApp) {
+            throw new Error(`Application with ID "${id}" not found`);
+        }
+
+        // Check for duplicate names if name is being updated
+        if (updates.name && updates.name !== existingApp.name) {
+            const trimmedName = updates.name.trim();
+            const duplicateApp = this.getApplications().find(app =>
+                app.id !== id && app.name.toLowerCase() === trimmedName.toLowerCase()
+            );
+
+            if (duplicateApp) {
+                throw new Error(`Application with name "${trimmedName}" already exists`);
+            }
+        }
+
+        // Apply updates
+        const updatedApp: YouTubeOAuthApplication = {
+            ...existingApp,
+            ...updates
+        };
+
+        // Trim string fields
+        if (updates.name) {
+            updatedApp.name = updates.name.trim();
+        }
+        if (updates.clientId) {
+            updatedApp.clientId = updates.clientId.trim();
+        }
+        if (updates.clientSecret) {
+            updatedApp.clientSecret = updates.clientSecret.trim();
+        }
+
+        // Validate the updated application
+        if (!validateApplication(updatedApp)) {
+            throw new Error("Invalid application configuration");
+        }
+
+        // Update storage
+        this.storage.applications[id] = updatedApp;
+        await this.saveApplications();
+
+        logger.info(`Updated YouTube application: ${updatedApp.name} (${updatedApp.id})`);
+        return updatedApp;
+    }
+
+    /**
+     * Remove an application
+     * @param id Application ID to remove
+     * @throws Error if application not found
+     */
+    async removeApplication(id: string): Promise<void> {
+        const app = this.getApplication(id);
+        if (!app) {
+            throw new Error(`Application with ID "${id}" not found`);
+        }
+
+        // Clear active application if this was the active one
+        if (this.storage.activeApplicationId === id) {
+            this.storage.activeApplicationId = null;
+            logger.info(`Cleared active application (removed app ${app.name})`);
+        }
+
+        // Remove from storage
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { [id]: removedApp, ...remainingApps } = this.storage.applications;
+        this.storage.applications = remainingApps;
+        await this.saveApplications();
+
+        logger.info(`Removed YouTube application: ${app.name} (${id})`);
+    }
+
+    /**
+     * Set active application
+     * @param id Application ID to set as active
+     * @throws Error if application not found or not ready
+     */
+    async setActiveApplication(id: string): Promise<void> {
+        const app = this.getApplication(id);
+        if (!app) {
+            throw new Error(`Application with ID "${id}" not found`);
+        }
+
+        if (!isApplicationReady(app)) {
+            throw new Error(`Application "${app.name}" is not ready. Please authorize it first.`);
+        }
+
+        const previousActiveId = this.storage.activeApplicationId;
+        this.storage.activeApplicationId = id;
+        await this.saveApplications();
+
+        logger.info(`Set active application: ${app.name} (${id})${previousActiveId ? ` (previously: ${previousActiveId})` : ""}`);
+    }
+
+    /**
+     * Clear active application
+     */
+    async clearActiveApplication(): Promise<void> {
+        if (this.storage.activeApplicationId) {
+            const activeApp = this.getActiveApplication();
+            logger.info(`Cleared active application: ${activeApp?.name} (${this.storage.activeApplicationId})`);
+            this.storage.activeApplicationId = null;
+            await this.saveApplications();
+        }
+    }
+
+    /**
+     * Reorder applications
+     * @param orderedIds Array of application IDs in desired order
+     * @throws Error if any application ID is not found
+     */
+    async reorderApplications(orderedIds: string[]): Promise<void> {
+        // Validate all IDs exist
+        for (const id of orderedIds) {
+            if (!this.getApplication(id)) {
+                throw new Error(`Application with ID "${id}" not found`);
+            }
+        }
+
+        // Reorder applications by recreating the storage object
+        const newApplications: Record<string, YouTubeOAuthApplication> = {};
+
+        for (const id of orderedIds) {
+            newApplications[id] = this.storage.applications[id];
+        }
+
+        // Add any applications not in the ordered list (preserve them)
+        for (const [id, app] of Object.entries(this.storage.applications)) {
+            if (!newApplications[id]) {
+                newApplications[id] = app;
+            }
+        }
+
+        this.storage.applications = newApplications;
+        await this.saveApplications();
+
+        logger.info(`Reordered ${orderedIds.length} applications`);
+    }
+
+    /**
+     * Update application ready status
+     * @param id Application ID
+     * @param ready Ready status
+     * @param status Optional status message
+     */
+    async updateApplicationReadyStatus(id: string, ready: boolean, status?: string): Promise<void> {
+        const app = this.getApplication(id);
+        if (!app) {
+            logger.warn(`Attempted to update ready status for non-existent application: ${id}`);
+            return;
+        }
+
+        updateApplicationReadyStatus(app, ready, status);
+        this.storage.applications[id] = app;
+        await this.saveApplications();
+
+        // Clear active application if it became not ready
+        if (this.storage.activeApplicationId === id && !ready) {
+            this.storage.activeApplicationId = null;
+            await this.saveApplications();
+            logger.warn(`Cleared active application ${app.name} because it is no longer ready`);
+        }
+
+        logger.debug(`Updated ready status for ${app.name}: ${ready} (${status || app.status})`);
+    }
+
+    /**
+     * Validate all applications and update ready status
+     */
+    async validateAllApplications(): Promise<void> {
+        for (const app of this.getApplications()) {
+            // Applications without refresh tokens are not ready
+            if (!app.refreshToken) {
+                updateApplicationReadyStatus(app, false, "Authorization required");
+            } else {
+                // For now, assume applications with refresh tokens are ready
+                // In the future, this could validate the token
+                updateApplicationReadyStatus(app, true, "Ready");
+            }
+
+            this.storage.applications[app.id] = app;
+        }
+
+        await this.saveApplications();
+
+        // Clear active application if it's not ready
+        const activeApp = this.getActiveApplication();
+        if (activeApp && !isApplicationReady(activeApp)) {
+            this.storage.activeApplicationId = null;
+            logger.warn(`Cleared active application ${activeApp.name} because it is not ready`);
+        }
+    }
+
+    /**
+     * Get application storage (for external access)
+     * @returns Complete application storage
+     */
+    getStorage(): ApplicationStorage {
+        return { ...this.storage };
+    }
+
+    /**
+     * Load applications from file
+     */
+    private async loadApplications(): Promise<void> {
+        try {
+            const { fs } = firebot.modules;
+
+            if (!fs.existsSync(this.dataFilePath)) {
+                logger.debug("No applications data file found, starting with empty storage");
+                this.storage = {
+                    applications: {},
+                    activeApplicationId: null
+                };
+                return;
+            }
+
+            try {
+                const data = fs.readFileSync(this.dataFilePath, "utf8");
+                const parsed = JSON.parse(data) as ApplicationStorage;
+
+                // Validate loaded data
+                if (!parsed.applications || typeof parsed.applications !== "object") {
+                    throw new Error("Invalid applications data format");
+                }
+
+                this.storage = {
+                    applications: parsed.applications || {},
+                    activeApplicationId: parsed.activeApplicationId || null
+                };
+
+                logger.debug(`Loaded ${Object.keys(this.storage.applications).length} applications from storage`);
+            } catch (error: any) {
+                logger.error(`Failed to load applications data: ${error.message}`);
+                this.storage = {
+                    applications: {},
+                    activeApplicationId: null
+                };
+            }
+        } catch (error: any) {
+            logger.error(`Failed to load applications data: ${error.message}`);
+            this.storage = {
+                applications: {},
+                activeApplicationId: null
+            };
+        }
+    }
+
+    /**
+     * Save applications to file
+     */
+    private async saveApplications(): Promise<void> {
+        try {
+            const { fs } = firebot.modules;
+
+            // Create a clean copy for storage (exclude transient state)
+            const storageToSave: ApplicationStorage = {
+                applications: {},
+                activeApplicationId: this.storage.activeApplicationId
+            };
+
+            // Copy applications without transient state
+            for (const [id, app] of Object.entries(this.storage.applications)) {
+                storageToSave.applications[id] = {
+                    ...app,
+                    // Keep ready status and status as they reflect current state
+                    ready: app.ready,
+                    status: app.status
+                };
+            }
+
+            fs.writeFileSync(this.dataFilePath, JSON.stringify(storageToSave, null, 2));
+            logger.debug("Applications data saved successfully");
+        } catch (error: any) {
+            logger.error(`Failed to save applications data: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Get statistics about applications
+     * @returns Application statistics
+     */
+    getStatistics(): {
+        total: number;
+        ready: number;
+        notReady: number;
+        hasActive: boolean;
+    } {
+        const apps = this.getApplications();
+        const readyApps = apps.filter(app => isApplicationReady(app));
+
+        return {
+            total: apps.length,
+            ready: readyApps.length,
+            notReady: apps.length - readyApps.length,
+            hasActive: !!this.storage.activeApplicationId
+        };
+    }
+}
