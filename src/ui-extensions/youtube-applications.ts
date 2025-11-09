@@ -147,6 +147,49 @@ const youTubeDeleteConfirmation: AngularJsComponent = {
     }
 };
 
+const youTubeAuthorizeUrl: AngularJsComponent = {
+    name: "youTubeAuthorizeUrl",
+    bindings: {
+        authUrl: "<",
+        applicationName: "<",
+        cancelButton: "&"
+    },
+    template: `
+        <div id="youTubeAuthorizeUrl" class="modal-content" style="width:700px; min-height:unset; padding:5px 0; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div class="modal-header" style="text-align: center; width: 100%;">
+                <h3 class="modal-title">Authorize {{$ctrl.applicationName}}</h3>
+            </div>
+            <div class="modal-body" style="width: 100%; padding: 20px;">
+                <p>Follow these steps to authorize the <strong>{{$ctrl.applicationName}}</strong> application:</p>
+
+                <ol style="line-height: 1.8;">
+                    <li>Copy the URL below by clicking the "Copy URL" button</li>
+                    <li>Open your web browser and paste the URL into the address bar</li>
+                    <li>Sign in with your YouTube account and grant the necessary permissions</li>
+                    <li>You will be redirected back to Firebot with your authorization complete</li>
+                </ol>
+
+                <div style="border: 1px solid #ccc; border-radius: 4px; padding: 15px; margin: 20px 0;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: bold;">Authorization URL:</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="text" class="form-control" value="{{$ctrl.authUrl}}" readonly style="flex: 1;" id="authUrlInput" />
+                        <button class="btn btn-primary" onclick="document.getElementById('authUrlInput').select(); document.execCommand('copy');">
+                            <i class="fas fa-copy"></i> Copy URL
+                        </button>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; justify-content: center; width: 100%; margin-top: 20px;">
+                    <button class="btn btn-default" ng-click="$ctrl.cancelButton()">Close</button>
+                </div>
+            </div>
+        </div>
+    `,
+    controller: () => {
+        // No additional logic needed in the controller
+    }
+};
+
 const youTubeApplicationsPage: AngularJsPage = {
     id: "youTubeApplicationsPage",
     name: "YouTube Applications",
@@ -224,6 +267,13 @@ const youTubeApplicationsPage: AngularJsPage = {
                 save-button="saveButton(applicationId, applicationName, clientId, clientSecret, dailyQuota, maxStreamHours, overridePollingDelay, customPollingDelaySeconds)"
                 cancel-button="cancelButton()" />
         </div>
+
+        <div class="modal-body" ng-if="displayAuthorizeUrl">
+            <you-tube-authorize-url
+                auth-url="authUrl"
+                application-name="authorizeApplicationName"
+                cancel-button="cancelButton()" />
+        </div>
     `,
     controller: ($scope: any, backendCommunicator: any, youTubeApplicationsService: any, ngToast: any) => {
         $scope.applications = [];
@@ -238,6 +288,9 @@ const youTubeApplicationsPage: AngularJsPage = {
         $scope.customPollingDelaySeconds = -1;
         $scope.displayDeleteConfirmation = false;
         $scope.displayAddOrEditApplication = false;
+        $scope.displayAuthorizeUrl = false;
+        $scope.authUrl = "";
+        $scope.authorizeApplicationName = "";
 
         $scope.loadApplications = () => {
             const response = youTubeApplicationsService.getApplications();
@@ -360,8 +413,10 @@ const youTubeApplicationsPage: AngularJsPage = {
                 return;
             }
 
-            const authUrl = `/integrations/youtube-integration/link/${applicationId}/streamer`;
-            window.open(authUrl, '_blank', 'width=600,height=600');
+            $scope.cancelButton();
+            $scope.authUrl = `http://localhost:7472/integrations/mage-youtube-integration/link/${applicationId}/streamer`;
+            $scope.authorizeApplicationName = app.name;
+            $scope.displayAuthorizeUrl = true;
         };
 
         $scope.refreshButton = async () => {
@@ -422,6 +477,7 @@ const youTubeApplicationsPage: AngularJsPage = {
         $scope.cancelButton = () => {
             $scope.displayDeleteConfirmation = false;
             $scope.displayAddOrEditApplication = false;
+            $scope.displayAuthorizeUrl = false;
         };
 
         $scope.loadApplications();
@@ -436,7 +492,7 @@ export const youTubeApplicationsExtension: UIExtension = {
     id: "youTubeApplicationsExtension",
     pages: [youTubeApplicationsPage],
     providers: {
-        components: [youTubeAddOrEditApplication, youTubeDeleteConfirmation],
+        components: [youTubeAddOrEditApplication, youTubeAuthorizeUrl, youTubeDeleteConfirmation],
         factories: [youTubeApplicationsService]
     }
 };

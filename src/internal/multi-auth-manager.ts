@@ -188,7 +188,7 @@ export class MultiAuthManager {
             logger.info(`Application ${applicationId} authorized successfully`);
 
             res.status(200).send(
-                `<p>YouTube application "${app.name}" authorized! You can close this tab.</p><p>(Be sure to save the integration settings in Firebot if you have that window open.)</p>`
+                `<p>YouTube application "${app.name}" authorized! You can close this tab.</p>`
             );
 
         } catch (error: any) {

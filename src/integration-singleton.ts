@@ -446,7 +446,7 @@ export class YouTubeIntegration extends EventEmitter {
     private registerHttpEndpoints(httpServer: any): void {
         // Endpoint: /integrations/{prefix}/link/{appId}/streamer - Redirects to Google OAuth for specific app
         httpServer.registerCustomRoute(
-            IntegrationConstants.INTEGRATION_ID,
+            IntegrationConstants.INTEGRATION_URI,
             "link/:appId/streamer",
             "GET",
             this.handleLinkCallback.bind(this)
@@ -454,7 +454,7 @@ export class YouTubeIntegration extends EventEmitter {
 
         // Endpoint: /integrations/{prefix}/auth/callback - Handles OAuth callback for any app
         httpServer.registerCustomRoute(
-            IntegrationConstants.INTEGRATION_ID,
+            IntegrationConstants.INTEGRATION_URI,
             "auth/callback",
             "GET",
             this.handleAuthCallback.bind(this)
@@ -466,7 +466,8 @@ export class YouTubeIntegration extends EventEmitter {
      * Redirects user to Google OAuth consent screen for specific application
      */
     private async handleLinkCallback(req: any, res: any): Promise<void> {
-        const { appId } = req.params;
+        const { appid } = req.params; // It comes through as lowercase
+        const appId = appid as string;
 
         if (!appId) {
             res.status(400).send("Missing application ID");
