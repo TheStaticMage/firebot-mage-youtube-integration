@@ -299,6 +299,24 @@ export class MultiAuthManager {
     }
 
     /**
+     * Clear authorization for a specific application
+     * Removes the auth manager and clears refresh timers
+     * @param applicationId The ID of the application
+     */
+    clearApplicationAuth(applicationId: string): void {
+        // Remove auth manager
+        this.authManagers.delete(applicationId);
+
+        // Clear refresh timer
+        if (this.refreshTimers.has(applicationId)) {
+            clearTimeout(this.refreshTimers.get(applicationId));
+            this.refreshTimers.delete(applicationId);
+        }
+
+        logger.debug(`Cleared authorization for application ${applicationId}`);
+    }
+
+    /**
      * Cleanup resources
      */
     destroy(): void {

@@ -521,6 +521,9 @@ export class YouTubeIntegration extends EventEmitter {
 
         // Save updated applications data after callback
         this.saveApplicationsStorage();
+
+        // Reload application manager to reflect the updated ready status
+        await this.applicationManager.initialize();
     }
 
     /**
@@ -793,6 +796,44 @@ export class YouTubeIntegration extends EventEmitter {
                 return { success: true, applications: serializedMap };
             } catch (error: any) {
                 logger.error(`Error deleting application: ${error.message}`);
+                return { errorMessage: error.message };
+            }
+        });
+
+        // Deauthorize application
+        frontendCommunicator.onAsync('youTube:deauthorizeApplication', async (data: { applicationId: string }) => {
+            try {
+                const app = this.applicationManager.getApplication(data.applicationId);
+                if (!app) {
+                    throw new Error(`Application with ID "${data.applicationId}" not found`);
+                }
+
+                // Clear the refresh token and mark as not ready
+                app.refreshToken = "";
+                await this.applicationManager.updateApplicationReadyStatus(data.applicationId, false, "Authorization required");
+
+                // Clear the auth manager for this application
+                this.multiAuthManager.clearApplicationAuth(data.applicationId);
+
+                const applicationsMap = this.applicationManager.getApplications();
+                const serializedMap: Record<string, any> = {};
+                for (const [id, appData] of Object.entries(applicationsMap)) {
+                    serializedMap[id] = {
+                        id: appData.id,
+                        name: appData.name,
+                        ready: appData.ready,
+                        status: appData.status,
+                        quotaSettings: {
+                            dailyQuota: appData.quotaSettings.dailyQuota,
+                            maxStreamHours: appData.quotaSettings.maxStreamHours,
+                            overridePollingDelay: appData.quotaSettings.overridePollingDelay,
+                            customPollingDelaySeconds: appData.quotaSettings.customPollingDelaySeconds
+                        }
+                    };
+                }
+                return { success: true, applications: serializedMap };
+            } catch (error: any) {
+                logger.error(`Error deauthorizing application: ${error.message}`);
                 return { errorMessage: error.message };
             }
         });

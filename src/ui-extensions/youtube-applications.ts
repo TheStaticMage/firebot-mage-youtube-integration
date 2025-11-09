@@ -49,6 +49,11 @@ function youTubeApplicationsServiceFunction(backendCommunicator: any): any {
         return response;
     };
 
+    service.deauthorizeApplication = async (applicationId: string): Promise<any> => {
+        const response = await backendCommunicator.fireEventAsync("youTube:deauthorizeApplication", { applicationId });
+        return response;
+    };
+
     service.refreshApplicationStates = async (): Promise<any> => {
         return backendCommunicator.fireEventAsync("youTube:refreshApplicationStates", {});
     };
@@ -147,6 +152,35 @@ const youTubeDeleteConfirmation: AngularJsComponent = {
     }
 };
 
+const youTubeDeauthorizeConfirmation: AngularJsComponent = {
+    name: "youTubeDeauthorizeConfirmation",
+    bindings: {
+        applicationName: "<",
+        cancelButton: "&",
+        deauthorizeButton: "&"
+    },
+    template: `
+        <div id="youTubeDeauthorizeConfirmation" class="modal-content" style="width:600px; min-height:unset; padding:5px 0; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div class="modal-header" style="text-align: center; width: 100%;">
+                <h3 class="modal-title">Confirm Deauthorization</h3>
+            </div>
+            <div class="modal-body" style="text-align: center; width: 100%;">
+                <div class="form-group">
+                    <p>Are you sure you want to deauthorize the YouTube application "<strong>{{$ctrl.applicationName}}</strong>"?</p>
+                    <p class="muted">This will revoke the authorization and remove the stored credentials. You will need to re-authorize the application to use it again.</p>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: center; width: 100%; margin-top: 20px;">
+                    <button class="btn btn-default" ng-click="$ctrl.cancelButton()">Cancel</button>
+                    <button class="btn btn-warning" ng-click="$ctrl.deauthorizeButton()">Deauthorize</button>
+                </div>
+            </div>
+        </div>
+    `,
+    controller: () => {
+        // No additional logic needed in the controller
+    }
+};
+
 const youTubeAuthorizeUrl: AngularJsComponent = {
     name: "youTubeAuthorizeUrl",
     bindings: {
@@ -231,7 +265,8 @@ const youTubeApplicationsPage: AngularJsPage = {
                                 <span ng-if="app.id === activeApplicationId">Active</span>
                                 <span ng-if="app.id !== activeApplicationId">Activate</span>
                             </button>
-                            <button class="btn btn-sm btn-default" ng-click="authorizeButton(app.id)">Authorize</button>
+                            <button class="btn btn-sm btn-default" ng-click="authorizeButton(app.id)" ng-disabled="app.ready">Authorize</button>
+                            <button class="btn btn-sm btn-default" ng-click="deauthorizeButton(app.id)" ng-disabled="!app.ready">Deauthorize</button>
                             <button class="btn btn-sm btn-default" ng-click="editButton(app.id)">Edit</button>
                             <span uib-tooltip="Delete Application" tooltip-append-to-body="true" class="clickable" style="color:red;" ng-click="deleteButton(app.id)">
                                 <i class="fas fa-trash-alt"></i>
@@ -251,6 +286,13 @@ const youTubeApplicationsPage: AngularJsPage = {
             <you-tube-delete-confirmation
                 application-name="applicationName"
                 delete-button="deleteConfirm(applicationId)"
+                cancel-button="cancelButton()" />
+        </div>
+
+        <div class="modal-body" ng-if="displayDeauthorizeConfirmation">
+            <you-tube-deauthorize-confirmation
+                application-name="applicationName"
+                deauthorize-button="deauthorizeConfirm(deauthorizeApplicationId)"
                 cancel-button="cancelButton()" />
         </div>
 
@@ -287,10 +329,12 @@ const youTubeApplicationsPage: AngularJsPage = {
         $scope.overridePollingDelay = false;
         $scope.customPollingDelaySeconds = -1;
         $scope.displayDeleteConfirmation = false;
+        $scope.displayDeauthorizeConfirmation = false;
         $scope.displayAddOrEditApplication = false;
         $scope.displayAuthorizeUrl = false;
         $scope.authUrl = "";
         $scope.authorizeApplicationName = "";
+        $scope.deauthorizeApplicationId = "";
 
         $scope.loadApplications = () => {
             const response = youTubeApplicationsService.getApplications();
@@ -419,6 +463,43 @@ const youTubeApplicationsPage: AngularJsPage = {
             $scope.displayAuthorizeUrl = true;
         };
 
+        $scope.deauthorizeButton = (applicationId: string) => {
+            const app = $scope.applications.find((a: any) => a.id === applicationId);
+            if (!app) {
+                ngToast.create({
+                    className: 'danger',
+                    content: "Error: Application not found"
+                });
+                return;
+            }
+
+            $scope.cancelButton();
+            $scope.applicationName = app.name;
+            $scope.deauthorizeApplicationId = applicationId;
+            $scope.displayDeauthorizeConfirmation = true;
+        };
+
+        $scope.deauthorizeConfirm = async (applicationId: string) => {
+            const app = $scope.applications.find((a: any) => a.id === applicationId);
+
+            const response = await youTubeApplicationsService.deauthorizeApplication(applicationId);
+            if (response.errorMessage) {
+                ngToast.create({
+                    className: 'danger',
+                    content: `Error deauthorizing application: ${response.errorMessage}`
+                });
+                return;
+            }
+
+            ngToast.create({
+                className: 'success',
+                content: `Application "${app?.name}" deauthorized.`
+            });
+
+            $scope.displayDeauthorizeConfirmation = false;
+            $scope.loadApplications();
+        };
+
         $scope.refreshButton = async () => {
             const response = await youTubeApplicationsService.refreshApplicationStates();
             if (response.errorMessage) {
@@ -476,6 +557,7 @@ const youTubeApplicationsPage: AngularJsPage = {
 
         $scope.cancelButton = () => {
             $scope.displayDeleteConfirmation = false;
+            $scope.displayDeauthorizeConfirmation = false;
             $scope.displayAddOrEditApplication = false;
             $scope.displayAuthorizeUrl = false;
         };
@@ -492,7 +574,7 @@ export const youTubeApplicationsExtension: UIExtension = {
     id: "youTubeApplicationsExtension",
     pages: [youTubeApplicationsPage],
     providers: {
-        components: [youTubeAddOrEditApplication, youTubeAuthorizeUrl, youTubeDeleteConfirmation],
+        components: [youTubeAddOrEditApplication, youTubeAuthorizeUrl, youTubeDeleteConfirmation, youTubeDeauthorizeConfirmation],
         factories: [youTubeApplicationsService]
     }
 };
