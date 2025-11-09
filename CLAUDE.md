@@ -44,6 +44,7 @@ Conventions:
 - Build: Code and GRPC proto consolidated to one file with webpack (webpack file loaded by Firebot as startup script)
 - User ID: UserIDs from youtube are 'y' plus the given YouTube user ID
 - User name: Usernames from youtube are the given YouTube username plus '@youtube'
+- Files under `src/generated` are generated and must never be written by AI coding agents
 
 Things to check:
 

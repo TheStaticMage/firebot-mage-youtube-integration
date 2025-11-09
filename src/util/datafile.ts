@@ -7,7 +7,8 @@ import { firebot } from "../main";
  */
 export function getDataFilePath(filename: string): string {
     // scriptDataDir was added in Firebot 5.65
-    const { fs, path, scriptDataDir } = firebot.modules;
+    const { fs, path } = firebot.modules;
+    const { scriptDataDir } = firebot;
     const result = path.join(scriptDataDir, filename);
 
     const dir = path.dirname(result);

@@ -1,24 +1,29 @@
 /**
- * ChatStream Manager - Production Implementation
+ * Chat Manager - YouTube chat streaming and message handling
  *
  * Responsibilities:
- * - Stream YouTube chat messages using chatStream gRPC API
+ * - Stream YouTube chat messages using gRPC API
  * - Respect quota-based polling delays
  * - Emit Firebot events for each message
  * - Handle quota exceeded errors
  * - Detect when stream ends
+ *
+ * Supports multiple client implementations:
+ * - ChatStreamClient: Real-time streaming via ChatStream gRPC API
  */
 
-import { ChatStreamClient } from './chatstream-client';
-import { LiveChatMessage } from '../generated/proto/stream_list';
-import { QuotaManager } from './quota-manager';
-import { firebot } from '../main';
 import { IntegrationConstants } from '../constants';
-import { YouTubeChatMessageEvent } from '../events';
+import { YouTubeMessageTypeStrings } from '../constants';
+import { FirebotChatHelpers, mapYouTubeChatMessageToChat } from '../events/chat-message-sent';
+import { LiveChatMessage } from '../generated/proto/stream_list';
+import { firebot } from '../main';
+import { YouTubeUser } from '../types';
+import { QuotaManager } from './quota-manager';
+import type { YouTubeIntegration } from '../integration-singleton';
 
-export class ChatStreamManager {
-    private client: ChatStreamClient | null = null;
-    private chatStreaming = false;
+export class ChatManager {
+    private client: any = null;
+    private isStreaming = false;
     private liveChatId: string | null = null;
     private accessToken: string | null = null;
     private logger: any;
@@ -26,17 +31,21 @@ export class ChatStreamManager {
     private pollingDelaySeconds = 0;
     private nextPollTimer: NodeJS.Timeout | null = null;
     private pageToken: string | undefined;
+    private clientFactory: () => any;
+    private integration: YouTubeIntegration;
 
-    constructor(logger: any, quotaManager: QuotaManager) {
+    constructor(logger: any, quotaManager: QuotaManager, clientFactory: () => any, integration: YouTubeIntegration) {
         this.logger = logger;
         this.quotaManager = quotaManager;
+        this.clientFactory = clientFactory;
+        this.integration = integration;
     }
 
     /**
      * Start chat streaming for YouTube chat messages
      */
     async startChatStreaming(liveChatId: string, accessToken: string): Promise<void> {
-        if (this.chatStreaming) {
+        if (this.isStreaming) {
             this.logger.warn("Already streaming, stopping previous stream first");
             await this.stopChatStreaming();
         }
@@ -50,8 +59,8 @@ export class ChatStreamManager {
         this.pollingDelaySeconds = delay;
         this.liveChatId = liveChatId;
         this.accessToken = accessToken;
-        this.client = new ChatStreamClient();
-        this.chatStreaming = true;
+        this.client = this.clientFactory();
+        this.isStreaming = true;
         this.pageToken = undefined;
 
         this.logger.info(`Starting YouTube chat stream for: ${liveChatId}`);
@@ -65,7 +74,7 @@ export class ChatStreamManager {
      * Schedule the next poll after a delay
      */
     private scheduleNextPoll(delayMs: number): void {
-        if (!this.chatStreaming) {
+        if (!this.isStreaming) {
             return;
         }
 
@@ -81,9 +90,9 @@ export class ChatStreamManager {
                 // Check if it's a quota error
                 if (this.quotaManager.isQuotaExceededError(err)) {
                     this.logger.error("Quota exceeded error detected");
-                    this.chatStreaming = false;
+                    this.isStreaming = false;
                     // The integration-singleton will handle disconnection
-                } else if (this.chatStreaming) {
+                } else if (this.isStreaming) {
                     // On other errors, retry after delay
                     this.logger.warn(`Retrying after error in ${this.pollingDelaySeconds}s...`);
                     this.scheduleNextPoll(this.pollingDelaySeconds * 1000);
@@ -93,29 +102,29 @@ export class ChatStreamManager {
     }
 
     /**
-     * Perform a single poll of the streamList API
+     * Perform a single poll of the chat API
      */
     private async pollOnce(): Promise<void> {
-        if (!this.client || !this.liveChatId || !this.accessToken || !this.chatStreaming) {
+        if (!this.client || !this.liveChatId || !this.accessToken || !this.isStreaming) {
             return;
         }
 
-        // Each call is a new chatStreamList request
+        // Each call is a new chat API request
         for await (const response of this.client.chatStreamMessages(
             this.liveChatId,
             this.accessToken,
             { pageToken: this.pageToken }
         )) {
-            if (!this.chatStreaming) {
+            if (!this.isStreaming) {
                 return;
             }
 
-            this.logger.debug(`[ChatStreamList Poll] Messages: ${response.items?.length || 0}`);
+            this.logger.debug(`[Chat Poll] Messages: ${response.items?.length || 0}`);
 
             // Process messages
             if (response.items && response.items.length > 0) {
                 for (const message of response.items) {
-                    this.handleMessage(message);
+                    await this.handleMessage(message);
                 }
             }
 
@@ -127,13 +136,13 @@ export class ChatStreamManager {
             // Check if stream ended
             if (response.offlineAt) {
                 this.logger.info("YouTube stream ended (offline)");
-                this.chatStreaming = false;
+                this.isStreaming = false;
                 return;
             }
         }
 
         // Schedule next poll after delay
-        if (this.chatStreaming) {
+        if (this.isStreaming) {
             this.logger.debug(`Scheduling next poll in ${this.pollingDelaySeconds}s`);
             this.scheduleNextPoll(this.pollingDelaySeconds * 1000);
         }
@@ -141,34 +150,68 @@ export class ChatStreamManager {
 
     /**
      * Handle a single chat message
-     * Emits Firebot event for each message
+     * Processes message and emits Firebot event
      */
-    private handleMessage(message: LiveChatMessage): void {
+    async handleMessage(message: LiveChatMessage): Promise<void> {
         try {
-            const username = message.authorDetails?.displayName || "Unknown";
-            const text = message.snippet?.displayMessage ||
+            const messageText = message.snippet?.displayMessage ||
                         message.snippet?.textMessageDetails?.messageText ||
-                        "[No text]";
+                        "";
             const messageType = this.getMessageType(message.snippet?.type);
 
-            // Log to console
-            this.logger.info(`[YouTube Chat] ${username}: ${text} (${messageType})`);
+            // Only process text messages for now
+            if (messageType !== "text" || !messageText) {
+                return;
+            }
 
-            // Create event metadata
-            const eventData: YouTubeChatMessageEvent = {
-                username,
-                message: text,
-                messageType,
-                rawMessage: message
+            // Create a broadcaster object (we would need to get this from the stream context)
+            // For now, use a placeholder that would be set from the integration context
+            const broadcaster: YouTubeUser = {
+                userId: "unknown",
+                username: "Broadcaster",
+                displayName: "Broadcaster",
+                isVerified: false,
+                profilePicture: ""
             };
 
-            // Emit Firebot event
+            // Map YouTube API response to our ChatMessage type
+            const chatMessage = mapYouTubeChatMessageToChat(message, broadcaster);
+
+            // Build Firebot chat message
+            const helpers = new FirebotChatHelpers();
+            const firebotChatMessage = await helpers.buildFirebotChatMessage(chatMessage, messageText);
+
+            // Get roles for this user
+            const twitchBadgeRoles = helpers.getTwitchRoles(chatMessage.sender.identity);
+
+            // Log to console
+            this.logger.info(`[YouTube Chat] ${firebotChatMessage.username}: ${messageText} (${messageType})`);
+            this.logger.debug(`User roles: ${twitchBadgeRoles.join(", ")}`);
+
+            // Emit Firebot event with full chat message
             const { eventManager } = firebot.modules;
+            const metadata = {
+                username: firebotChatMessage.username,
+                userId: firebotChatMessage.userId,
+                userDisplayName: firebotChatMessage.userDisplayName,
+                twitchUserRoles: twitchBadgeRoles,
+                messageText: firebotChatMessage.rawText,
+                messageId: firebotChatMessage.id,
+                chatMessage: firebotChatMessage,
+                platform: "youtube"
+            };
+
             eventManager.triggerEvent(
                 IntegrationConstants.INTEGRATION_ID,
                 "chat-message",
-                eventData as unknown as Record<string, unknown>
+                metadata as unknown as Record<string, unknown>
             );
+
+            // Send to the chat feed
+            if (this.integration.isChatFeedEnabled()) {
+                const { frontendCommunicator } = firebot.modules;
+                frontendCommunicator.send("twitch:chat:message", firebotChatMessage);
+            }
 
         } catch (error: any) {
             this.logger.error(`Error handling message: ${error.message}`);
@@ -179,14 +222,7 @@ export class ChatStreamManager {
      * Get human-readable message type
      */
     private getMessageType(type?: number): string {
-        const typeMap: Record<number, string> = {
-            1: "text",
-            15: "superChat",
-            16: "superSticker",
-            7: "newSponsor",
-            17: "memberMilestone"
-        };
-        return type ? (typeMap[type] || "other") : "unknown";
+        return type ? (YouTubeMessageTypeStrings[type as keyof typeof YouTubeMessageTypeStrings] || "other") : "unknown";
     }
 
     /**
@@ -194,7 +230,7 @@ export class ChatStreamManager {
      */
     async stopChatStreaming(): Promise<void> {
         this.logger.info("Stopping YouTube chat stream");
-        this.chatStreaming = false;
+        this.isStreaming = false;
 
         // Cancel any pending poll
         if (this.nextPollTimer) {
@@ -212,6 +248,6 @@ export class ChatStreamManager {
      * Check if currently chat streaming
      */
     isChatStreaming(): boolean {
-        return this.chatStreaming;
+        return this.isStreaming;
     }
 }
