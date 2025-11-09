@@ -22,7 +22,8 @@ export const IntegrationConstants = {
     INTEGRATION_DESCRIPTION: "A preliminary, experimental, and generally not-recommended YouTube integration for Firebot.",
     INTEGRATION_URI: "mage-youtube-integration",
     YOUTUBE_SCOPES: [
-        "https://www.googleapis.com/auth/youtube.readonly",
+        "https://www.googleapis.com/auth/youtube",
         "https://www.googleapis.com/auth/youtube.force-ssl"
-    ]
+    ],
+    YOUTUBE_CHAT_MESSAGE_CHARACTER_LIMIT: 200 // Hard limit, determined by testing
 } as const;

@@ -7,8 +7,10 @@ import { BroadcastManager } from "./internal/broadcast-manager";
 import { ChatManager } from "./internal/chat-manager";
 import { ChatStreamClient } from "./internal/chatstream-client";
 import { QuotaManager } from "./internal/quota-manager";
+import { RestApiClient } from "./internal/rest-api-client";
 import { firebot, logger } from "./main";
 import { getDataFilePath } from "./util/datafile";
+import { chatEffect } from "./effects/chat";
 
 type IntegrationParameters = {
     googleApp: {
@@ -55,6 +57,7 @@ export class YouTubeIntegration extends EventEmitter {
     private broadcastManager: BroadcastManager = new BroadcastManager();
     private quotaManager: QuotaManager = new QuotaManager();
     private chatManager: ChatManager | null = null;
+    private restApiClient: RestApiClient = new RestApiClient();
 
     // Stream monitoring
     private streamCheckInterval: NodeJS.Timeout | null = null;
@@ -129,6 +132,39 @@ export class YouTubeIntegration extends EventEmitter {
         );
 
         logger.info("OAuth HTTP endpoints registered");
+
+        // Register frontend communicator listeners
+        const { frontendCommunicator } = firebot.modules;
+        frontendCommunicator.on('mage-youtube-integration:getCharacterLimit', () => {
+            return IntegrationConstants.YOUTUBE_CHAT_MESSAGE_CHARACTER_LIMIT;
+        });
+        frontendCommunicator.on('mage-youtube-integration:log', (data: { level: string; message: string }) => {
+            const level = data.level || "info";
+            const message = data.message || "";
+
+            switch (level) {
+                case "debug":
+                    logger.debug(message);
+                    break;
+                case "info":
+                    logger.info(message);
+                    break;
+                case "warn":
+                    logger.warn(message);
+                    break;
+                case "error":
+                    logger.error(message);
+                    break;
+                default:
+                    logger.info(message);
+                    break;
+            }
+        });
+        logger.info("Frontend communicator listeners registered");
+
+        // Register effects
+        const { effectManager } = firebot.modules;
+        effectManager.registerEffect(chatEffect);
 
         // Load integration data file (refresh token)
         this.dataFilePath = getDataFilePath("integration-data.json");
@@ -324,6 +360,18 @@ export class YouTubeIntegration extends EventEmitter {
 
     getSettings(): IntegrationParameters {
         return this.settings;
+    }
+
+    getRestApiClient(): RestApiClient {
+        return this.restApiClient;
+    }
+
+    getCurrentLiveChatId(): string | null {
+        return this.currentLiveChatId;
+    }
+
+    getAuthManager(): AuthManager {
+        return this.authManager;
     }
 
     sendCriticalErrorNotification(message: string) {
