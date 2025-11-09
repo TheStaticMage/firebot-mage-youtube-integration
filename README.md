@@ -22,7 +22,7 @@ _Effects are calls to the YouTube API made by Firebot as a result of event handl
 
 | Effect | Supported | Notes |
 | ------ | --------- | ----- |
-| Chat (send message) | Planned | Chat as streamer account |
+| Chat (send message) | :white_check_mark: | |
 
 ### Events
 

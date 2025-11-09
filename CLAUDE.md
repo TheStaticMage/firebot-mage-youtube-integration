@@ -14,9 +14,12 @@ Key features:
 - Chat message retrieval targeted to consume no more than 80% of daily API request quota
 - Uses streamList GRPC endpoint to reduce API quota usage
 - Chat messages from YouTube show up in Firebot chat feed (dashboard)
+- Chat (YouTube) effect that posts message into YouTube chat
 
 TODO:
 
+- Determine the actual current limit on chat message length
+- Message chunking for long messages due to overly restrictive character limit
 - Messages typed in Firebot chat feed are sent to YouTube chat
 - Create platform independent library for Twitch, Kick, YouTube supporting chat, username standardization, etc.
 - Handle commands sent via YouTube messages
@@ -28,12 +31,34 @@ TODO:
 - Indicate YouTube broadcaster in chat feed
 - Do not display YouTube messages in chat feed or trigger events for messages before Firebot started
 - Effects to change polling interval for YouTube messages (e.g. poll more frequently at times)
+- Support multiple YouTube applications
+  - Move configuration (client ID, client secret) and OAuth to a UI Extension
+  - One configuration selected as default
+  - Create Firebot effect to change active YouTube configuration
+  - Select active YouTube configuration in UI Extension
+  - Firebot variable indicating active YouTube configuration
+- Enhanced quota management
+  - Every API call records the number of quota units consumed
+  - Track quota units consumed between Firebot sessions
+  - Reset available quota units at 00:00 Pacific time
+  - Add Firebot variables for quota units used, quota units remaining
+  - Add Firebot event for YouTube quota threshold reached (e.g. trigger event when quota use first exceeds 80%)
+  - Documentation for quota management
+    - Explanation of YouTube quotas like:
+      - <https://github.com/ThioJoe/YT-Spammer-Purge/wiki/Understanding-YouTube-API-Quota-Limits>
+      - <https://www.getphyllo.com/post/youtube-api-limits-how-to-calculate-api-usage-cost-and-fix-exceeded-api-quota>
+    - Explanation of why Kick and Twitch don't have this problem (they have webhooks and EventSub not polling)
+- Bot account support
+- Reply functionality (if YouTube API adds support)
+- Retry logic on sending chat messages for transient failures
+- Rate limiting to prevent quota exhaustion
 
 Tech: TypeScript, Jest
 
 Learnings:
 
 - Default daily YouTube API request quota is 10000
+- Message length limit for chat messages is 200 characters
 - streamList endpoint returns after 10 seconds if no chat messages
 - Each call to streamList endpoint counts as 5 API requests
 - streamList endpoint is relatively new so lack of example usage in open source projects does NOT imply it should be avoided
@@ -49,6 +74,7 @@ Conventions:
 - User ID: UserIDs from youtube are 'y' plus the given YouTube user ID
 - User name: Usernames from youtube are the given YouTube username plus '@youtube'
 - Files under `src/generated` are generated and must never be written by AI coding agents
+- Import the YouTube API as: `import { youtube_v3 as youtubeV3 } from "@googleapis/youtube";`
 
 Things to check:
 
