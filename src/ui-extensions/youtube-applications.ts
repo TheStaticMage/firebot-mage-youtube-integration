@@ -461,6 +461,30 @@ const youTubeApplicationsPage: AngularJsPage = {
             $scope.authUrl = `http://localhost:7472/integrations/mage-youtube-integration/link/${applicationId}/streamer`;
             $scope.authorizeApplicationName = app.name;
             $scope.displayAuthorizeUrl = true;
+
+            // Set up polling to detect when authorization is complete
+            const pollInterval = setInterval(() => {
+                const applicationsResponse = youTubeApplicationsService.getApplications();
+                if (applicationsResponse && applicationsResponse.applications) {
+                    const authorizedApp = applicationsResponse.applications[applicationId];
+                    if (authorizedApp && authorizedApp.ready) {
+                        // Authorization is complete, refresh the app list and close modal
+                        clearInterval(pollInterval);
+                        $scope.cancelButton();
+                        $scope.loadApplications();
+
+                        ngToast.create({
+                            className: 'success',
+                            content: `Application "${app.name}" authorized successfully!`
+                        });
+                    }
+                }
+            }, 1000); // Poll every 1 second
+
+            // Stop polling after 10 minutes
+            setTimeout(() => {
+                clearInterval(pollInterval);
+            }, 10 * 60 * 1000);
         };
 
         $scope.deauthorizeButton = (applicationId: string) => {
