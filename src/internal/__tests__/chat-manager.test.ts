@@ -30,12 +30,33 @@ const mockLogger = {
 
 // Mock quota manager
 const mockQuotaManager = {
+    calculateDelay: jest.fn(() => 10), // Return 10 seconds as default delay
     isQuotaExceededError: jest.fn(() => false)
 } as unknown as QuotaManager;
 
 // Mock integration
 const mockIntegration = {
-    isChatFeedEnabled: jest.fn(() => true)
+    isChatFeedEnabled: jest.fn(() => true),
+    getApplicationsStorage: jest.fn(() => ({
+        applications: {
+            'test-app-id': {
+                id: 'test-app-id',
+                name: 'Test App',
+                clientId: 'test-client-id',
+                clientSecret: 'test-client-secret',
+                refreshToken: 'test-refresh-token',
+                quotaSettings: {
+                    dailyQuota: 10000,
+                    maxStreamHours: 8,
+                    overridePollingDelay: false,
+                    customPollingDelaySeconds: -1
+                },
+                ready: true,
+                status: 'Ready'
+            }
+        },
+        activeApplicationId: 'test-app-id'
+    }))
 } as any;
 
 // Mock client factory

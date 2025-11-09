@@ -50,8 +50,19 @@ export class ChatManager {
             await this.stopChatStreaming();
         }
 
+        // Get active application's quota settings
+        const applicationsStorage = this.integration.getApplicationsStorage();
+        if (!applicationsStorage.activeApplicationId) {
+            throw new Error("No active application set");
+        }
+
+        const activeApplication = applicationsStorage.applications[applicationsStorage.activeApplicationId];
+        if (!activeApplication) {
+            throw new Error("Active application not found");
+        }
+
         // Calculate polling delay
-        const delay = this.quotaManager.calculateDelay();
+        const delay = this.quotaManager.calculateDelay(activeApplication.quotaSettings);
         if (delay === null) {
             throw new Error("Invalid quota settings. Cannot calculate polling delay.");
         }
