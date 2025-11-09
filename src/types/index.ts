@@ -42,3 +42,35 @@ export interface LivestreamStatusUpdated {
     startedAt?: Date;
     endedAt?: Date;
 }
+
+/**
+ * Quota settings for a YouTube OAuth application
+ */
+export interface QuotaSettings {
+    dailyQuota: number;
+    maxStreamHours: number;
+    overridePollingDelay: boolean;
+    customPollingDelaySeconds: number;
+}
+
+/**
+ * YouTube OAuth application configuration
+ */
+export interface YouTubeOAuthApplication {
+    id: string;
+    name: string;
+    clientId: string;
+    clientSecret: string;
+    refreshToken: string;
+    quotaSettings: QuotaSettings;
+    ready: boolean; // Indicates connection has a valid token
+    status: string; // Human readable status message from last connection attempt
+}
+
+/**
+ * Application storage interface for managing multiple OAuth applications
+ */
+export interface ApplicationStorage {
+    applications: Record<string, YouTubeOAuthApplication>;
+    activeApplicationId: string | null;
+}
