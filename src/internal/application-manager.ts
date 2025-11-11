@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "crypto";
 import { firebot, logger } from "../main";
 import { ApplicationStorage, QuotaSettings, YouTubeOAuthApplication } from "../types";
 import { getDataFilePath } from "../util/datafile";
@@ -142,7 +142,7 @@ export class ApplicationManager {
         }
 
         // Create new application
-        const newApp = createApplication(uuidv4(), name.trim());
+        const newApp = createApplication(randomUUID(), name.trim());
         newApp.clientId = clientId.trim();
         newApp.clientSecret = clientSecret.trim();
 
