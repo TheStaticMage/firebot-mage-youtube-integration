@@ -557,8 +557,7 @@ const youTubeApplicationsPage: AngularJsPage = {
                     overridePollingDelay: overridePollingDelay,
                     customPollingDelaySeconds: customPollingDelaySeconds
                 },
-                ready: false,
-                status: ""
+                ready: false
             };
 
             const response = await youTubeApplicationsService.saveApplication(applicationId, application);
@@ -590,6 +589,25 @@ const youTubeApplicationsPage: AngularJsPage = {
 
         backendCommunicator.on("youTube:applicationsUpdated", () => {
             $scope.loadApplications();
+        });
+
+        // Listen for application status changes
+        backendCommunicator.on("youTube:applicationStatusChanged", (data: any) => {
+            // Reload applications to reflect status changes
+            $scope.loadApplications();
+
+            // Optionally show a toast notification
+            if (data.ready) {
+                ngToast.create({
+                    className: 'success',
+                    content: `Application "${data.name}" is now ready.`
+                });
+            } else {
+                ngToast.create({
+                    className: 'warning',
+                    content: `Application "${data.name}" is no longer ready: ${data.status}`
+                });
+            }
         });
     }
 };

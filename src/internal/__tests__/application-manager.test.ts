@@ -29,7 +29,7 @@ jest.mock("../../util/datafile", () => ({
 jest.mock("../application-utils", () => ({
     isApplicationReady: jest.fn(app => app.ready),
     updateApplicationReadyStatus: jest.fn(),
-    getApplicationStatusMessage: jest.fn(app => app.status || "Unknown"),
+    getApplicationStatusMessage: jest.fn(app => app.ready ? "Ready" : "Awaiting connection"),
     validateApplication: jest.fn(app => !!(app.id && app.name && app.clientId && app.clientSecret)),
     createApplication: jest.fn((id, name) => ({
         id,
@@ -236,7 +236,6 @@ describe("ApplicationManager", () => {
             expect(app.clientSecret).toBe("secret1");
             expect(app.quotaSettings).toEqual(mockQuotaSettings);
             expect(app.ready).toBe(false);
-            expect(app.status).toBe("Authorization required");
         });
 
         it("should trim whitespace from inputs", async () => {
@@ -550,7 +549,9 @@ describe("ApplicationManager", () => {
             await applicationManager.validateAllApplications();
 
             const { updateApplicationReadyStatus: mockUpdateReadyStatus } = require("../application-utils");
-            expect(mockUpdateReadyStatus).toHaveBeenCalledWith(apps[0], true, "Ready");
+            // Both applications should be marked as not ready on startup
+            // Apps with tokens: "Awaiting connection", apps without tokens: "Authorization required"
+            expect(mockUpdateReadyStatus).toHaveBeenCalledWith(apps[0], false, "Awaiting connection");
             expect(mockUpdateReadyStatus).toHaveBeenCalledWith(apps[1], false, "Authorization required");
         });
 

@@ -315,11 +315,16 @@ export class ApplicationManager {
             logger.warn(`Cleared active application ${app.name} because it is no longer ready`);
         }
 
-        logger.debug(`Updated ready status for ${app.name}: ${ready} (${status || app.status})`);
+        logger.debug(`Updated ready status for ${app.name}: ${ready}${status ? ` - ${status}` : ""}`);
+
+        // Notify UI of status change
+        this.notifyApplicationStatusChange(id, app);
     }
 
     /**
      * Validate all applications and update ready status
+     * Applications are only ready when the integration is connected and a token has been obtained.
+     * During initialization, all applications are marked as not ready.
      */
     async validateAllApplications(): Promise<void> {
         for (const app of Object.values(this.getApplications())) {
@@ -327,9 +332,8 @@ export class ApplicationManager {
             if (!app.refreshToken) {
                 updateApplicationReadyStatus(app, false, "Authorization required");
             } else {
-                // For now, assume applications with refresh tokens are ready
-                // In the future, this could validate the token
-                updateApplicationReadyStatus(app, true, "Ready");
+                // Mark as not ready on startup. It will be marked ready when the integration connects.
+                updateApplicationReadyStatus(app, false, "Awaiting connection");
             }
 
             this.storage.applications[app.id] = app;
@@ -337,11 +341,11 @@ export class ApplicationManager {
 
         await this.saveApplications();
 
-        // Clear active application if it's not ready
-        const activeApp = this.getActiveApplication();
-        if (activeApp && !isApplicationReady(activeApp)) {
+        // Clear active application - it needs to be re-selected after connecting
+        if (this.storage.activeApplicationId) {
+            logger.warn(`Clearing active application on startup - will be restored after connection`);
             this.storage.activeApplicationId = null;
-            logger.warn(`Cleared active application ${activeApp.name} because it is not ready`);
+            await this.saveApplications();
         }
     }
 
@@ -417,9 +421,8 @@ export class ApplicationManager {
             for (const [id, app] of Object.entries(this.storage.applications)) {
                 storageToSave.applications[id] = {
                     ...app,
-                    // Keep ready status and status as they reflect current state
-                    ready: app.ready,
-                    status: app.status
+                    // Keep ready status as it reflects current state
+                    ready: app.ready
                 };
             }
 
@@ -451,5 +454,19 @@ export class ApplicationManager {
             notReady: apps.length - readyApps.length,
             hasActive: !!this.storage.activeApplicationId
         };
+    }
+
+    /**
+     * Notify integration about application status change
+     */
+    private notifyApplicationStatusChange(id: string, app: YouTubeOAuthApplication): void {
+        try {
+            const { integration } = require("../integration-singleton");
+            if (integration && integration.notifyApplicationStatusChange) {
+                integration.notifyApplicationStatusChange(id, app);
+            }
+        } catch (error: any) {
+            logger.error(`Failed to notify application status change: ${error.message}`);
+        }
     }
 }

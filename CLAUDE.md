@@ -67,7 +67,6 @@ Conventions:
 
 - TypeScript: camelCase, PascalCase classes, satisfies eslint rules defined in package
 - "YouTube": Capitalize as "YouTube" (or "youTube" in variable names or functions starting with "youTube")
-- Unit tests: Use jest, put in `__tests__` subdirectory under where the functions under test reside
 - Logging: Provide observability via logger.debug
 - Documentation: In Markdown, placed in `docs` directory, referenced from `README.md`, satisfies markdownlint
 - Build: Code and GRPC proto consolidated to one file with webpack (webpack file loaded by Firebot as startup script)
@@ -75,10 +74,19 @@ Conventions:
 - User name: Usernames from youtube are the given YouTube username plus '@youtube'
 - Files under `src/generated` are generated and must never be written by AI coding agents
 - Import the YouTube API as: `import { youtube_v3 as youtubeV3 } from "@googleapis/youtube";`
+- No emojis in log messages or code comments
+- Emojis are acceptable in documentation but must use GitHub markdown emojis (e.g. `:white_check_mark:`)
+- No emdashes anywhere (code, comments, or documentation)
+
+Tests:
+
+- Unit tests: Use jest, put in `__tests__` subdirectory under where the functions under test reside
+- Test only the `onTriggerEvent` method of effects
 
 Things to check:
 
 - `IntegrationDefinition` in `src/integration.ts` should align with `IntegrationParameters` in `src/integration-singleton.ts`
+- Run `npm run build:dev` after each significant iteration to verify compilation
 
 Notes:
 

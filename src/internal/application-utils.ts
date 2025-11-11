@@ -21,20 +21,14 @@ export function isApplicationReady(app: YouTubeOAuthApplication): boolean {
  *
  * @param app The application to update
  * @param refreshSuccess Whether the token refresh was successful
- * @param errorMessage Optional error message if refresh failed
+ * @param errorMessage Optional error message (not stored, only for logging)
  */
 export function updateApplicationReadyStatus(
     app: YouTubeOAuthApplication,
     refreshSuccess: boolean,
     errorMessage?: string
 ): void {
-    if (refreshSuccess) {
-        app.ready = true;
-        app.status = "Ready";
-    } else {
-        app.ready = false;
-        app.status = errorMessage || "Authentication failed";
-    }
+    app.ready = refreshSuccess;
 }
 
 /**
@@ -44,15 +38,32 @@ export function updateApplicationReadyStatus(
  * @returns Human-readable status string
  */
 export function getApplicationStatusMessage(app: YouTubeOAuthApplication): string {
-    if (app.status) {
-        return app.status;
-    }
-
     if (!app.refreshToken) {
         return "Authorization required";
     }
 
-    return app.ready ? "Ready" : "Not ready";
+    if (app.ready && app.tokenExpiresAt) {
+        // Format token expiration time in YYYY-MM-DD HH:mm:ss format (24-hour)
+        const expiresAt = new Date(app.tokenExpiresAt);
+        const year = expiresAt.getFullYear();
+        const month = String(expiresAt.getMonth() + 1).padStart(2, "0");
+        const day = String(expiresAt.getDate()).padStart(2, "0");
+        const hours = String(expiresAt.getHours()).padStart(2, "0");
+        const minutes = String(expiresAt.getMinutes()).padStart(2, "0");
+        const seconds = String(expiresAt.getSeconds()).padStart(2, "0");
+        const dateTimeStr = `${year}-${month}-${day} at ${hours}:${minutes}:${seconds}`;
+        return `Ready - Token expires ${dateTimeStr}`;
+    }
+
+    if (app.ready) {
+        return "Ready";
+    }
+
+    if (app.refreshToken) {
+        return "Awaiting connection";
+    }
+
+    return "Not ready";
 }
 
 /**
@@ -89,7 +100,6 @@ export function createApplication(id: string, name: string): YouTubeOAuthApplica
             overridePollingDelay: false,
             customPollingDelaySeconds: -1
         },
-        ready: false,
-        status: "Authorization required"
+        ready: false
     };
 }

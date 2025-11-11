@@ -24,12 +24,15 @@ export class MultiAuthManager {
      * @param applications Array of YouTube OAuth applications
      */
     async initialize(applications: YouTubeOAuthApplication[]): Promise<void> {
-        logger.debug(`Initializing MultiAuthManager with ${applications.length} applications`);
+        logger.info(`Initializing MultiAuthManager with ${applications.length} application(s)`);
 
         // Clear existing timers and managers
         this.clearAllTimers();
         this.authManagers.clear();
         this.applications.clear();
+
+        let authorizedCount = 0;
+        let unauthorizedCount = 0;
 
         // Create managers and schedule refresh for each application
         for (const app of applications) {
@@ -39,15 +42,19 @@ export class MultiAuthManager {
                 const manager = new ApplicationAuthManager(app);
                 this.authManagers.set(app.id, manager);
 
-                // Schedule refresh for this application
+                // Schedule refresh for this application (automatic background refresh every ~50 minutes)
                 this.scheduleRefreshForApplication(app);
+                authorizedCount++;
+                logger.debug(`Application "${app.name}" (${app.id}) - scheduled for background token refresh`);
             } else {
                 // Application without refresh token is not ready
                 updateApplicationReadyStatus(app, false, "Authorization required");
+                unauthorizedCount++;
+                logger.debug(`Application "${app.name}" (${app.id}) - awaiting authorization`);
             }
         }
 
-        logger.info(`MultiAuthManager initialized with ${this.authManagers.size} applications having refresh tokens`);
+        logger.info(`MultiAuthManager initialized: ${authorizedCount} authorized application(s) with automatic refresh, ${unauthorizedCount} awaiting authorization`);
     }
 
     /**
@@ -175,7 +182,6 @@ export class MultiAuthManager {
             // Update application with new tokens
             app.refreshToken = tokens.refresh_token;
             app.ready = true;
-            app.status = "Ready";
 
             // Create or update auth manager
             const manager = new ApplicationAuthManager(app);
@@ -206,21 +212,26 @@ export class MultiAuthManager {
         // Clear existing timer for this application
         if (this.refreshTimers.has(app.id)) {
             clearTimeout(this.refreshTimers.get(app.id));
+            logger.debug(`Cleared existing refresh timer for application "${app.name}" (${app.id})`);
         }
 
-        // Schedule next refresh (50 minutes)
+        // Schedule next refresh (50 minutes = 3000 seconds)
+        const refreshInterval = 50 * 60 * 1000;
+        const refreshTime = new Date(Date.now() + refreshInterval);
+
         const timer = setTimeout(async () => {
             await this.refreshApplicationToken(app.id);
-            // Reschedule next refresh
+            // Reschedule next refresh for this application
             this.scheduleRefreshForApplication(app);
-        }, 50 * 60 * 1000); // 50 minutes
+        }, refreshInterval);
 
         this.refreshTimers.set(app.id, timer);
-        logger.debug(`Token refresh scheduled for application ${app.id} at ${new Date(Date.now() + 50 * 60 * 1000).toISOString()}`);
+        logger.info(`Token refresh scheduled for application "${app.name}" (${app.id}) at ${refreshTime.toISOString()}`);
     }
 
     /**
      * Refresh token for a specific application
+     * Can be called manually or by the automatic refresh scheduler
      * @param applicationId The ID of the application to refresh
      */
     async refreshApplicationToken(applicationId: string): Promise<void> {
@@ -232,13 +243,29 @@ export class MultiAuthManager {
             return;
         }
 
+        logger.debug(`Starting automatic token refresh for application "${app.name}" (${applicationId})`);
+
         try {
             await manager.refreshAccessToken();
             updateApplicationReadyStatus(app, true);
-            logger.debug(`Token refreshed successfully for application ${applicationId}`);
+            logger.info(`Token refreshed successfully for application "${app.name}" (${applicationId}). Valid until: ${new Date(Date.now() + 3600000).toISOString()}`);
+
+            // Notify UI of status change
+            this.notifyApplicationStatusChange(applicationId, app);
         } catch (error: any) {
-            logger.error(`Failed to refresh token for application ${applicationId}: ${error.message}`);
+            logger.error(`Failed to refresh token for application "${app.name}" (${applicationId}): ${error.message}`);
             updateApplicationReadyStatus(app, false, error.message);
+
+            // Log detailed error information for debugging
+            if (error.code) {
+                logger.debug(`Error code: ${error.code}`);
+            }
+            if (error.response?.data) {
+                logger.debug(`Error details: ${JSON.stringify(error.response.data)}`);
+            }
+
+            // Notify UI of status change
+            this.notifyApplicationStatusChange(applicationId, app);
         }
     }
 
@@ -317,6 +344,20 @@ export class MultiAuthManager {
     }
 
     /**
+     * Notify integration about application status change
+     */
+    private notifyApplicationStatusChange(applicationId: string, app: YouTubeOAuthApplication): void {
+        try {
+            const { integration } = require("../integration-singleton");
+            if (integration && integration.notifyApplicationStatusChange) {
+                integration.notifyApplicationStatusChange(applicationId, app);
+            }
+        } catch (error: any) {
+            logger.error(`Failed to notify application status change: ${error.message}`);
+        }
+    }
+
+    /**
      * Cleanup resources
      */
     destroy(): void {
@@ -346,6 +387,7 @@ class ApplicationAuthManager {
         this.accessToken = tokens.access_token || "";
         this.application.refreshToken = tokens.refresh_token || this.application.refreshToken;
         this.tokenExpiresAt = tokens.expiry_date || Date.now() + 3600000; // Default 1 hour
+        this.application.tokenExpiresAt = this.tokenExpiresAt;
     }
 
     /**
@@ -395,6 +437,7 @@ class ApplicationAuthManager {
             }
 
             this.tokenExpiresAt = credentials.expiry_date || Date.now() + 3600000; // Default 1 hour
+            this.application.tokenExpiresAt = this.tokenExpiresAt;
 
             logger.debug(`Access token refreshed for application ${this.application.id}. Valid until: ${new Date(this.tokenExpiresAt).toISOString()}`);
         } catch (error: any) {

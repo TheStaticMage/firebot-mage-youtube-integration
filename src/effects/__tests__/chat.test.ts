@@ -50,26 +50,9 @@ describe("YouTube Chat Effect", () => {
         const mockSendDataToOverlay = jest.fn();
         const mockAbortSignal = new AbortController().signal;
 
-        it("should return false when no live chat ID is available", async () => {
-            (integration.getCurrentLiveChatId as jest.Mock).mockReturnValue(null);
-
-            const effect = { message: "Test message", chatter: "Streamer" as const };
-            const result = await chatEffect.onTriggerEvent({
-                trigger: mockTrigger,
-                effect,
-                sendDataToOverlay: mockSendDataToOverlay,
-                abortSignal: mockAbortSignal
-            });
-
-            expect(result).toBe(false);
-            expect(mockRestApiClient.sendChatMessage).not.toHaveBeenCalled();
-        });
-
         it("should send message successfully", async () => {
-            const liveChatId = "test-chat-id";
             const message = "Test message";
 
-            (integration.getCurrentLiveChatId as jest.Mock).mockReturnValue(liveChatId);
             mockRestApiClient.sendChatMessage.mockResolvedValue(true);
 
             const effect = { message, chatter: "Streamer" as const };
@@ -81,17 +64,12 @@ describe("YouTube Chat Effect", () => {
             });
 
             expect(result).toBe(true);
-            expect(mockRestApiClient.sendChatMessage).toHaveBeenCalledWith(
-                liveChatId,
-                message
-            );
+            expect(mockRestApiClient.sendChatMessage).toHaveBeenCalledWith(message);
         });
 
         it("should return false when sendChatMessage fails", async () => {
-            const liveChatId = "test-chat-id";
             const message = "Test message";
 
-            (integration.getCurrentLiveChatId as jest.Mock).mockReturnValue(liveChatId);
             mockRestApiClient.sendChatMessage.mockResolvedValue(false);
 
             const effect = { message, chatter: "Streamer" as const };
@@ -106,7 +84,7 @@ describe("YouTube Chat Effect", () => {
         });
 
         it("should handle exceptions gracefully", async () => {
-            (integration.getCurrentLiveChatId as jest.Mock).mockImplementation(() => {
+            mockRestApiClient.sendChatMessage.mockImplementation(() => {
                 throw new Error("Test error");
             });
 

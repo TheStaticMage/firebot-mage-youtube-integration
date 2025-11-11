@@ -65,8 +65,7 @@ describe("MultiAuthManager", () => {
                     overridePollingDelay: false,
                     customPollingDelaySeconds: -1
                 },
-                ready: true,
-                status: "Ready"
+                ready: true
             },
             {
                 id: "app2",
@@ -80,8 +79,7 @@ describe("MultiAuthManager", () => {
                     overridePollingDelay: true,
                     customPollingDelaySeconds: 30
                 },
-                ready: false,
-                status: "Authorization required"
+                ready: false
             }
         ];
     });
@@ -105,7 +103,7 @@ describe("MultiAuthManager", () => {
             await multiAuthManager.initialize(mockApplications);
 
             // Should not create duplicate timers
-            expect(logger.debug).toHaveBeenCalledWith(
+            expect(logger.info).toHaveBeenCalledWith(
                 expect.stringContaining("Token refresh scheduled for application")
             );
         });

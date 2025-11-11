@@ -23,8 +23,7 @@ describe("Application Utils", () => {
                 overridePollingDelay: false,
                 customPollingDelaySeconds: -1
             },
-            ready: false,
-            status: "Initial status"
+            ready: false
         };
     });
 
@@ -52,57 +51,64 @@ describe("Application Utils", () => {
     });
 
     describe("updateApplicationReadyStatus", () => {
-        it("should set ready to true and status to Ready on success", () => {
+        it("should set ready to true on success", () => {
             updateApplicationReadyStatus(testApp, true);
 
             expect(testApp.ready).toBe(true);
-            expect(testApp.status).toBe("Ready");
         });
 
-        it("should set ready to false and status to error message on failure", () => {
+        it("should set ready to false on failure with error message", () => {
             const errorMessage = "Invalid credentials";
             updateApplicationReadyStatus(testApp, false, errorMessage);
 
             expect(testApp.ready).toBe(false);
-            expect(testApp.status).toBe(errorMessage);
         });
 
-        it("should set ready to false and default status on failure without message", () => {
+        it("should set ready to false on failure without message", () => {
             updateApplicationReadyStatus(testApp, false);
 
             expect(testApp.ready).toBe(false);
-            expect(testApp.status).toBe("Authentication failed");
         });
     });
 
     describe("getApplicationStatusMessage", () => {
-        it("should return existing status if available", () => {
-            testApp.status = "Custom status message";
-
-            expect(getApplicationStatusMessage(testApp)).toBe("Custom status message");
-        });
-
         it("should return Authorization required when no refresh token", () => {
-            testApp.status = "";
             testApp.refreshToken = "";
 
             expect(getApplicationStatusMessage(testApp)).toBe("Authorization required");
         });
 
-        it("should return Ready when app is ready", () => {
-            testApp.status = "";
+        it("should return Ready with expiration time when app is ready and has tokenExpiresAt", () => {
             testApp.refreshToken = "valid-token";
             testApp.ready = true;
+            // Set to a specific time for predictable testing: 2024-12-19 at 15:45:30
+            const testDate = new Date("2024-12-19T15:45:30Z");
+            testApp.tokenExpiresAt = testDate.getTime();
+
+            const result = getApplicationStatusMessage(testApp);
+            expect(result).toMatch(/Ready - Token expires \d{4}-\d{2}-\d{2} at \d{2}:\d{2}:\d{2}/);
+        });
+
+        it("should return Ready when app is ready without tokenExpiresAt", () => {
+            testApp.refreshToken = "valid-token";
+            testApp.ready = true;
+            testApp.tokenExpiresAt = undefined;
 
             expect(getApplicationStatusMessage(testApp)).toBe("Ready");
         });
 
-        it("should return Not ready when app is not ready", () => {
-            testApp.status = "";
+        it("should return Awaiting connection when app has refresh token but is not ready", () => {
             testApp.refreshToken = "valid-token";
             testApp.ready = false;
 
-            expect(getApplicationStatusMessage(testApp)).toBe("Not ready");
+            expect(getApplicationStatusMessage(testApp)).toBe("Awaiting connection");
+        });
+
+        it("should return Not ready when app has no refresh token and is not ready", () => {
+            testApp.refreshToken = "";
+            testApp.ready = false;
+
+            expect(getApplicationStatusMessage(testApp)).toBe("Authorization required");
         });
     });
 
@@ -147,7 +153,6 @@ describe("Application Utils", () => {
             expect(app.clientSecret).toBe("");
             expect(app.refreshToken).toBe("");
             expect(app.ready).toBe(false);
-            expect(app.status).toBe("Authorization required");
             expect(app.quotaSettings).toEqual({
                 dailyQuota: 10000,
                 maxStreamHours: 8,
