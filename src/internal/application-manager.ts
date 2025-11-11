@@ -268,8 +268,10 @@ export class ApplicationManager {
             throw new Error(`Application with ID "${id}" not found`);
         }
 
-        if (!isApplicationReady(app)) {
-            throw new Error(`Application "${app.name}" is not ready. Please authorize it first.`);
+        // Allow setting active if app has a refresh token (it will be refreshed on connect)
+        // Only require ready status if we're actually trying to use it immediately
+        if (!app.refreshToken) {
+            throw new Error(`Application "${app.name}" is not authorized. Please authorize it first.`);
         }
 
         const previousActiveId = this.storage.activeApplicationId;
@@ -328,15 +330,23 @@ export class ApplicationManager {
      */
     async validateAllApplications(): Promise<void> {
         for (const app of Object.values(this.getApplications())) {
-            // Applications without refresh tokens are not ready
+            // On startup, all applications are marked as not ready.
+            // Ready status is only set after successful token refresh in the current session.
+            // This ensures we don't trust stale tokenExpiresAt values from previous sessions.
             if (!app.refreshToken) {
-                updateApplicationReadyStatus(app, false, "Authorization required");
+                updateApplicationReadyStatus(app, false);
+                logger.debug(`Application "${app.name}" is not ready: no refresh token`);
             } else {
-                // Mark as not ready on startup. It will be marked ready when the integration connects.
-                updateApplicationReadyStatus(app, false, "Awaiting connection");
+                updateApplicationReadyStatus(app, false);
+                logger.debug(`Application "${app.name}" has refresh token but needs token refresh before use`);
             }
 
             this.storage.applications[app.id] = app;
+        }
+
+        // Clear tokenExpiresAt on startup - it will be recomputed after token refresh
+        for (const app of Object.values(this.storage.applications)) {
+            app.tokenExpiresAt = undefined;
         }
 
         await this.saveApplications();
@@ -417,13 +427,14 @@ export class ApplicationManager {
                 activeApplicationId: this.storage.activeApplicationId
             };
 
-            // Copy applications without transient state
+            // Copy applications without transient state (ready status is computed, not persisted)
             for (const [id, app] of Object.entries(this.storage.applications)) {
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const { ready, ...appWithoutReady } = app;
                 storageToSave.applications[id] = {
-                    ...app,
-                    // Keep ready status as it reflects current state
-                    ready: app.ready
-                };
+                    ...appWithoutReady,
+                    ready: false // Placeholder for compatibility - will be recomputed on load
+                } as YouTubeOAuthApplication;
             }
 
             logger.debug(`Saving ${Object.keys(storageToSave.applications).length} applications to storage "${this.dataFilePath}"`);

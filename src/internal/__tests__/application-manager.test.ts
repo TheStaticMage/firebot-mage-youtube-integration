@@ -192,8 +192,8 @@ describe("ApplicationManager", () => {
         it("should return active application", async () => {
             const appsMap = applicationManager.getApplications();
             const apps = Object.values(appsMap);
-            const { isApplicationReady } = require("../application-utils");
-            isApplicationReady.mockReturnValue(true);
+            // Add refresh token so app can be set as active
+            apps[0].refreshToken = "test-token";
 
             await applicationManager.setActiveApplication(apps[0].id);
 
@@ -332,8 +332,8 @@ describe("ApplicationManager", () => {
         it("should clear active application if it was removed", async () => {
             const appsMap = applicationManager.getApplications();
             const apps = Object.values(appsMap);
-            const { isApplicationReady } = require("../application-utils");
-            isApplicationReady.mockReturnValue(true);
+            // Add refresh token so app can be set as active
+            apps[0].refreshToken = "test-token";
 
             await applicationManager.setActiveApplication(apps[0].id);
             await applicationManager.removeApplication(apps[0].id);
@@ -351,8 +351,8 @@ describe("ApplicationManager", () => {
         it("should set active application successfully", async () => {
             const appsMap = applicationManager.getApplications();
             const apps = Object.values(appsMap);
-            const { isApplicationReady } = require("../application-utils");
-            isApplicationReady.mockReturnValue(true);
+            // Add refresh token so app can be set as active
+            apps[0].refreshToken = "test-token";
 
             await applicationManager.setActiveApplication(apps[0].id);
 
@@ -364,14 +364,13 @@ describe("ApplicationManager", () => {
                 .rejects.toThrow('Application with ID "nonexistent" not found');
         });
 
-        it("should throw error for not ready application", async () => {
+        it("should throw error for not authorized application", async () => {
             const appsMap = applicationManager.getApplications();
             const apps = Object.values(appsMap);
-            const { isApplicationReady } = require("../application-utils");
-            isApplicationReady.mockReturnValue(false);
+            // Apps created without refresh tokens cannot be set as active
 
             await expect(applicationManager.setActiveApplication(apps[0].id))
-                .rejects.toThrow('Application "Test App" is not ready. Please authorize it first.');
+                .rejects.toThrow('Application "Test App" is not authorized. Please authorize it first.');
         });
     });
 
@@ -384,8 +383,8 @@ describe("ApplicationManager", () => {
         it("should clear active application", async () => {
             const appsMap = applicationManager.getApplications();
             const apps = Object.values(appsMap);
-            const { isApplicationReady } = require("../application-utils");
-            isApplicationReady.mockReturnValue(true);
+            // Add refresh token so app can be set as active
+            apps[0].refreshToken = "test-token";
 
             await applicationManager.setActiveApplication(apps[0].id);
             expect(applicationManager.getActiveApplication()).toBeTruthy();
@@ -472,14 +471,13 @@ describe("ApplicationManager", () => {
         it("should clear active application if it becomes not ready", async () => {
             const appsMap = applicationManager.getApplications();
             const apps = Object.values(appsMap);
-            const { isApplicationReady } = require("../application-utils");
-            isApplicationReady.mockReturnValue(true);
+            // Add refresh token so app can be set as active
+            apps[0].refreshToken = "test-token";
 
             await applicationManager.setActiveApplication(apps[0].id);
             expect(applicationManager.getActiveApplication()).toBeTruthy();
 
             // Make app not ready
-            isApplicationReady.mockReturnValue(false);
             await applicationManager.updateApplicationReadyStatus(apps[0].id, false);
 
             expect(applicationManager.getActiveApplication()).toBeNull();
@@ -521,8 +519,8 @@ describe("ApplicationManager", () => {
             await applicationManager.addApplication("Test App", "client1", "secret1");
             const appsMap = applicationManager.getApplications();
             const apps = Object.values(appsMap);
-            const { isApplicationReady } = require("../application-utils");
-            isApplicationReady.mockReturnValue(true);
+            // Add refresh token so app can be set as active
+            apps[0].refreshToken = "test-token";
 
             await applicationManager.setActiveApplication(apps[0].id);
 
@@ -550,9 +548,9 @@ describe("ApplicationManager", () => {
 
             const { updateApplicationReadyStatus: mockUpdateReadyStatus } = require("../application-utils");
             // Both applications should be marked as not ready on startup
-            // Apps with tokens: "Awaiting connection", apps without tokens: "Authorization required"
-            expect(mockUpdateReadyStatus).toHaveBeenCalledWith(apps[0], false, "Awaiting connection");
-            expect(mockUpdateReadyStatus).toHaveBeenCalledWith(apps[1], false, "Authorization required");
+            // Ready status is now computed dynamically, no error messages passed
+            expect(mockUpdateReadyStatus).toHaveBeenCalledWith(apps[0], false);
+            expect(mockUpdateReadyStatus).toHaveBeenCalledWith(apps[1], false);
         });
 
         it("should clear active application if it's not ready", async () => {
