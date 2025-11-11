@@ -25,7 +25,7 @@ export default tseslint.config(
             '@typescript-eslint/consistent-generic-constructors': 'warn',
             '@typescript-eslint/no-empty-function': 'warn',
             '@typescript-eslint/no-this-alias': 'warn',
-            '@typescript-eslint/no-unused-vars': 'warn',
+            '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
             '@typescript-eslint/restrict-template-expressions': 'off',
             'array-bracket-spacing': 'warn',
             'arrow-parens': ['warn', 'as-needed', { requireForBlockBody: true }],

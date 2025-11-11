@@ -5,17 +5,30 @@ import { integration } from "../integration-singleton";
 
 export class RestApiClient {
     private async getAuthClient(): Promise<OAuth2Client> {
-        const authManager = integration.getAuthManager();
-        const accessToken = await authManager.getAccessToken();
-        const settings = integration.getSettings();
+        // Get active application
+        const applicationsStorage = integration.getApplicationsStorage();
+        const activeApplicationId = applicationsStorage.activeApplicationId;
+
+        if (!activeApplicationId) {
+            throw new Error("No active YouTube application configured");
+        }
+
+        const activeApp = applicationsStorage.applications[activeApplicationId];
+        if (!activeApp) {
+            throw new Error(`Active application "${activeApplicationId}" not found`);
+        }
+
+        // Get access token from MultiAuthManager
+        const multiAuthManager = integration.getMultiAuthManager();
+        const accessToken = await multiAuthManager.getAccessToken(activeApplicationId);
 
         if (!accessToken) {
-            throw new Error("No access token available for YouTube API authentication");
+            throw new Error(`No access token available for active application "${activeApp.name}"`);
         }
 
         const oauth2Client = new OAuth2Client(
-            settings.googleApp.clientId,
-            settings.googleApp.clientSecret
+            activeApp.clientId,
+            activeApp.clientSecret
         );
 
         oauth2Client.setCredentials({
@@ -36,15 +49,36 @@ export class RestApiClient {
 
     /**
      * Send a chat message to YouTube live chat
-     * @param liveChatId The live chat ID to send the message to
+     * Handles all validation of active application, live chat state, and authentication
      * @param messageText The message text to send
      * @returns Promise<boolean> True if successful, false otherwise
      */
-    async sendChatMessage(
-        liveChatId: string,
-        messageText: string
-    ): Promise<boolean> {
+    async sendChatMessage(messageText: string): Promise<boolean> {
         try {
+            // Validate active application exists and is ready
+            const applicationsStorage = integration.getApplicationsStorage();
+            const activeApplicationId = applicationsStorage.activeApplicationId;
+
+            if (!activeApplicationId) {
+                logger.error("Cannot send YouTube chat message: No active application selected");
+                return false;
+            }
+
+            const activeApp = applicationsStorage.applications[activeApplicationId];
+            if (!activeApp || !activeApp.ready) {
+                logger.error(
+                    `Cannot send YouTube chat message: Active application "${activeApp?.name || activeApplicationId}" is not ready`
+                );
+                return false;
+            }
+
+            // Get current live chat ID
+            const liveChatId = integration.getCurrentLiveChatId();
+            if (!liveChatId) {
+                logger.error("Cannot send YouTube chat message: No active live chat");
+                return false;
+            }
+
             logger.debug(`Sending YouTube chat message to chat ${liveChatId}: ${messageText}`);
             const client = await this.client();
             const response = await client.liveChatMessages.insert({

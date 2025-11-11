@@ -6,15 +6,25 @@ Instructions:
 
 - When finished with a task, display a summary that is at most 3 sentences long.
 - Do not display a detailed summary or create markdown files unless explicitly instructed to do so.
+- Update this CLAUDE.md file when:
+  - Implementing significant new features or architectural changes
+  - Discovering new patterns, insights, or learnings about the codebase
+  - Completing major phases or milestones
+  - Establishing new testing patterns or coverage strategies
+  - Finding optimizations or improvements to existing approaches
+  - Clarifying ambiguities in existing conventions or practices
 
 Key features:
 
 - Authenticate to YouTube via OAuth with automatic token refreshing
-- Conscious of API quotas
+- Support multiple YouTube applications with per-application OAuth and token management
+- Conscious of API quotas with per-application quota settings
 - Chat message retrieval targeted to consume no more than 80% of daily API request quota
 - Uses streamList GRPC endpoint to reduce API quota usage
 - Chat messages from YouTube show up in Firebot chat feed (dashboard)
 - Chat (YouTube) effect that posts message into YouTube chat
+- Seamless switching between multiple YouTube channels via active application selection
+- Real-time status indicators for application ready state and token expiration
 
 TODO:
 
@@ -31,12 +41,15 @@ TODO:
 - Indicate YouTube broadcaster in chat feed
 - Do not display YouTube messages in chat feed or trigger events for messages before Firebot started
 - Effects to change polling interval for YouTube messages (e.g. poll more frequently at times)
-- Support multiple YouTube applications
-  - Move configuration (client ID, client secret) and OAuth to a UI Extension
-  - One configuration selected as default
-  - Create Firebot effect to change active YouTube configuration
-  - Select active YouTube configuration in UI Extension
-  - Firebot variable indicating active YouTube configuration
+- Support multiple YouTube applications (COMPLETE - Phase 1-10)
+  - Multi-application OAuth management with automatic token refresh (DONE)
+  - Seamless application switching with ready status validation (DONE)
+  - Per-application chat streaming and stream detection (DONE)
+  - Per-application quota management and settings (DONE)
+  - UI Extension for app management (DONE)
+  - Create Firebot effect to change active YouTube configuration (TODO)
+  - Firebot variable indicating active YouTube configuration (TODO)
+  - Option to display authorized Google account in YouTube application list (TODO)
 - Enhanced quota management
   - Every API call records the number of quota units consumed
   - Track quota units consumed between Firebot sessions
@@ -62,12 +75,15 @@ Learnings:
 - streamList endpoint returns after 10 seconds if no chat messages
 - Each call to streamList endpoint counts as 5 API requests
 - streamList endpoint is relatively new so lack of example usage in open source projects does NOT imply it should be avoided
+- Multi-application architecture improves maintainability by isolating per-app state and operations
+- Automatic background token refresh (every ~50 minutes) prevents authentication failures during operation
+- Ready status calculation requires both refresh token presence AND successful OAuth/refresh
+- Per-application credential storage enables seamless switching without re-authorization
 
 Conventions:
 
 - TypeScript: camelCase, PascalCase classes, satisfies eslint rules defined in package
 - "YouTube": Capitalize as "YouTube" (or "youTube" in variable names or functions starting with "youTube")
-- Unit tests: Use jest, put in `__tests__` subdirectory under where the functions under test reside
 - Logging: Provide observability via logger.debug
 - Documentation: In Markdown, placed in `docs` directory, referenced from `README.md`, satisfies markdownlint
 - Build: Code and GRPC proto consolidated to one file with webpack (webpack file loaded by Firebot as startup script)
@@ -75,10 +91,37 @@ Conventions:
 - User name: Usernames from youtube are the given YouTube username plus '@youtube'
 - Files under `src/generated` are generated and must never be written by AI coding agents
 - Import the YouTube API as: `import { youtube_v3 as youtubeV3 } from "@googleapis/youtube";`
+- No emojis in log messages or code comments
+- Emojis are acceptable in documentation but must use GitHub markdown emojis (e.g. `:white_check_mark:`)
+- No emdashes anywhere (code, comments, or documentation)
+- Do not leave comments that only indicate something was removed
+- Use comments to explain "why" or as headers before sections of code but do not leave obvious comments that describe short and straightforward implementation
+- If something is being removed, remove it completely. Do not worry about backward compatibility or deprecation unless specifically instructed.
+
+Tests:
+
+- Unit tests: Use jest, put in `__tests__` subdirectory under where the functions under test reside
+- Test only the `onTriggerEvent` method of effects
+- Meaningful tests must call actual functions or methods defined elsewhere (not in the test file itself). A test that only constructs mock data and checks properties is meaningless.
+- Test coverage strategy:
+  - Isolated unit tests for each component (application-utils, multi-auth-manager, etc.)
+  - Edge case testing for state transitions and error handling
+  - Multi-application scenario tests for integration between components
+  - Functional tests simulating real-world usage patterns (chat sending, stream detection, token refresh)
+  - Status indicator accuracy tests to validate UI display correctness
+- Current coverage (145 tests):
+  - application-utils: Ready status edge cases, transitions, validation
+  - multi-auth-manager: Per-application OAuth flows, concurrent refresh, token management
+  - application-manager: Application creation, activation, list management
+  - chat-manager: Message retrieval, error handling per-application
+  - rest-api-client: API communication, quota tracking, streaming resumption
+  - status-indicators: Status message accuracy, token expiration display
+  - chat effect: Message sending validation
 
 Things to check:
 
 - `IntegrationDefinition` in `src/integration.ts` should align with `IntegrationParameters` in `src/integration-singleton.ts`
+- Run `npm run build:dev` after each significant iteration to verify compilation
 
 Notes:
 

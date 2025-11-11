@@ -73,20 +73,8 @@ export const chatEffect: Firebot.EffectType<chatEffectParams> = {
     },
     onTriggerEvent: async ({ effect }) => {
         try {
-            // Get current live chat ID
-            const liveChatId = integration.getCurrentLiveChatId();
-            if (!liveChatId) {
-                logger.error("Cannot send YouTube chat message: No active live chat");
-                return false;
-            }
-
-            // Send the message (RestApiClient now handles authentication internally)
             const restApiClient = integration.getRestApiClient();
-            const success = await restApiClient.sendChatMessage(liveChatId, effect.message);
-            if (!success) {
-                logger.error("Failed to send YouTube chat message via REST API");
-            }
-            return success;
+            return await restApiClient.sendChatMessage(effect.message);
         } catch (error) {
             logger.error(`Error in chat effect: ${error}`);
             return false;

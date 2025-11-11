@@ -11,48 +11,9 @@ export const definition: IntegrationDefinition = {
     configurable: true,
     linkType: "none", // Firebot doesn't support PKCE yet, so we use 'none' for now.
     settingCategories: {
-        googleApp: {
-            title: "Google Application Settings",
-            sortRank: 1,
-            settings: {
-                clientId: {
-                    title: "Google Client ID",
-                    tip: "The Client ID for your Google application.",
-                    type: "string",
-                    default: "",
-                    sortRank: 1
-                },
-                clientSecret: {
-                    title: "Google Client Secret",
-                    tip: "The Client Secret for your Google application.",
-                    type: "string",
-                    default: "",
-                    sortRank: 2
-                },
-                channelId: {
-                    title: "YouTube Channel",
-                    tip: "Your YouTube channel name. Only needed if your Google account maps to multiple channels. See documentation.",
-                    type: "string",
-                    default: "",
-                    sortRank: 3
-                }
-            }
-        },
-        accounts: {
-            title: "Accounts",
-            sortRank: 2,
-            settings: {
-                authorizeStreamerAccount: {
-                    title: "Authorize Streamer Account",
-                    tip: `Open this URL in a browser window to authorize the streamer account: http://localhost:7472/integrations/${IntegrationConstants.INTEGRATION_URI}/link/streamer`,
-                    type: "unknown",
-                    sortRank: 1
-                }
-            }
-        },
         chat: {
             title: "Chat Settings",
-            sortRank: 3,
+            sortRank: 1,
             settings: {
                 chatFeed: {
                     title: "Chat Feed",
@@ -63,43 +24,9 @@ export const definition: IntegrationDefinition = {
                 }
             }
         },
-        quota: {
-            title: "Quota Management",
-            sortRank: 4,
-            settings: {
-                dailyQuota: {
-                    title: "Daily Quota",
-                    tip: "Your YouTube Data API daily quota limit. Default is 10,000 units per day. Check your quota at https://console.cloud.google.com/apis/api/youtube.googleapis.com/quotas",
-                    type: "number",
-                    default: 10000,
-                    sortRank: 1
-                },
-                maxStreamHours: {
-                    title: "Maximum Stream Hours",
-                    tip: "The maximum number of hours you expect to stream per day. Used to calculate polling delay to stay within quota limits.",
-                    type: "number",
-                    default: 8,
-                    sortRank: 2
-                },
-                overridePollingDelay: {
-                    title: "Override Polling Delay",
-                    tip: "Enable this to manually specify the delay between chat API calls instead of using the calculated value. WARNING: This may cause you to exceed your quota.",
-                    type: "boolean",
-                    default: false,
-                    sortRank: 3
-                },
-                customPollingDelaySeconds: {
-                    title: "Custom Polling Delay (seconds)",
-                    tip: "The delay in seconds between chat API calls when override is enabled. Set to -1 to use the calculated value. WARNING: Setting this too low may exhaust your quota.",
-                    type: "number",
-                    default: -1,
-                    sortRank: 4
-                }
-            }
-        },
         triggerTwitchEvents: {
             title: "Trigger Twitch Events",
-            sortRank: 5,
+            sortRank: 2,
             settings: {
                 chatMessage: {
                     title: "Chat Message",

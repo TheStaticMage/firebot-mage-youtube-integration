@@ -9,7 +9,7 @@
  */
 
 import { logger } from "../main";
-import { integration } from "../integration-singleton";
+import { QuotaSettings } from "../types";
 
 export class QuotaManager {
     /**
@@ -28,19 +28,18 @@ export class QuotaManager {
     /**
      * Calculate the delay in seconds between streamList calls
      *
+     * @param quotaSettings The quota settings for active application
      * @returns delay in seconds, or null if settings are invalid
      */
-    calculateDelay(): number | null {
-        const settings = integration.getSettings();
-
+    calculateDelay(quotaSettings: QuotaSettings): number | null {
         // Check if user has overridden the delay
-        if (settings.quota.overridePollingDelay && settings.quota.customPollingDelaySeconds > 0) {
-            logger.info(`Using custom polling delay: ${settings.quota.customPollingDelaySeconds}s`);
-            return settings.quota.customPollingDelaySeconds;
+        if (quotaSettings.overridePollingDelay && quotaSettings.customPollingDelaySeconds > 0) {
+            logger.info(`Using custom polling delay: ${quotaSettings.customPollingDelaySeconds}s`);
+            return quotaSettings.customPollingDelaySeconds;
         }
 
-        const dailyQuota = settings.quota.dailyQuota;
-        const maxStreamHours = settings.quota.maxStreamHours;
+        const dailyQuota = quotaSettings.dailyQuota;
+        const maxStreamHours = quotaSettings.maxStreamHours;
 
         // Validate settings
         if (!dailyQuota || dailyQuota <= 0) {
