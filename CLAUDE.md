@@ -6,15 +6,25 @@ Instructions:
 
 - When finished with a task, display a summary that is at most 3 sentences long.
 - Do not display a detailed summary or create markdown files unless explicitly instructed to do so.
+- Update this CLAUDE.md file when:
+  - Implementing significant new features or architectural changes
+  - Discovering new patterns, insights, or learnings about the codebase
+  - Completing major phases or milestones
+  - Establishing new testing patterns or coverage strategies
+  - Finding optimizations or improvements to existing approaches
+  - Clarifying ambiguities in existing conventions or practices
 
 Key features:
 
 - Authenticate to YouTube via OAuth with automatic token refreshing
-- Conscious of API quotas
+- Support multiple YouTube applications with per-application OAuth and token management
+- Conscious of API quotas with per-application quota settings
 - Chat message retrieval targeted to consume no more than 80% of daily API request quota
 - Uses streamList GRPC endpoint to reduce API quota usage
 - Chat messages from YouTube show up in Firebot chat feed (dashboard)
 - Chat (YouTube) effect that posts message into YouTube chat
+- Seamless switching between multiple YouTube channels via active application selection
+- Real-time status indicators for application ready state and token expiration
 
 TODO:
 
@@ -31,11 +41,15 @@ TODO:
 - Indicate YouTube broadcaster in chat feed
 - Do not display YouTube messages in chat feed or trigger events for messages before Firebot started
 - Effects to change polling interval for YouTube messages (e.g. poll more frequently at times)
-- Support multiple YouTube applications (partially implemented)
-  - Create Firebot effect to change active YouTube configuration
-  - Select active YouTube configuration in UI Extension
-  - Firebot variable indicating active YouTube configuration
-  - Option to display authorized Google account in YouTube application list (hidden by default)
+- Support multiple YouTube applications (COMPLETE - Phase 1-10)
+  - Multi-application OAuth management with automatic token refresh (DONE)
+  - Seamless application switching with ready status validation (DONE)
+  - Per-application chat streaming and stream detection (DONE)
+  - Per-application quota management and settings (DONE)
+  - UI Extension for app management (DONE)
+  - Create Firebot effect to change active YouTube configuration (TODO)
+  - Firebot variable indicating active YouTube configuration (TODO)
+  - Option to display authorized Google account in YouTube application list (TODO)
 - Enhanced quota management
   - Every API call records the number of quota units consumed
   - Track quota units consumed between Firebot sessions
@@ -61,6 +75,10 @@ Learnings:
 - streamList endpoint returns after 10 seconds if no chat messages
 - Each call to streamList endpoint counts as 5 API requests
 - streamList endpoint is relatively new so lack of example usage in open source projects does NOT imply it should be avoided
+- Multi-application architecture improves maintainability by isolating per-app state and operations
+- Automatic background token refresh (every ~50 minutes) prevents authentication failures during operation
+- Ready status calculation requires both refresh token presence AND successful OAuth/refresh
+- Per-application credential storage enables seamless switching without re-authorization
 
 Conventions:
 
@@ -84,6 +102,18 @@ Tests:
 
 - Unit tests: Use jest, put in `__tests__` subdirectory under where the functions under test reside
 - Test only the `onTriggerEvent` method of effects
+- Test coverage strategy:
+  - Isolated unit tests for each component (application-utils, multi-auth-manager, etc.)
+  - Edge case testing for state transitions and error handling
+  - Multi-application scenario tests for integration between components
+  - Functional tests simulating real-world usage patterns (chat sending, stream detection, token refresh)
+  - Status indicator accuracy tests to validate UI display correctness
+- Current coverage (206 tests):
+  - application-utils: Ready status edge cases, transitions, validation
+  - multi-auth-manager: Per-application OAuth flows, concurrent refresh, token management
+  - chat-operations: Multi-app chat context, message routing, stream detection with switching
+  - status-indicators: Status message accuracy, token expiration display, refresh button behavior
+  - integration scenarios: Ready-based selection, application switching, quota management
 
 Things to check:
 
