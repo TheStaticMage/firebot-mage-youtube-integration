@@ -102,18 +102,21 @@ Tests:
 
 - Unit tests: Use jest, put in `__tests__` subdirectory under where the functions under test reside
 - Test only the `onTriggerEvent` method of effects
+- Meaningful tests must call actual functions or methods defined elsewhere (not in the test file itself). A test that only constructs mock data and checks properties is meaningless.
 - Test coverage strategy:
   - Isolated unit tests for each component (application-utils, multi-auth-manager, etc.)
   - Edge case testing for state transitions and error handling
   - Multi-application scenario tests for integration between components
   - Functional tests simulating real-world usage patterns (chat sending, stream detection, token refresh)
   - Status indicator accuracy tests to validate UI display correctness
-- Current coverage (206 tests):
+- Current coverage (145 tests):
   - application-utils: Ready status edge cases, transitions, validation
   - multi-auth-manager: Per-application OAuth flows, concurrent refresh, token management
-  - chat-operations: Multi-app chat context, message routing, stream detection with switching
-  - status-indicators: Status message accuracy, token expiration display, refresh button behavior
-  - integration scenarios: Ready-based selection, application switching, quota management
+  - application-manager: Application creation, activation, list management
+  - chat-manager: Message retrieval, error handling per-application
+  - rest-api-client: API communication, quota tracking, streaming resumption
+  - status-indicators: Status message accuracy, token expiration display
+  - chat effect: Message sending validation
 
 Things to check:
 
