@@ -57,18 +57,12 @@ describe("Application Utils", () => {
             expect(testApp.ready).toBe(true);
         });
 
-        it("should set ready to false on failure with error message", () => {
-            const errorMessage = "Invalid credentials";
-            updateApplicationReadyStatus(testApp, false, errorMessage);
-
-            expect(testApp.ready).toBe(false);
-        });
-
-        it("should set ready to false on failure without message", () => {
+        it("should set ready to false on failure", () => {
             updateApplicationReadyStatus(testApp, false);
 
             expect(testApp.ready).toBe(false);
         });
+
     });
 
     describe("getApplicationStatusMessage", () => {
@@ -177,7 +171,7 @@ describe("Application Utils", () => {
             testApp.ready = true;
 
             // Simulate failed refresh
-            updateApplicationReadyStatus(testApp, false, "Token expired");
+            updateApplicationReadyStatus(testApp, false);
 
             expect(testApp.ready).toBe(false);
             expect(isApplicationReady(testApp)).toBe(false);
@@ -304,7 +298,7 @@ describe("Application Utils", () => {
             const app2 = { ...testApp, id: "app2" };
 
             updateApplicationReadyStatus(app1, true);
-            updateApplicationReadyStatus(app2, false, "Failed");
+            updateApplicationReadyStatus(app2, false);
 
             expect(isApplicationReady(app1)).toBe(true);
             expect(isApplicationReady(app2)).toBe(false);

@@ -21,12 +21,10 @@ export function isApplicationReady(app: YouTubeOAuthApplication): boolean {
  *
  * @param app The application to update
  * @param refreshSuccess Whether the token refresh was successful
- * @param errorMessage Optional error message (not stored, only for logging)
  */
 export function updateApplicationReadyStatus(
     app: YouTubeOAuthApplication,
-    refreshSuccess: boolean,
-    errorMessage?: string
+    refreshSuccess: boolean
 ): void {
     app.ready = refreshSuccess;
 }

@@ -156,8 +156,7 @@ describe("MultiAuthManager", () => {
             expect(token).toBe("");
             expect(updateApplicationReadyStatus).toHaveBeenCalledWith(
                 expect.anything(),
-                false,
-                "Token refresh failed"
+                false
             );
         });
     });
@@ -418,8 +417,7 @@ describe("MultiAuthManager", () => {
 
             expect(updateApplicationReadyStatus).toHaveBeenCalledWith(
                 expect.anything(),
-                false,
-                "Refresh failed"
+                false
             );
         });
     });
@@ -486,8 +484,7 @@ describe("MultiAuthManager", () => {
             await multiAuthManager.refreshApplicationToken("app1");
             expect(updateApplicationReadyStatus).toHaveBeenCalledWith(
                 expect.anything(),
-                false,
-                "Network error"
+                false
             );
         });
 
@@ -522,8 +519,7 @@ describe("MultiAuthManager", () => {
 
             expect(updateApplicationReadyStatus).toHaveBeenCalledWith(
                 expect.anything(),
-                false,
-                "Invalid token"
+                false
             );
         });
 
@@ -562,8 +558,7 @@ describe("MultiAuthManager", () => {
 
             expect(updateApplicationReadyStatus).toHaveBeenCalledWith(
                 expect.anything(),
-                false,
-                expect.stringContaining("Quota exceeded")
+                false
             );
         });
     });

@@ -203,23 +203,6 @@ describe("Status Indicator Accuracy", () => {
             expect(shouldAutoRefresh).toBe(false);
         });
 
-        it("should allow manual refresh even when app is ready", () => {
-            const app = createTestApp({
-                refreshToken: "token",
-                ready: true
-            });
-
-            // Simulate manual refresh initiated by user
-            let refreshInProgress = true;
-
-            expect(refreshInProgress).toBe(true);
-
-            // After refresh completes
-            refreshInProgress = false;
-
-            expect(refreshInProgress).toBe(false);
-        });
-
         it("should update status after manual refresh", () => {
             const app = createTestApp({
                 refreshToken: "token",

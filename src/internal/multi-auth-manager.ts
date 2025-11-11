@@ -48,7 +48,7 @@ export class MultiAuthManager {
                 logger.debug(`Application "${app.name}" (${app.id}) - scheduled for background token refresh`);
             } else {
                 // Application without refresh token is not ready
-                updateApplicationReadyStatus(app, false, "Authorization required");
+                updateApplicationReadyStatus(app, false);
                 unauthorizedCount++;
                 logger.debug(`Application "${app.name}" (${app.id}) - awaiting authorization`);
             }
@@ -77,7 +77,7 @@ export class MultiAuthManager {
             // Update ready status on failure
             const app = this.applications.get(applicationId);
             if (app) {
-                updateApplicationReadyStatus(app, false, error.message);
+                updateApplicationReadyStatus(app, false);
             }
 
             return "";
@@ -199,7 +199,7 @@ export class MultiAuthManager {
 
         } catch (error: any) {
             logger.error(`Failed to exchange code for tokens for application ${applicationId}: ${error.message}`);
-            updateApplicationReadyStatus(app, false, error.message);
+            updateApplicationReadyStatus(app, false);
             res.status(500).send(`<p>Failed to exchange code for tokens: ${error.message}</p>`);
         }
     }
@@ -254,7 +254,7 @@ export class MultiAuthManager {
             this.notifyApplicationStatusChange(applicationId, app);
         } catch (error: any) {
             logger.error(`Failed to refresh token for application "${app.name}" (${applicationId}): ${error.message}`);
-            updateApplicationReadyStatus(app, false, error.message);
+            updateApplicationReadyStatus(app, false);
 
             // Log detailed error information for debugging
             if (error.code) {

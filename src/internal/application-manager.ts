@@ -306,7 +306,7 @@ export class ApplicationManager {
             return;
         }
 
-        updateApplicationReadyStatus(app, ready, status);
+        updateApplicationReadyStatus(app, ready);
         this.storage.applications[id] = app;
         await this.saveApplications();
 

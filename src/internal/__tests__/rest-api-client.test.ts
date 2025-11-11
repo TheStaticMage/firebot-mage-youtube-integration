@@ -18,6 +18,7 @@ const mockLiveChatMessages = {
 };
 
 jest.mock("@googleapis/youtube", () => ({
+    // eslint-disable-next-line camelcase
     youtube_v3: {
         Youtube: jest.fn().mockImplementation(() => ({
             liveChatMessages: mockLiveChatMessages

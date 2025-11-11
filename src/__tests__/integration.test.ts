@@ -184,18 +184,6 @@ describe("YouTubeIntegration - Multi-Account Scenarios", () => {
             // Second refresh succeeds - demonstrates isolation
             await expect(mockAuthManagerInstance.refreshApplicationToken("app2")).resolves.not.toThrow();
         });
-
-        it("should update ready status based on refresh success/failure", () => {
-            const app1 = { ...mockApplications[0], ready: true };
-            const app2 = { ...mockApplications[1], ready: false };
-
-            // After successful refresh, app1 should remain ready
-            expect(app1.ready).toBe(true);
-
-            // After failed refresh, app1 would become not ready
-            app1.ready = false;
-            expect(app1.ready).toBe(false);
-        });
     });
 
     describe("Chat Operations with Multiple Applications", () => {

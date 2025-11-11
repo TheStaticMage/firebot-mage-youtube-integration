@@ -29,7 +29,7 @@ jest.mock("../../util/datafile", () => ({
 jest.mock("../application-utils", () => ({
     isApplicationReady: jest.fn(app => app.ready),
     updateApplicationReadyStatus: jest.fn(),
-    getApplicationStatusMessage: jest.fn(app => app.ready ? "Ready" : "Awaiting connection"),
+    getApplicationStatusMessage: jest.fn(app => (app.ready ? "Ready" : "Awaiting connection")),
     validateApplication: jest.fn(app => !!(app.id && app.name && app.clientId && app.clientSecret)),
     createApplication: jest.fn((id, name) => ({
         id,
@@ -451,12 +451,11 @@ describe("ApplicationManager", () => {
             const apps = Object.values(appsMap);
             const { updateApplicationReadyStatus: mockUpdateReadyStatus } = require("../application-utils");
 
-            await applicationManager.updateApplicationReadyStatus(apps[0].id, true, "Ready");
+            await applicationManager.updateApplicationReadyStatus(apps[0].id, true);
 
             expect(mockUpdateReadyStatus).toHaveBeenCalledWith(
                 expect.anything(),
-                true,
-                "Ready"
+                true
             );
         });
 
