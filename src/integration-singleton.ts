@@ -2,7 +2,6 @@ import { IntegrationData, ScriptModules } from "@crowbartools/firebot-custom-scr
 import { EventEmitter } from "events";
 import { IntegrationConstants } from "./constants";
 import { YouTubeEventSource } from "./events";
-import { AuthManager } from "./internal/auth-manager";
 import { ApplicationManager } from "./internal/application-manager";
 import { BroadcastManager } from "./internal/broadcast-manager";
 import { ChatManager } from "./internal/chat-manager";
@@ -17,22 +16,8 @@ import { YouTubeOAuthApplication, ApplicationStorage } from "./types";
 import { getApplicationStatusMessage } from "./internal/application-utils";
 
 type IntegrationParameters = {
-    googleApp: {
-        clientId: string;
-        clientSecret: string;
-        channelId: string;
-    };
-    accounts: {
-        authorizeStreamerAccount: unknown;
-    };
     chat: {
         chatFeed: boolean;
-    };
-    quota: {
-        dailyQuota: number;
-        maxStreamHours: number;
-        overridePollingDelay: boolean;
-        customPollingDelaySeconds: number;
     };
     triggerTwitchEvents: {
         chatMessage: boolean;
@@ -57,7 +42,6 @@ export class YouTubeIntegration extends EventEmitter {
     connected = false;
 
     // Managers for production integration
-    private authManager: AuthManager = new AuthManager();
     private applicationManager: ApplicationManager = new ApplicationManager();
     private multiAuthManager: MultiAuthManager = new MultiAuthManager();
     private broadcastManager: BroadcastManager = new BroadcastManager();
@@ -74,22 +58,8 @@ export class YouTubeIntegration extends EventEmitter {
     private dataFilePath = "";
 
     private settings: IntegrationParameters = {
-        googleApp: {
-            clientId: "",
-            clientSecret: "",
-            channelId: ""
-        },
-        accounts: {
-            authorizeStreamerAccount: null
-        },
         chat: {
             chatFeed: true
-        },
-        quota: {
-            dailyQuota: 10000,
-            maxStreamHours: 8,
-            overridePollingDelay: false,
-            customPollingDelaySeconds: -1
         },
         triggerTwitchEvents: {
             chatMessage: false
@@ -106,7 +76,7 @@ export class YouTubeIntegration extends EventEmitter {
     // Whether to insert YT chat messages into the Firebot chat dashboard.
     private chatFeed = true;
 
-    init(linked: boolean, integrationData: IntegrationData<IntegrationParameters>) {
+    init(_linked: boolean, integrationData: IntegrationData<IntegrationParameters>) {
         logger.info("YouTube integration initializing...");
 
         // Load settings
@@ -160,11 +130,8 @@ export class YouTubeIntegration extends EventEmitter {
         const { effectManager } = firebot.modules;
         effectManager.registerEffect(chatEffect);
 
-        // Load integration data file (refresh token)
+        // Initialize ApplicationManager
         this.dataFilePath = getDataFilePath("integration-data.json");
-        const fileData = this.loadIntegrationData();
-
-        // Initialize ApplicationManager path (needed for UI extension operations)
         this.applicationManager.initPath();
 
         // Load applications asynchronously (don't block init)
@@ -172,16 +139,6 @@ export class YouTubeIntegration extends EventEmitter {
         this.applicationManager.initialize().catch((error) => {
             logger.error(`Failed to initialize ApplicationManager: ${error.message}`);
         });
-
-        // Initialize auth manager with stored refresh token
-        if (linked && fileData?.refreshToken) {
-            try {
-                this.authManager.init(fileData.refreshToken);
-                logger.info("YouTube OAuth initialized with stored refresh token");
-            } catch (error: any) {
-                logger.error(`Failed to initialize auth manager: ${error.message}`);
-            }
-        }
     }
 
     async connect() {
@@ -236,10 +193,8 @@ export class YouTubeIntegration extends EventEmitter {
             logger.info("YouTube OAuth connected successfully");
 
             // Step 5: Find active live stream
-            const channelId = this.settings.googleApp.channelId || undefined;
-
             logger.info("Searching for active YouTube broadcast...");
-            const liveChatId = await this.broadcastManager.findActiveLiveChatId(accessToken, channelId);
+            const liveChatId = await this.broadcastManager.findActiveLiveChatId(accessToken, undefined);
 
             if (!liveChatId) {
                 logger.warn("No active YouTube broadcast found. Will check periodically.");
@@ -333,9 +288,7 @@ export class YouTubeIntegration extends EventEmitter {
                 return;
             }
 
-            const channelId = this.settings.googleApp.channelId || undefined;
-
-            const liveChatId = await this.broadcastManager.findActiveLiveChatId(accessToken, channelId);
+            const liveChatId = await this.broadcastManager.findActiveLiveChatId(accessToken, undefined);
 
             // Case 1: Stream just started
             if (!this.currentLiveChatId && liveChatId) {
@@ -428,10 +381,6 @@ export class YouTubeIntegration extends EventEmitter {
 
     getCurrentLiveChatId(): string | null {
         return this.currentLiveChatId;
-    }
-
-    getAuthManager(): AuthManager {
-        return this.authManager;
     }
 
     getMultiAuthManager(): MultiAuthManager {
@@ -670,30 +619,8 @@ export class YouTubeIntegration extends EventEmitter {
     }
 
     /**
-     * Load integration data from file
-     */
-    private loadIntegrationData(): IntegrationFileData | null {
-        const { fs } = firebot.modules;
-
-        if (!fs.existsSync(this.dataFilePath)) {
-            logger.debug("No integration data file found");
-            return null;
-        }
-
-        try {
-            const data = fs.readFileSync(this.dataFilePath, "utf8");
-            const parsed = JSON.parse(data) as IntegrationFileData;
-            logger.debug("Integration data loaded successfully");
-            return parsed;
-        } catch (error: any) {
-            logger.error(`Failed to load integration data: ${error.message}`);
-            return null;
-        }
-    }
-
-    /**
      * Save integration token data (OAuth refresh token)
-     * Called by AuthManager after successful OAuth flow
+     * Legacy method - OAuth is now managed per-application via ApplicationManager
      */
     saveIntegrationTokenData(tokenData: { refreshToken: string }): void {
         const data: IntegrationFileData = {

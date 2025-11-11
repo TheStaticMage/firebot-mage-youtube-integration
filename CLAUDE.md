@@ -31,12 +31,11 @@ TODO:
 - Indicate YouTube broadcaster in chat feed
 - Do not display YouTube messages in chat feed or trigger events for messages before Firebot started
 - Effects to change polling interval for YouTube messages (e.g. poll more frequently at times)
-- Support multiple YouTube applications
-  - Move configuration (client ID, client secret) and OAuth to a UI Extension
-  - One configuration selected as default
+- Support multiple YouTube applications (partially implemented)
   - Create Firebot effect to change active YouTube configuration
   - Select active YouTube configuration in UI Extension
   - Firebot variable indicating active YouTube configuration
+  - Option to display authorized Google account in YouTube application list (hidden by default)
 - Enhanced quota management
   - Every API call records the number of quota units consumed
   - Track quota units consumed between Firebot sessions
@@ -77,6 +76,9 @@ Conventions:
 - No emojis in log messages or code comments
 - Emojis are acceptable in documentation but must use GitHub markdown emojis (e.g. `:white_check_mark:`)
 - No emdashes anywhere (code, comments, or documentation)
+- Do not leave comments that only indicate something was removed
+- Use comments to explain "why" or as headers before sections of code but do not leave obvious comments that describe short and straightforward implementation
+- If something is being removed, remove it completely. Do not worry about backward compatibility or deprecation unless specifically instructed.
 
 Tests:
 

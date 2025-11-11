@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { integration } from "../../integration";
-import { AuthManager } from "../../internal/auth-manager";
 import { RestApiClient } from "../../internal/rest-api-client";
 import { chatEffect } from "../chat";
 
@@ -8,7 +7,6 @@ import { chatEffect } from "../chat";
 jest.mock("../../integration", () => ({
     integration: {
         getCurrentLiveChatId: jest.fn(),
-        getAuthManager: jest.fn(),
         getRestApiClient: jest.fn()
     }
 }));
@@ -24,7 +22,6 @@ jest.mock("../../main", () => ({
 
 describe("YouTube Chat Effect", () => {
     let mockRestApiClient: jest.Mocked<RestApiClient>;
-    let mockAuthManager: jest.Mocked<AuthManager>;
 
     beforeEach(() => {
         // Clear all mocks before each test
@@ -35,14 +32,8 @@ describe("YouTube Chat Effect", () => {
             sendChatMessage: jest.fn()
         } as any;
 
-        // Setup mock auth manager
-        mockAuthManager = {
-            getAccessToken: jest.fn()
-        } as any;
-
         // Setup integration mocks
         (integration.getRestApiClient as jest.Mock).mockReturnValue(mockRestApiClient);
-        (integration.getAuthManager as jest.Mock).mockReturnValue(mockAuthManager);
     });
 
     describe("onTriggerEvent", () => {
