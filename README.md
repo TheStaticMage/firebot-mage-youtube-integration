@@ -23,6 +23,7 @@ _Effects are calls to the YouTube API made by Firebot as a result of event handl
 | Effect | Supported | Notes |
 | ------ | --------- | ----- |
 | Chat (send message) | :white_check_mark: | |
+| Select Active YouTube Application | :white_check_mark: | Change which YouTube application is active |
 
 ### Events
 
