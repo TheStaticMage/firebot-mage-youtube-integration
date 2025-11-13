@@ -377,14 +377,6 @@ export class YouTubeIntegration extends EventEmitter {
         await this.applicationManager.markAllApplicationsNotReady();
         logger.debug("Marked all applications as not ready");
 
-        // Move active application to pending for next connection
-        const activeApp = this.applicationManager.getActiveApplication();
-        if (activeApp) {
-            await this.applicationManager.setPendingActiveApplication(activeApp.id);
-            await this.applicationManager.clearActiveApplication();
-            logger.info(`Moved active application "${activeApp.name}" to pending`);
-        }
-
         this.currentLiveChatId = null;
         this.currentActiveApplicationId = null;
         this.connected = false;
@@ -716,14 +708,12 @@ export class YouTubeIntegration extends EventEmitter {
             }
         });
 
-        // Get active and pending active application
+        // Get active application
         frontendCommunicator.on('youTube:getActiveApplication', () => {
             try {
                 const activeApp = this.applicationManager.getActiveApplication();
-                const pendingActiveApp = this.applicationManager.getPendingActiveApplication();
                 return {
-                    activeApplicationId: activeApp?.id || null,
-                    pendingActiveApplicationId: pendingActiveApp?.id || null
+                    activeApplicationId: activeApp?.id || null
                 };
             } catch (error: any) {
                 logger.error(`Error getting active application: ${error.message}`);

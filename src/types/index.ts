@@ -73,5 +73,4 @@ export interface YouTubeOAuthApplication {
 export interface ApplicationStorage {
     applications: Record<string, YouTubeOAuthApplication>;
     activeApplicationId: string | null;
-    pendingActiveApplicationId?: string | null;
 }

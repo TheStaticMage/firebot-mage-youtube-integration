@@ -293,36 +293,6 @@ export class ApplicationManager {
         }
     }
 
-    /**
-     * Get pending active application (the app that will be active when connected)
-     * @returns Pending active application or null if none
-     */
-    getPendingActiveApplication(): YouTubeOAuthApplication | null {
-        const pendingId = this.storage.pendingActiveApplicationId;
-        if (!pendingId) {
-            return null;
-        }
-        return this.getApplication(pendingId);
-    }
-
-    /**
-     * Set pending active application (the app that will be active when connected)
-     * @param id Application ID to set as pending active
-     */
-    async setPendingActiveApplication(id: string | null): Promise<void> {
-        const previousPendingId = this.storage.pendingActiveApplicationId;
-        this.storage.pendingActiveApplicationId = id;
-        await this.saveApplications();
-
-        if (previousPendingId !== id) {
-            const app = id ? this.getApplication(id) : null;
-            if (app) {
-                logger.info(`Set pending active application: ${app.name} (${id})`);
-            } else {
-                logger.info(`Cleared pending active application`);
-            }
-        }
-    }
 
     /**
      * Update application ready status
@@ -401,14 +371,6 @@ export class ApplicationManager {
         }
 
         await this.saveApplications();
-
-        // Move active application to pending - it will be restored after connecting
-        if (this.storage.activeApplicationId) {
-            logger.warn(`Moving active application to pending on startup - will be restored after connection`);
-            this.storage.pendingActiveApplicationId = this.storage.activeApplicationId;
-            this.storage.activeApplicationId = null;
-            await this.saveApplications();
-        }
     }
 
     /**
