@@ -211,6 +211,11 @@ export class YouTubeIntegration extends EventEmitter {
                 logger.warn("No active YouTube broadcast found. Will check periodically.");
                 this.connected = true;
                 this.currentActiveApplicationId = activeApplicationId;
+
+                // Notify UI of connection and status changes
+                const { frontendCommunicator } = firebot.modules;
+                frontendCommunicator.send("youTube:applicationsUpdated", {});
+
                 this.emit("connected", IntegrationConstants.INTEGRATION_ID);
 
                 // Start periodic stream checking
@@ -223,6 +228,11 @@ export class YouTubeIntegration extends EventEmitter {
             await this.startChatStreaming(liveChatId, accessToken, activeApplicationId);
 
             this.connected = true;
+
+            // Notify UI of connection and status changes
+            const { frontendCommunicator } = firebot.modules;
+            frontendCommunicator.send("youTube:applicationsUpdated", {});
+
             this.emit("connected", IntegrationConstants.INTEGRATION_ID);
 
             // Start periodic stream checking to detect when stream ends
@@ -366,6 +376,11 @@ export class YouTubeIntegration extends EventEmitter {
         this.currentLiveChatId = null;
         this.currentActiveApplicationId = null;
         this.connected = false;
+
+        // Notify UI of all application status changes
+        const { frontendCommunicator } = firebot.modules;
+        frontendCommunicator.send("youTube:applicationsUpdated", {});
+
         this.emit("disconnected", IntegrationConstants.INTEGRATION_ID);
         logger.info("YouTube integration disconnected successfully");
     }
@@ -527,6 +542,7 @@ export class YouTubeIntegration extends EventEmitter {
                 id: app.id,
                 name: app.name,
                 ready: app.ready,
+                hasRefreshToken: !!app.refreshToken,
                 status: getApplicationStatusMessage(app),
                 quotaSettings: {
                     dailyQuota: app.quotaSettings.dailyQuota,
@@ -616,8 +632,8 @@ export class YouTubeIntegration extends EventEmitter {
         const applications = Object.values(this.applicationManager.getApplications());
         await this.multiAuthManager.updateApplications(applications);
 
-        // Delegate to multi-auth manager
-        await this.multiAuthManager.handleAuthCallback(req, res);
+        // Delegate to multi-auth manager and get the authorized app ID
+        const authorizedAppId = await this.multiAuthManager.handleAuthCallback(req, res);
 
         // Extract the updated application from MultiAuthManager and sync back to ApplicationManager
         // This ensures the refresh token received from Google OAuth is persisted to disk
@@ -631,6 +647,29 @@ export class YouTubeIntegration extends EventEmitter {
                 });
             } catch (error: any) {
                 logger.error(`Failed to sync updated application ${app.id} after OAuth callback: ${error.message}`);
+            }
+        }
+
+        // Conditionally set the newly authorized application as active if it's the only one
+        if (authorizedAppId) {
+            const allApps = Object.values(this.applicationManager.getApplications());
+            const authorizedApps = allApps.filter(app => app.refreshToken);
+
+            if (authorizedApps.length === 1) {
+                // This is the ONLY authorized app - set it as active
+                try {
+                    await this.applicationManager.setActiveApplication(authorizedAppId);
+                    if (this.connected) {
+                        logger.info(`Set newly authorized app as active (only authorized app, integration connected): ${authorizedAppId}`);
+                    } else {
+                        logger.info(`Set newly authorized app as pending active (only authorized app, integration disconnected): ${authorizedAppId}`);
+                    }
+                } catch (error: any) {
+                    logger.error(`Failed to set active application after authorization: ${error.message}`);
+                }
+            } else if (authorizedApps.length > 1) {
+                // Other authorized apps exist - don't change active app
+                logger.info(`Newly authorized app is Ready but not active (${authorizedApps.length} authorized apps exist)`);
             }
         }
     }
@@ -692,7 +731,9 @@ export class YouTubeIntegration extends EventEmitter {
         frontendCommunicator.on('youTube:getActiveApplication', () => {
             try {
                 const activeApp = this.applicationManager.getActiveApplication();
-                return { activeApplicationId: activeApp?.id || null };
+                return {
+                    activeApplicationId: activeApp?.id || null
+                };
             } catch (error: any) {
                 logger.error(`Error getting active application: ${error.message}`);
                 return { errorMessage: error.message };
@@ -812,12 +853,43 @@ export class YouTubeIntegration extends EventEmitter {
         // Refresh application states
         frontendCommunicator.onAsync('youTube:refreshApplicationStates', async () => {
             try {
-                // Trigger manual refresh of all application states
-                // This would trigger the MultiAuthManager to refresh tokens
                 logger.debug("Refresh application states request received");
-                return { success: true };
+                const applicationsMap = this.applicationManager.getApplications();
+                const serializedMap = this.serializeApplicationsForUI(applicationsMap);
+
+                // Notify UI of updated state
+                frontendCommunicator.send("youTube:applicationsUpdated", {});
+
+                return { success: true, applications: serializedMap };
             } catch (error: any) {
                 logger.error(`Error refreshing application states: ${error.message}`);
+                return { errorMessage: error.message };
+            }
+        });
+
+        // Get integration connection status
+        frontendCommunicator.on('youTube:getIntegrationStatus', () => {
+            try {
+                return { connected: this.connected };
+            } catch (error: any) {
+                logger.error(`Error getting integration status: ${error.message}`);
+                return { errorMessage: error.message };
+            }
+        });
+
+        // Connect the integration
+        frontendCommunicator.onAsync('youTube:connectIntegration', async () => {
+            try {
+                if (!this.connected) {
+                    logger.info("Connect integration request received from UI");
+                    await this.connect();
+                    return { success: true, connected: this.connected };
+                }
+                logger.debug("Connect integration requested but integration is already connected");
+                return { success: true, connected: this.connected };
+
+            } catch (error: any) {
+                logger.error(`Error connecting integration: ${error.message}`);
                 return { errorMessage: error.message };
             }
         });

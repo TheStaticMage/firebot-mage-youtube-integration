@@ -58,6 +58,14 @@ function youTubeApplicationsServiceFunction(backendCommunicator: any): any {
         return backendCommunicator.fireEventAsync("youTube:refreshApplicationStates", {});
     };
 
+    service.getIntegrationStatus = (): any => {
+        return backendCommunicator.fireEventSync("youTube:getIntegrationStatus", {});
+    };
+
+    service.connectIntegration = async (): Promise<any> => {
+        return backendCommunicator.fireEventAsync("youTube:connectIntegration", {});
+    };
+
     return service;
 }
 
@@ -240,11 +248,12 @@ const youTubeApplicationsPage: AngularJsPage = {
                 </div>
 
                 <div class="list-group" style="margin-bottom: 0;" ng-if="applications.length > 0">
-                    <div class="list-group-item flex-row-center jspacebetween" ng-repeat="app in applications track by app.id" style="position: relative; border: 2px solid {{ app.id === activeApplicationId ? '#52c41a' : 'transparent' }}; transition: border-color 0.3s;">
+                    <div class="list-group-item flex-row-center jspacebetween" ng-repeat="app in applications track by app.id" style="position: relative; border: 2px solid {{ (app.id === activeApplicationId && integrationConnected()) ? '#52c41a' : (app.id === activeApplicationId && !integrationConnected() ? '#faad14' : 'transparent') }}; border-style: {{ (app.id === activeApplicationId && integrationConnected()) ? 'solid' : (app.id === activeApplicationId && !integrationConnected() ? 'dashed' : 'solid') }}; transition: border-color 0.3s;">
                         <div style="flex: 1;">
                             <h4 class="list-group-item-heading">
                                 {{app.name}}
-                                <span ng-if="app.id === activeApplicationId" style="background: #52c41a; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px; margin-left: 10px;">ACTIVE</span>
+                                <span ng-if="app.id === activeApplicationId && integrationConnected()" style="background: #52c41a; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px; margin-left: 10px;">ACTIVE</span>
+                                <span ng-if="app.id === activeApplicationId && !integrationConnected()" style="background: #faad14; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px; margin-left: 10px;">PENDING ACTIVE</span>
                             </h4>
                             <p class="list-group-item-text muted" style="margin-bottom: 5px;">
                                 <span ng-if="app.ready" style="color: #52c41a;">
@@ -261,12 +270,12 @@ const youTubeApplicationsPage: AngularJsPage = {
                             </p>
                         </div>
                         <div style="font-size:14px; display: flex; gap: 10px; align-items: center;">
-                            <button class="btn btn-sm" ng-class="{'btn-success': app.id !== activeApplicationId, 'btn-default': app.id === activeApplicationId}" ng-click="setActiveButton(app.id)" ng-disabled="!app.ready || app.id === activeApplicationId">
+                            <button class="btn btn-sm" ng-class="{'btn-success': app.id !== activeApplicationId, 'btn-default': app.id === activeApplicationId}" ng-click="setActiveButton(app.id)" ng-disabled="!app.ready || app.id === activeApplicationId" ng-if="app.hasRefreshToken">
                                 <span ng-if="app.id === activeApplicationId">Active</span>
                                 <span ng-if="app.id !== activeApplicationId">Activate</span>
                             </button>
-                            <button class="btn btn-sm btn-default" ng-click="authorizeButton(app.id)" ng-disabled="app.ready">Authorize</button>
-                            <button class="btn btn-sm btn-default" ng-click="deauthorizeButton(app.id)" ng-disabled="!app.ready">Deauthorize</button>
+                            <button class="btn btn-sm btn-default" ng-click="authorizeButton(app.id)" ng-disabled="app.hasRefreshToken">Authorize</button>
+                            <button class="btn btn-sm btn-default" ng-click="deauthorizeButton(app.id)" ng-disabled="!app.hasRefreshToken">Deauthorize</button>
                             <button class="btn btn-sm btn-default" ng-click="editButton(app.id)">Edit</button>
                             <span uib-tooltip="Delete Application" tooltip-append-to-body="true" class="clickable" style="color:red;" ng-click="deleteButton(app.id)">
                                 <i class="fas fa-trash-alt"></i>
@@ -278,6 +287,7 @@ const youTubeApplicationsPage: AngularJsPage = {
                 <div style="margin-top: 15px; display: flex; gap: 10px;">
                     <button type="button" class="btn btn-primary" ng-click="addButton()">Add New Application</button>
                     <button type="button" class="btn btn-default" ng-click="refreshButton()">Refresh Status</button>
+                    <button type="button" class="btn btn-success" ng-click="connectIntegration()" ng-if="!integrationConnected() && hasAnyAuthorizedApplication()">Connect Integration</button>
                 </div>
             </eos-container>
         </div>
@@ -355,6 +365,46 @@ const youTubeApplicationsPage: AngularJsPage = {
                     id
                 }));
             $scope.applications = apps;
+        };
+
+        $scope.integrationConnected = () => {
+            const status = youTubeApplicationsService.getIntegrationStatus();
+            if (status.errorMessage) {
+                ngToast.create({
+                    className: 'danger',
+                    content: `Error getting integration status: ${status.errorMessage}`
+                });
+                return;
+            }
+            return status.connected;
+        };
+
+        $scope.hasAnyAuthorizedApplication = () => {
+            const haaa = $scope.applications.some((app: any) => app.hasRefreshToken);
+            return haaa;
+        };
+
+        $scope.connectIntegration = async () => {
+            try {
+                const response = await youTubeApplicationsService.connectIntegration();
+                if (response.errorMessage) {
+                    ngToast.create({
+                        className: 'danger',
+                        content: `Error connecting integration: ${response.errorMessage}`
+                    });
+                    return;
+                }
+                ngToast.create({
+                    className: 'success',
+                    content: 'Integration connected successfully'
+                });
+                $scope.loadApplications();
+            } catch (error: any) {
+                ngToast.create({
+                    className: 'danger',
+                    content: `Error connecting integration: ${error.message}`
+                });
+            }
         };
 
         $scope.addButton = () => {
@@ -585,7 +635,9 @@ const youTubeApplicationsPage: AngularJsPage = {
             $scope.displayAuthorizeUrl = false;
         };
 
-        $scope.loadApplications();
+        $scope.$applyAsync(() => {
+            $scope.loadApplications();
+        });
 
         // Set up periodic refresh of quota numbers (every 5 seconds)
         let refreshInterval: any = null;
@@ -614,26 +666,45 @@ const youTubeApplicationsPage: AngularJsPage = {
         });
 
         backendCommunicator.on("youTube:applicationsUpdated", () => {
-            $scope.loadApplications();
+            $scope.$applyAsync(() => {
+                $scope.loadApplications();
+            });
+        });
+
+        // Listen for connection state changes
+        backendCommunicator.on("connected", (_integrationId: string) => {
+            // YouTube integration connected
+            $scope.$applyAsync(() => {
+                $scope.loadApplications();
+            });
+        });
+
+        backendCommunicator.on("disconnected", (_integrationId: string) => {
+            // YouTube integration disconnected
+            $scope.$applyAsync(() => {
+                $scope.loadApplications();
+            });
         });
 
         // Listen for application status changes
         backendCommunicator.on("youTube:applicationStatusChanged", (data: any) => {
             // Reload applications to reflect status changes
-            $scope.loadApplications();
+            $scope.$applyAsync(() => {
+                $scope.loadApplications();
 
-            // Optionally show a toast notification
-            if (data.ready) {
-                ngToast.create({
-                    className: 'success',
-                    content: `Application "${data.name}" is now ready.`
-                });
-            } else {
-                ngToast.create({
-                    className: 'warning',
-                    content: `Application "${data.name}" is no longer ready: ${data.status}`
-                });
-            }
+                // Optionally show a toast notification
+                if (data.ready) {
+                    ngToast.create({
+                        className: 'success',
+                        content: `Application "${data.name}" is now ready.`
+                    });
+                } else {
+                    ngToast.create({
+                        className: 'warning',
+                        content: `Application "${data.name}" is no longer ready: ${data.status}`
+                    });
+                }
+            });
         });
     }
 };
