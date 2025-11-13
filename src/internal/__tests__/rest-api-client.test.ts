@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { RestApiClient } from "../rest-api-client";
-import { integration } from "../../integration-singleton";
 import { logger } from "../../main";
 
 // Mock google-auth-library first
@@ -26,34 +25,34 @@ jest.mock("@googleapis/youtube", () => ({
     }
 }));
 
-// Mock the integration module
-jest.mock("../../integration-singleton", () => ({
-    integration: {
-        getApplicationsStorage: jest.fn(),
-        getCurrentLiveChatId: jest.fn(),
-        getMultiAuthManager: jest.fn()
-    }
-}));
-
 // Mock the logger
 jest.mock("../../main", () => ({
     logger: {
         error: jest.fn(),
         debug: jest.fn(),
-        info: jest.fn()
+        info: jest.fn(),
+        warn: jest.fn()
     }
 }));
 
 describe("RestApiClient", () => {
     let restApiClient: RestApiClient;
+    let mockIntegration: any;
 
     beforeEach(() => {
-        restApiClient = new RestApiClient();
+        mockIntegration = {
+            getApplicationsStorage: jest.fn(),
+            getCurrentLiveChatId: jest.fn(),
+            getMultiAuthManager: jest.fn(),
+            getQuotaManager: jest.fn()
+        };
+
+        restApiClient = new RestApiClient(mockIntegration);
         jest.clearAllMocks();
         mockLiveChatMessages.insert.mockReset();
 
         // Setup default mocks
-        (integration.getApplicationsStorage as jest.Mock).mockReturnValue({
+        mockIntegration.getApplicationsStorage.mockReturnValue({
             activeApplicationId: "app1",
             applications: {
                 app1: {
@@ -63,17 +62,29 @@ describe("RestApiClient", () => {
                     clientSecret: "secret1",
                     refreshToken: "refresh1",
                     ready: true,
-                    status: "Ready"
+                    status: "Ready",
+                    quotaSettings: {
+                        dailyQuota: 10000,
+                        maxStreamHours: 8,
+                        overridePollingDelay: false,
+                        customPollingDelaySeconds: 0
+                    }
                 }
             }
         });
 
-        (integration.getCurrentLiveChatId as jest.Mock).mockReturnValue("test-chat-id");
+        mockIntegration.getCurrentLiveChatId.mockReturnValue("test-chat-id");
 
         const mockMultiAuthManager = {
             getAccessToken: jest.fn().mockResolvedValue("test-access-token")
         };
-        (integration.getMultiAuthManager as jest.Mock).mockReturnValue(mockMultiAuthManager);
+        mockIntegration.getMultiAuthManager.mockReturnValue(mockMultiAuthManager);
+
+        const mockQuotaManager = {
+            isQuotaAvailable: jest.fn().mockReturnValue(true),
+            recordApiCall: jest.fn()
+        };
+        mockIntegration.getQuotaManager.mockReturnValue(mockQuotaManager);
     });
 
     describe("sendChatMessage", () => {
@@ -104,7 +115,7 @@ describe("RestApiClient", () => {
         });
 
         it("should return false when no active application is selected", async () => {
-            (integration.getApplicationsStorage as jest.Mock).mockReturnValue({
+            mockIntegration.getApplicationsStorage.mockReturnValue({
                 activeApplicationId: null,
                 applications: {}
             });
@@ -119,7 +130,7 @@ describe("RestApiClient", () => {
         });
 
         it("should return false when active application is not found", async () => {
-            (integration.getApplicationsStorage as jest.Mock).mockReturnValue({
+            mockIntegration.getApplicationsStorage.mockReturnValue({
                 activeApplicationId: "app1",
                 applications: {}
             });
@@ -134,7 +145,7 @@ describe("RestApiClient", () => {
         });
 
         it("should return false when active application is not ready", async () => {
-            (integration.getApplicationsStorage as jest.Mock).mockReturnValue({
+            mockIntegration.getApplicationsStorage.mockReturnValue({
                 activeApplicationId: "app1",
                 applications: {
                     app1: {
@@ -159,7 +170,7 @@ describe("RestApiClient", () => {
         });
 
         it("should return false when no live chat ID is available", async () => {
-            (integration.getCurrentLiveChatId as jest.Mock).mockReturnValue(null);
+            mockIntegration.getCurrentLiveChatId.mockReturnValue(null);
 
             const result = await restApiClient.sendChatMessage("Test message");
 
@@ -260,7 +271,7 @@ describe("RestApiClient", () => {
             const mockMultiAuthManager = {
                 getAccessToken: jest.fn().mockResolvedValue("new-access-token")
             };
-            (integration.getMultiAuthManager as jest.Mock).mockReturnValue(mockMultiAuthManager);
+            mockIntegration.getMultiAuthManager.mockReturnValue(mockMultiAuthManager);
 
             mockLiveChatMessages.insert.mockResolvedValue({
                 status: 200,

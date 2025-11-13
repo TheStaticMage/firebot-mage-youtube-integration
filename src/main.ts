@@ -2,7 +2,6 @@ import { Firebot, RunRequest } from '@crowbartools/firebot-custom-scripts-types'
 import { Logger } from '@crowbartools/firebot-custom-scripts-types/types/modules/logger';
 import { IntegrationConstants } from './constants';
 import { definition, integration } from './integration';
-import { registerUIExtensions } from './ui-extensions';
 
 export let firebot: RunRequest<any>;
 export let logger: LogWrapper;
@@ -29,14 +28,8 @@ const script: Firebot.CustomScript = {
         logger.info(`Mage YouTube Integration v${scriptVersion} initializing...`);
 
         const { integrationManager } = runRequest.modules;
-
-        // Register integration
         integrationManager.registerIntegration({ definition, integration });
         logger.info(`Registered integration: ${IntegrationConstants.INTEGRATION_NAME}`);
-
-        // Register UI extensions
-        registerUIExtensions();
-        logger.info("UI Extensions registered");
     }
 };
 

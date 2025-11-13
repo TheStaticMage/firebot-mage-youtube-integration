@@ -33,6 +33,8 @@ export class ChatManager {
     private pageToken: string | undefined;
     private clientFactory: () => any;
     private integration: YouTubeIntegration;
+    private activeApplicationId = '';
+    private dailyQuota = 10000;
 
     constructor(logger: any, quotaManager: QuotaManager, clientFactory: () => any, integration: YouTubeIntegration) {
         this.logger = logger;
@@ -70,6 +72,8 @@ export class ChatManager {
         this.pollingDelaySeconds = delay;
         this.liveChatId = liveChatId;
         this.accessToken = accessToken;
+        this.activeApplicationId = applicationsStorage.activeApplicationId;
+        this.dailyQuota = activeApplication.quotaSettings.dailyQuota;
         this.client = this.clientFactory();
         this.isStreaming = true;
         this.pageToken = undefined;
@@ -122,8 +126,10 @@ export class ChatManager {
 
         // Each call is a new chat API request
         for await (const response of this.client.chatStreamMessages(
+            this.activeApplicationId,
             this.liveChatId,
             this.accessToken,
+            this.dailyQuota,
             { pageToken: this.pageToken }
         )) {
             if (!this.isStreaming) {

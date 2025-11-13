@@ -253,7 +253,7 @@ const youTubeApplicationsPage: AngularJsPage = {
                                 <span ng-if="!app.ready" style="color: #ff7875;">
                                     <i class="fas fa-times-circle"></i> Not Ready
                                 </span>
-                                <span style="margin-left: 15px;">Quota: {{app.quotaSettings.dailyQuota}}</span>
+                                <span style="margin-left: 15px;">Quota: {{app.quotaUnitsUsed || 0}}/{{app.quotaSettings.dailyQuota}}</span>
                                 <span style="margin-left: 15px;">Stream Hours: {{app.quotaSettings.maxStreamHours}}</span>
                             </p>
                             <p class="list-group-item-text muted" ng-if="app.status">
@@ -586,6 +586,32 @@ const youTubeApplicationsPage: AngularJsPage = {
         };
 
         $scope.loadApplications();
+
+        // Set up periodic refresh of quota numbers (every 5 seconds)
+        let refreshInterval: any = null;
+        const startAutoRefresh = () => {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            refreshInterval = setInterval(() => {
+                $scope.loadApplications();
+            }, 5000);
+        };
+
+        const stopAutoRefresh = () => {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+        };
+
+        // Start auto-refresh when controller initializes
+        startAutoRefresh();
+
+        // Stop auto-refresh when the scope is destroyed
+        $scope.$on('$destroy', () => {
+            stopAutoRefresh();
+        });
 
         backendCommunicator.on("youTube:applicationsUpdated", () => {
             $scope.loadApplications();

@@ -1,12 +1,19 @@
 import { youtube_v3 as youtubeV3 } from "@googleapis/youtube";
 import { OAuth2Client } from "google-auth-library";
+import type { YouTubeIntegration } from "../integration-singleton";
 import { logger } from "../main";
-import { integration } from "../integration-singleton";
+import { QUOTA_COSTS } from "../types/quota-tracking";
 
 export class RestApiClient {
+    private integration: YouTubeIntegration;
+
+    constructor(integration: YouTubeIntegration) {
+        this.integration = integration;
+    }
+
     private async getAuthClient(): Promise<OAuth2Client> {
         // Get active application
-        const applicationsStorage = integration.getApplicationsStorage();
+        const applicationsStorage = this.integration.getApplicationsStorage();
         const activeApplicationId = applicationsStorage.activeApplicationId;
 
         if (!activeApplicationId) {
@@ -19,7 +26,7 @@ export class RestApiClient {
         }
 
         // Get access token from MultiAuthManager
-        const multiAuthManager = integration.getMultiAuthManager();
+        const multiAuthManager = this.integration.getMultiAuthManager();
         const accessToken = await multiAuthManager.getAccessToken(activeApplicationId);
 
         if (!accessToken) {
@@ -56,7 +63,7 @@ export class RestApiClient {
     async sendChatMessage(messageText: string): Promise<boolean> {
         try {
             // Validate active application exists and is ready
-            const applicationsStorage = integration.getApplicationsStorage();
+            const applicationsStorage = this.integration.getApplicationsStorage();
             const activeApplicationId = applicationsStorage.activeApplicationId;
 
             if (!activeApplicationId) {
@@ -73,7 +80,7 @@ export class RestApiClient {
             }
 
             // Get current live chat ID
-            const liveChatId = integration.getCurrentLiveChatId();
+            const liveChatId = this.integration.getCurrentLiveChatId();
             if (!liveChatId) {
                 logger.error("Cannot send YouTube chat message: No active live chat");
                 return false;
@@ -93,6 +100,10 @@ export class RestApiClient {
                     }
                 }
             });
+
+            // Record quota consumption
+            const quotaManager = this.integration.getQuotaManager();
+            quotaManager.recordApiCall(activeApplicationId, 'liveChatMessages.insert', QUOTA_COSTS.LIVE_CHAT_MESSAGES_INSERT);
 
             if (response.status === 200) {
                 logger.debug(`Successfully sent YouTube chat message. Message ID: ${response.data.id}`);

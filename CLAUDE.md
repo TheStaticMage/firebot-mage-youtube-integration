@@ -50,13 +50,13 @@ TODO:
   - Create Firebot effect to change active YouTube configuration (TODO)
   - Firebot variable indicating active YouTube configuration (TODO)
   - Option to display authorized Google account in YouTube application list (TODO)
-- Enhanced quota management
-  - Every API call records the number of quota units consumed
-  - Track quota units consumed between Firebot sessions
-  - Reset available quota units at 00:00 Pacific time
-  - Add Firebot variables for quota units used, quota units remaining
-  - Add Firebot event for YouTube quota threshold reached (e.g. trigger event when quota use first exceeds 80%)
-  - Documentation for quota management
+- Enhanced quota management (IN PROGRESS - see plans/enhanced-quota.md)
+  - Every API call records the number of quota units consumed (PHASE 2)
+  - Track quota units consumed between Firebot sessions (PHASE 1)
+  - Reset available quota units at 00:00 Pacific time (PHASE 1)
+  - Add Firebot variables for quota units used, quota units remaining (PHASE 5 - FUTURE)
+  - Add Firebot event for YouTube quota threshold reached (e.g. trigger event when quota use first exceeds 80%) (PHASE 5 - FUTURE)
+  - Documentation for quota management (PHASE 5 - FUTURE)
     - Explanation of YouTube quotas like:
       - <https://github.com/ThioJoe/YT-Spammer-Purge/wiki/Understanding-YouTube-API-Quota-Limits>
       - <https://www.getphyllo.com/post/youtube-api-limits-how-to-calculate-api-usage-cost-and-fix-exceeded-api-quota>
@@ -79,6 +79,14 @@ Learnings:
 - Automatic background token refresh (every ~50 minutes) prevents authentication failures during operation
 - Ready status calculation requires both refresh token presence AND successful OAuth/refresh
 - Per-application credential storage enables seamless switching without re-authorization
+- Single QuotaManager instance manages quota tracking for all applications (per-app data in Map)
+- Debounced writes (5 second delay) reduce file I/O overhead and eliminate concurrent write concerns
+- Pacific Time timezone handling requires timezone-aware library (luxon) to account for DST transitions
+- Constructor injection of dependencies across manager classes requires careful wiring review to avoid breaking existing factory patterns
+- Corrupt quota data files should not crash the integration; fallback to empty state with logging
+- Manager classes must NOT depend on `firebot` or `logger` in constructors; initialize these globals in main.ts `run()` first
+- Manager classes that need `firebot` or `logger` should defer access to explicit `initialize()` methods called after `firebot`/`logger` are set
+- Pattern: Constructor only initializes empty state; `async initialize()` method loads persisted data and accesses globals; call during integration startup
 
 Conventions:
 
@@ -109,11 +117,12 @@ Tests:
   - Multi-application scenario tests for integration between components
   - Functional tests simulating real-world usage patterns (chat sending, stream detection, token refresh)
   - Status indicator accuracy tests to validate UI display correctness
-- Current coverage (145 tests):
+- Current coverage (181 tests):
   - application-utils: Ready status edge cases, transitions, validation
   - multi-auth-manager: Per-application OAuth flows, concurrent refresh, token management
   - application-manager: Application creation, activation, list management
   - chat-manager: Message retrieval, error handling per-application
+  - quota-manager: Delay calculation, quota tracking, Pacific Time reset logic, DST handling
   - rest-api-client: API communication, quota tracking, streaming resumption
   - status-indicators: Status message accuracy, token expiration display
   - chat effect: Message sending validation

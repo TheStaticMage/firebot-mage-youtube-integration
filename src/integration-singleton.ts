@@ -1,19 +1,20 @@
-import { IntegrationData, ScriptModules } from "@crowbartools/firebot-custom-scripts-types";
+import { IntegrationData } from "@crowbartools/firebot-custom-scripts-types";
 import { EventEmitter } from "events";
 import { IntegrationConstants } from "./constants";
+import { chatEffect } from "./effects/chat";
 import { YouTubeEventSource } from "./events";
 import { ApplicationManager } from "./internal/application-manager";
+import { getApplicationStatusMessage } from "./internal/application-utils";
 import { BroadcastManager } from "./internal/broadcast-manager";
 import { ChatManager } from "./internal/chat-manager";
 import { ChatStreamClient } from "./internal/chatstream-client";
+import { MultiAuthManager } from "./internal/multi-auth-manager";
 import { QuotaManager } from "./internal/quota-manager";
 import { RestApiClient } from "./internal/rest-api-client";
-import { MultiAuthManager } from "./internal/multi-auth-manager";
 import { firebot, logger } from "./main";
+import { ApplicationStorage, YouTubeOAuthApplication } from "./types";
 import { getDataFilePath } from "./util/datafile";
-import { chatEffect } from "./effects/chat";
-import { YouTubeOAuthApplication, ApplicationStorage } from "./types";
-import { getApplicationStatusMessage } from "./internal/application-utils";
+import { registerUIExtensions } from "./ui-extensions";
 
 type IntegrationParameters = {
     chat: {
@@ -44,10 +45,10 @@ export class YouTubeIntegration extends EventEmitter {
     // Managers for production integration
     private applicationManager: ApplicationManager = new ApplicationManager();
     private multiAuthManager: MultiAuthManager = new MultiAuthManager();
-    private broadcastManager: BroadcastManager = new BroadcastManager();
     private quotaManager: QuotaManager = new QuotaManager();
+    private broadcastManager: BroadcastManager = new BroadcastManager(this);
     private chatManager: ChatManager | null = null;
-    private restApiClient: RestApiClient = new RestApiClient();
+    private restApiClient: RestApiClient = new RestApiClient(this);
 
     // Stream monitoring
     private streamCheckInterval: NodeJS.Timeout | null = null;
@@ -130,6 +131,16 @@ export class YouTubeIntegration extends EventEmitter {
         const { effectManager } = firebot.modules;
         effectManager.registerEffect(chatEffect);
 
+        // Register UI extensions
+        registerUIExtensions();
+        logger.info("UI Extensions registered");
+
+        // Initialize QuotaManager
+        this.quotaManager.initialize().catch((error) => {
+            logger.error(`Failed to initialize QuotaManager: ${error.message}`);
+        });
+        logger.info("QuotaManager initialized");
+
         // Initialize ApplicationManager
         this.dataFilePath = getDataFilePath("integration-data.json");
         this.applicationManager.initPath();
@@ -194,7 +205,7 @@ export class YouTubeIntegration extends EventEmitter {
 
             // Step 5: Find active live stream
             logger.info("Searching for active YouTube broadcast...");
-            const liveChatId = await this.broadcastManager.findActiveLiveChatId(accessToken, undefined);
+            const liveChatId = await this.broadcastManager.findActiveLiveChatId(accessToken, undefined, activeApplicationId);
 
             if (!liveChatId) {
                 logger.warn("No active YouTube broadcast found. Will check periodically.");
@@ -238,7 +249,7 @@ export class YouTubeIntegration extends EventEmitter {
 
         this.currentLiveChatId = liveChatId;
         // Create ChatManager with ChatStreamClient factory and integration reference
-        this.chatManager = new ChatManager(logger, this.quotaManager, () => new ChatStreamClient(), this);
+        this.chatManager = new ChatManager(logger, this.quotaManager, () => new ChatStreamClient(this), this);
 
         // Start streaming (ChatManager will calculate delay internally)
         await this.chatManager.startChatStreaming(liveChatId, accessToken);
@@ -288,7 +299,7 @@ export class YouTubeIntegration extends EventEmitter {
                 return;
             }
 
-            const liveChatId = await this.broadcastManager.findActiveLiveChatId(accessToken, undefined);
+            const liveChatId = await this.broadcastManager.findActiveLiveChatId(accessToken, undefined, this.currentActiveApplicationId);
 
             // Case 1: Stream just started
             if (!this.currentLiveChatId && liveChatId) {
@@ -345,6 +356,9 @@ export class YouTubeIntegration extends EventEmitter {
             logger.debug("Chat streaming stopped");
         }
 
+        // Flush quota data before disconnect
+        this.quotaManager.flushQuotaData();
+
         // Destroy multi-auth manager and stop all background refresh timers
         this.multiAuthManager.destroy();
         logger.debug("Background token refresh timers destroyed for all applications");
@@ -367,10 +381,6 @@ export class YouTubeIntegration extends EventEmitter {
         return this.settings.chat.chatFeed;
     }
 
-    getModules(): ScriptModules {
-        return firebot.modules;
-    }
-
     getSettings(): IntegrationParameters {
         return this.settings;
     }
@@ -385,6 +395,10 @@ export class YouTubeIntegration extends EventEmitter {
 
     getMultiAuthManager(): MultiAuthManager {
         return this.multiAuthManager;
+    }
+
+    getQuotaManager(): QuotaManager {
+        return this.quotaManager;
     }
 
     getApplicationsStorage(): ApplicationStorage {
@@ -507,6 +521,8 @@ export class YouTubeIntegration extends EventEmitter {
     private serializeApplicationsForUI(applicationsMap: Record<string, YouTubeOAuthApplication>): Record<string, any> {
         const serializedMap: Record<string, any> = {};
         for (const [id, app] of Object.entries(applicationsMap)) {
+            const quotaUsage = this.quotaManager.getQuotaUsage(id);
+            const quotaUnitsUsed = quotaUsage?.quotaUnitsUsed || 0;
             serializedMap[id] = {
                 id: app.id,
                 name: app.name,
@@ -517,7 +533,8 @@ export class YouTubeIntegration extends EventEmitter {
                     maxStreamHours: app.quotaSettings.maxStreamHours,
                     overridePollingDelay: app.quotaSettings.overridePollingDelay,
                     customPollingDelaySeconds: app.quotaSettings.customPollingDelaySeconds
-                }
+                },
+                quotaUnitsUsed: quotaUnitsUsed
             };
         }
         return serializedMap;

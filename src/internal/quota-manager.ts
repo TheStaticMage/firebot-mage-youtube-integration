@@ -1,29 +1,57 @@
 /**
- * QuotaManager calculates intelligent polling delays to stay within YouTube API quota limits
+ * QuotaManager tracks and manages YouTube API quota consumption with persistent storage
  *
  * Responsibilities:
  * - Calculate delay between streamList calls based on quota settings
+ * - Record actual API call consumption per application
+ * - Track quota usage across Firebot restarts
+ * - Reset quota at midnight Pacific Time daily
+ * - Validate quota availability before API calls
  * - Consider daily quota budget and maximum stream duration
  * - Target 80% quota usage to leave buffer for other API calls
  * - Support manual override of calculated delays
  */
 
-import { logger } from "../main";
+import { DateTime } from "luxon";
+import { firebot, logger } from "../main";
 import { QuotaSettings } from "../types";
+import { QuotaTrackingStorage, QuotaUsage, QUOTA_COSTS } from "../types/quota-tracking";
+import { getDataFilePath } from "../util/datafile";
 
 export class QuotaManager {
-    /**
-     * Cost in quota units for a single liveChatMessages.list call
-     * According to YouTube Data API v3 quota costs:
-     * https://developers.google.com/youtube/v3/determine_quota_cost
-     */
-    private static readonly CHAT_LIST_COST = 5;
-
     /**
      * Target percentage of daily quota to use for chat polling
      * Leaves 20% buffer for other operations
      */
     private static readonly QUOTA_TARGET_PERCENT = 0.8;
+
+    /**
+     * Debounce delay for saving quota data (ms)
+     * Reduces file I/O overhead from frequent API calls
+     */
+    private static readonly SAVE_DEBOUNCE_MS = 5000;
+
+    /**
+     * In-memory tracking of quota usage per application
+     */
+    private quotaData: Map<string, QuotaUsage>;
+
+    /**
+     * Timer for debounced save operations
+     */
+    private saveTimer?: NodeJS.Timeout;
+
+    constructor() {
+        this.quotaData = new Map();
+    }
+
+    /**
+     * Initialize the quota manager by loading quota data from disk
+     * Must be called after firebot global is initialized
+     */
+    async initialize(): Promise<void> {
+        this.loadQuotaData();
+    }
 
     /**
      * Calculate the delay in seconds between streamList calls
@@ -54,7 +82,7 @@ export class QuotaManager {
 
         // Calculate delay based on quota budget
         const quotaBudget = dailyQuota * QuotaManager.QUOTA_TARGET_PERCENT;
-        const maxCallsPerDay = quotaBudget / QuotaManager.CHAT_LIST_COST;
+        const maxCallsPerDay = quotaBudget / QUOTA_COSTS.STREAM_LIST;
         const callsPerHour = maxCallsPerDay / maxStreamHours;
         const delaySeconds = 3600 / callsPerHour;
 
@@ -120,5 +148,190 @@ export class QuotaManager {
         }
 
         return `${minutes}m ${remainingSeconds}s`;
+    }
+
+    /**
+     * Record an API call and update quota usage
+     * Automatically schedules a debounced save
+     *
+     * @param applicationId Application ID making the API call
+     * @param endpoint API endpoint name for logging
+     * @param cost Quota cost of the API call
+     */
+    recordApiCall(applicationId: string, endpoint: string, cost: number): void {
+        this.checkAndResetIfNeeded(applicationId);
+
+        let usage = this.quotaData.get(applicationId);
+        if (!usage) {
+            usage = {
+                quotaUnitsUsed: 0,
+                quotaResetTime: this.calculateNextMidnightPT(),
+                lastUpdated: Date.now()
+            };
+            this.quotaData.set(applicationId, usage);
+        }
+
+        usage.quotaUnitsUsed += cost;
+        usage.lastUpdated = Date.now();
+
+        logger.debug(`Quota recorded for application ${applicationId}: ${endpoint} (${cost} units), total: ${usage.quotaUnitsUsed}`);
+
+        this.scheduleSave();
+    }
+
+    /**
+     * Get current quota usage for an application
+     * Automatically checks and resets if midnight PT has passed
+     *
+     * @param applicationId Application ID
+     * @returns Current quota usage or undefined if no data
+     */
+    getQuotaUsage(applicationId: string): QuotaUsage | undefined {
+        this.checkAndResetIfNeeded(applicationId);
+        return this.quotaData.get(applicationId);
+    }
+
+    /**
+     * Calculate remaining quota for an application
+     *
+     * @param applicationId Application ID
+     * @param dailyQuota Daily quota limit
+     * @returns Remaining quota units
+     */
+    getQuotaRemaining(applicationId: string, dailyQuota: number): number {
+        const usage = this.getQuotaUsage(applicationId);
+        if (!usage) {
+            return dailyQuota;
+        }
+        return Math.max(0, dailyQuota - usage.quotaUnitsUsed);
+    }
+
+    /**
+     * Check if enough quota is available for an API call
+     *
+     * @param applicationId Application ID
+     * @param cost Quota cost of the planned API call
+     * @param dailyQuota Daily quota limit
+     * @returns true if quota is available, false otherwise
+     */
+    isQuotaAvailable(applicationId: string, cost: number, dailyQuota: number): boolean {
+        const remaining = this.getQuotaRemaining(applicationId, dailyQuota);
+        const available = remaining >= cost;
+
+        if (!available) {
+            logger.warn(`Quota exhausted for application ${applicationId}. Requested: ${cost}, Available: ${remaining}`);
+        }
+
+        return available;
+    }
+
+    /**
+     * Check if quota should be reset (midnight PT passed) and reset if needed
+     *
+     * @param applicationId Application ID
+     */
+    private checkAndResetIfNeeded(applicationId: string): void {
+        const usage = this.quotaData.get(applicationId);
+        if (!usage) {
+            return;
+        }
+
+        const now = Date.now();
+
+        if (now >= usage.quotaResetTime) {
+            logger.info(`Resetting quota for application ${applicationId} (midnight PT passed)`);
+
+            usage.quotaUnitsUsed = 0;
+            usage.quotaResetTime = this.calculateNextMidnightPT();
+            usage.lastUpdated = now;
+
+            this.scheduleSave();
+        }
+    }
+
+    /**
+     * Calculate the next midnight Pacific Time timestamp
+     *
+     * @returns Unix timestamp (ms) of next midnight PT
+     */
+    private calculateNextMidnightPT(): number {
+        const now = DateTime.now().setZone("America/Los_Angeles");
+        const nextMidnight = now.plus({ days: 1 }).startOf("day");
+        return nextMidnight.toMillis();
+    }
+
+    /**
+     * Load quota data from persistent storage
+     * If file doesn't exist or is corrupt, starts with empty state
+     */
+    private loadQuotaData(): void {
+        try {
+            const fs = require("fs");
+            const quotaDataPath = getDataFilePath("quota-tracking.json");
+            if (!fs.existsSync(quotaDataPath)) {
+                logger.debug("Quota tracking file does not exist, starting with empty state");
+                return;
+            }
+
+            const fileContents = fs.readFileSync(quotaDataPath, "utf-8");
+            const storage: QuotaTrackingStorage = JSON.parse(fileContents);
+
+            this.quotaData = new Map(Object.entries(storage));
+            logger.info(`Loaded quota data for ${this.quotaData.size} application(s)`);
+        } catch (error) {
+            logger.error(`Failed to load quota tracking data: ${error instanceof Error ? error.message : String(error)}`);
+            logger.info("Starting with empty quota state");
+            this.quotaData = new Map();
+        }
+    }
+
+    /**
+     * Schedule a debounced save of quota data
+     * Cancels any pending save and schedules a new one 5 seconds from now
+     */
+    private scheduleSave(): void {
+        if (this.saveTimer) {
+            clearTimeout(this.saveTimer);
+        }
+
+        this.saveTimer = setTimeout(() => {
+            this.saveQuotaData();
+            this.saveTimer = undefined;
+        }, QuotaManager.SAVE_DEBOUNCE_MS);
+    }
+
+    /**
+     * Immediately flush quota data to disk
+     * Called on integration disconnect to ensure data is saved
+     */
+    flushQuotaData(): void {
+        if (this.saveTimer) {
+            clearTimeout(this.saveTimer);
+            this.saveTimer = undefined;
+        }
+
+        this.saveQuotaData();
+    }
+
+    /**
+     * Perform the actual save of quota data to disk
+     */
+    private saveQuotaData(): void {
+        try {
+            const { fs, path } = firebot.modules;
+            const quotaDataPath = getDataFilePath("quota-tracking.json");
+            const storage: QuotaTrackingStorage = Object.fromEntries(this.quotaData);
+            const data = JSON.stringify(storage, null, 2);
+
+            const dir = path.dirname(quotaDataPath);
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+            }
+
+            fs.writeFileSync(quotaDataPath, data, "utf-8");
+            logger.debug("Quota tracking data saved");
+        } catch (error) {
+            logger.error(`Failed to save quota tracking data: ${error instanceof Error ? error.message : String(error)}`);
+        }
     }
 }
