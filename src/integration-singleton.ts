@@ -2,6 +2,7 @@ import { IntegrationData } from "@crowbartools/firebot-custom-scripts-types";
 import { EventEmitter } from "events";
 import { IntegrationConstants } from "./constants";
 import { chatEffect } from "./effects/chat";
+import { selectApplicationEffect } from "./effects/select-application";
 import { YouTubeEventSource } from "./events";
 import { ApplicationManager } from "./internal/application-manager";
 import { getApplicationStatusMessage } from "./internal/application-utils";
@@ -130,6 +131,7 @@ export class YouTubeIntegration extends EventEmitter {
         // Register effects
         const { effectManager } = firebot.modules;
         effectManager.registerEffect(chatEffect);
+        effectManager.registerEffect(selectApplicationEffect);
 
         // Register UI extensions
         registerUIExtensions();
@@ -402,6 +404,10 @@ export class YouTubeIntegration extends EventEmitter {
 
     getRestApiClient(): RestApiClient {
         return this.restApiClient;
+    }
+
+    getApplicationManager(): ApplicationManager {
+        return this.applicationManager;
     }
 
     getCurrentLiveChatId(): string | null {

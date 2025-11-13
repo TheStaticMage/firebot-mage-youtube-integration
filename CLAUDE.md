@@ -47,7 +47,7 @@ TODO:
   - Per-application chat streaming and stream detection (DONE)
   - Per-application quota management and settings (DONE)
   - UI Extension for app management (DONE)
-  - Create Firebot effect to change active YouTube configuration (TODO)
+  - Create Firebot effect to change active YouTube configuration (DONE)
   - Firebot variable indicating active YouTube configuration (TODO)
   - Option to display authorized Google account in YouTube application list (TODO)
 - Enhanced quota management (IN PROGRESS - see plans/enhanced-quota.md)
@@ -117,7 +117,7 @@ Tests:
   - Multi-application scenario tests for integration between components
   - Functional tests simulating real-world usage patterns (chat sending, stream detection, token refresh)
   - Status indicator accuracy tests to validate UI display correctness
-- Current coverage (181 tests):
+- Current coverage (187 tests):
   - application-utils: Ready status edge cases, transitions, validation
   - multi-auth-manager: Per-application OAuth flows, concurrent refresh, token management
   - application-manager: Application creation, activation, list management
@@ -126,6 +126,7 @@ Tests:
   - rest-api-client: API communication, quota tracking, streaming resumption
   - status-indicators: Status message accuracy, token expiration display
   - chat effect: Message sending validation
+  - select-application effect: Application activation, edge case handling
 
 Things to check:
 
@@ -135,3 +136,4 @@ Things to check:
 Notes:
 
 - Reference similar implementation for Kick.com streaming service in `../firebot-mage-kick-integration`
+- Firebot source code is in `../Firebot`
