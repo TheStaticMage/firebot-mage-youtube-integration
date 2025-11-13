@@ -8,6 +8,8 @@ import {
     updateApplicationReadyStatus,
     validateApplication
 } from "./application-utils";
+import { IntegrationConstants } from "../constants";
+import { ApplicationActivationCause } from "../events";
 
 /**
  * ApplicationManager handles YouTube OAuth application storage and management
@@ -261,9 +263,11 @@ export class ApplicationManager {
     /**
      * Set active application
      * @param id Application ID to set as active
+     * @param cause The reason for the application activation (empty string if unspecified)
+     * @param connected Whether the integration is currently connected (defaults to false)
      * @throws Error if application not found or not ready
      */
-    async setActiveApplication(id: string): Promise<void> {
+    async setActiveApplication(id: string, cause: ApplicationActivationCause | "" = "", connected = false): Promise<void> {
         const app = this.getApplication(id);
         if (!app) {
             throw new Error(`Application with ID "${id}" not found`);
@@ -279,7 +283,16 @@ export class ApplicationManager {
         this.storage.activeApplicationId = id;
         await this.saveApplications();
 
-        logger.info(`Set active application: ${app.name} (${id})${previousActiveId ? ` (previously: ${previousActiveId})` : ""}`);
+        logger.info(`Set active application: ${app.name} (${id})${previousActiveId ? ` (previously: ${previousActiveId})` : ""}${cause ? ` - Cause: ${cause}` : ""}`);
+
+        const { eventManager } = firebot.modules;
+        const metadata = {
+            cause: cause,
+            applicationId: id,
+            applicationName: app.name,
+            connected: connected
+        };
+        eventManager.triggerEvent(IntegrationConstants.INTEGRATION_ID, "application-activated", metadata);
     }
 
     /**

@@ -25,6 +25,8 @@ Key features:
 - Chat (YouTube) effect that posts message into YouTube chat
 - Seamless switching between multiple YouTube channels via active application selection
 - Real-time status indicators for application ready state and token expiration
+- Application Activated event triggered when active application changes with type-safe enum causes
+- Variables exposing application metadata: applicationId, applicationName, activationCause, integrationConnected
 
 TODO:
 
@@ -48,7 +50,8 @@ TODO:
   - Per-application quota management and settings (DONE)
   - UI Extension for app management (DONE)
   - Create Firebot effect to change active YouTube configuration (DONE)
-  - Firebot variable indicating active YouTube configuration (TODO)
+  - Firebot event triggered on application activation (DONE)
+  - Firebot variables indicating active YouTube configuration (DONE)
   - Option to display authorized Google account in YouTube application list (TODO)
 - Enhanced quota management (IN PROGRESS - see plans/enhanced-quota.md)
   - Every API call records the number of quota units consumed (PHASE 2)
@@ -87,6 +90,9 @@ Learnings:
 - Manager classes must NOT depend on `firebot` or `logger` in constructors; initialize these globals in main.ts `run()` first
 - Manager classes that need `firebot` or `logger` should defer access to explicit `initialize()` methods called after `firebot`/`logger` are set
 - Pattern: Constructor only initializes empty state; `async initialize()` method loads persisted data and accesses globals; call during integration startup
+- Enum-based constants for event causes improve type safety and prevent string literal typos
+- Variables support optional arguments for flexible data retrieval (e.g., $youtubeApplicationName[uuid])
+- Variable examples in definition help users understand usage patterns (examples array with usage and description)
 
 Conventions:
 
@@ -105,6 +111,9 @@ Conventions:
 - Do not leave comments that only indicate something was removed
 - Use comments to explain "why" or as headers before sections of code but do not leave obvious comments that describe short and straightforward implementation
 - If something is being removed, remove it completely. Do not worry about backward compatibility or deprecation unless specifically instructed.
+- Events: Use enums for event-specific constants (causes, types) to ensure type safety
+- Variables: Test only the evaluator method; priority order: argument → event metadata → integration state
+- Variables: Include examples array in definition showing usage with and without arguments
 
 Tests:
 
@@ -117,16 +126,17 @@ Tests:
   - Multi-application scenario tests for integration between components
   - Functional tests simulating real-world usage patterns (chat sending, stream detection, token refresh)
   - Status indicator accuracy tests to validate UI display correctness
-- Current coverage (187 tests):
+- Current coverage (216 tests):
   - application-utils: Ready status edge cases, transitions, validation
   - multi-auth-manager: Per-application OAuth flows, concurrent refresh, token management
-  - application-manager: Application creation, activation, list management
+  - application-manager: Application creation, activation, list management, event triggering
   - chat-manager: Message retrieval, error handling per-application
   - quota-manager: Delay calculation, quota tracking, Pacific Time reset logic, DST handling
   - rest-api-client: API communication, quota tracking, streaming resumption
   - status-indicators: Status message accuracy, token expiration display
   - chat effect: Message sending validation
-  - select-application effect: Application activation, edge case handling
+  - select-application effect: Application activation with enum causes, edge case handling
+  - variables: Event metadata fallback, optional arguments, integration state access
 
 Things to check:
 

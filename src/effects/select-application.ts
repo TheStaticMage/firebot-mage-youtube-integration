@@ -1,4 +1,5 @@
 import { Firebot } from "@crowbartools/firebot-custom-scripts-types";
+import { ApplicationActivationCause } from "../events";
 import { integration } from "../integration";
 import { logger } from "../main";
 
@@ -134,7 +135,7 @@ export const selectApplicationEffect: Firebot.EffectType<selectApplicationEffect
                 return true;
             }
 
-            await applicationManager.setActiveApplication(effect.applicationId);
+            await applicationManager.setActiveApplication(effect.applicationId, ApplicationActivationCause.CHANGED_BY_EFFECT, integration.connected);
             logger.info(`Activated YouTube application: ${application.name}`);
             return true;
         } catch (error) {
