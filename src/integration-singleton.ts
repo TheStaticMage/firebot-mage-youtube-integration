@@ -547,6 +547,7 @@ export class YouTubeIntegration extends EventEmitter {
             serializedMap[id] = {
                 id: app.id,
                 name: app.name,
+                email: app.email,
                 ready: app.ready,
                 hasRefreshToken: !!app.refreshToken,
                 status: getApplicationStatusMessage(app),
@@ -648,6 +649,7 @@ export class YouTubeIntegration extends EventEmitter {
             try {
                 await this.applicationManager.updateApplication(app.id, {
                     refreshToken: app.refreshToken,
+                    email: app.email,
                     ready: app.ready,
                     tokenExpiresAt: app.tokenExpiresAt
                 });

@@ -2,6 +2,7 @@ import { YouTubeOAuthApplication } from "../types";
 import { logger } from "../main";
 import { OAuth2Client } from "google-auth-library";
 import { updateApplicationReadyStatus } from "./application-utils";
+import { createHash } from "crypto";
 
 /**
  * MultiAuthManager handles YouTube OAuth 2.0 authentication for multiple applications
@@ -179,8 +180,22 @@ export class MultiAuthManager {
                 return;
             }
 
+            // Get user email from token info
+            let userEmail: string | undefined;
+            try {
+                const tokenInfo = await oauth2Client.getTokenInfo(tokens.access_token || "");
+                userEmail = tokenInfo.email;
+                if (userEmail) {
+                    const emailHash = createHash("sha256").update(userEmail).digest("hex").substring(0, 11);
+                    logger.debug(`Retrieved email for application ${applicationId}: <sha256:${emailHash}>`);
+                }
+            } catch (error: any) {
+                logger.warn(`Failed to retrieve email for application ${applicationId}: ${error.message}`);
+            }
+
             // Update application with new tokens
             app.refreshToken = tokens.refresh_token;
+            app.email = userEmail;
             app.ready = true;
 
             // Create or update auth manager
@@ -313,7 +328,8 @@ export class MultiAuthManager {
     private getYouTubeScopes(): string[] {
         return [
             'https://www.googleapis.com/auth/youtube',
-            'https://www.googleapis.com/auth/youtube.force-ssl'
+            'https://www.googleapis.com/auth/youtube.force-ssl',
+            'https://www.googleapis.com/auth/userinfo.email'
         ];
     }
 

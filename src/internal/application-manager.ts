@@ -121,6 +121,7 @@ export class ApplicationManager {
         }
 
         // Check for duplicate names
+        // This is to avoid confusing the user
         const trimmedName = name.trim();
         const existingApp = Object.values(this.getApplications()).find(app =>
             app.name.toLowerCase() === trimmedName.toLowerCase()
@@ -130,15 +131,16 @@ export class ApplicationManager {
             throw new Error(`Application with name "${trimmedName}" already exists`);
         }
 
-        // Check for duplicate client ID and client secret combination
+        // Check for duplicate client ID
+        // This is because quota is per application and the calculations will be
+        // incorrect if multiple applications share the same client ID
         const trimmedClientId = clientId.trim();
-        const trimmedClientSecret = clientSecret.trim();
-        const duplicateCredentials = Object.values(this.getApplications()).find(app =>
-            app.clientId === trimmedClientId && app.clientSecret === trimmedClientSecret
+        const duplicateClientId = Object.values(this.getApplications()).find(app =>
+            app.clientId === trimmedClientId
         );
 
-        if (duplicateCredentials) {
-            throw new Error(`An application with the same client ID and client secret already exists`);
+        if (duplicateClientId) {
+            throw new Error(`An application with the same client ID already exists`);
         }
 
         // Create new application
@@ -205,16 +207,15 @@ export class ApplicationManager {
             updatedApp.clientSecret = updates.clientSecret.trim();
         }
 
-        // Check for duplicate client ID and client secret combination if credentials are being updated
-        if ((updates.clientId || updates.clientSecret)) {
+        // Check for duplicate client ID if credentials are being updated
+        if (updates.clientId) {
             const clientIdToCheck = updatedApp.clientId;
-            const clientSecretToCheck = updatedApp.clientSecret;
-            const duplicateCredentials = Object.values(this.getApplications()).find(app =>
-                app.id !== id && app.clientId === clientIdToCheck && app.clientSecret === clientSecretToCheck
+            const duplicateClientId = Object.values(this.getApplications()).find(app =>
+                app.id !== id && app.clientId === clientIdToCheck
             );
 
-            if (duplicateCredentials) {
-                throw new Error(`An application with the same client ID and client secret already exists`);
+            if (duplicateClientId) {
+                throw new Error(`An application with the same client ID already exists`);
             }
         }
 
