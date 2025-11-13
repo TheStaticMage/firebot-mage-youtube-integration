@@ -58,6 +58,14 @@ function youTubeApplicationsServiceFunction(backendCommunicator: any): any {
         return backendCommunicator.fireEventAsync("youTube:refreshApplicationStates", {});
     };
 
+    service.getIntegrationStatus = (): any => {
+        return backendCommunicator.fireEventSync("youTube:getIntegrationStatus", {});
+    };
+
+    service.connectIntegration = async (): Promise<any> => {
+        return backendCommunicator.fireEventAsync("youTube:connectIntegration", {});
+    };
+
     return service;
 }
 
@@ -280,6 +288,7 @@ const youTubeApplicationsPage: AngularJsPage = {
                 <div style="margin-top: 15px; display: flex; gap: 10px;">
                     <button type="button" class="btn btn-primary" ng-click="addButton()">Add New Application</button>
                     <button type="button" class="btn btn-default" ng-click="refreshButton()">Refresh Status</button>
+                    <button type="button" class="btn btn-success" ng-click="connectIntegration()" ng-if="!integrationConnected() && hasAnyAuthorizedApplication()">Connect Integration</button>
                 </div>
             </eos-container>
         </div>
@@ -322,6 +331,7 @@ const youTubeApplicationsPage: AngularJsPage = {
     controller: ($scope: any, backendCommunicator: any, youTubeApplicationsService: any, ngToast: any) => {
         $scope.applications = [];
         $scope.activeApplicationId = null;
+        $scope.pendingActiveApplicationId = null;
         $scope.applicationId = "";
         $scope.applicationName = "";
         $scope.clientId = "";
@@ -358,6 +368,46 @@ const youTubeApplicationsPage: AngularJsPage = {
                     id
                 }));
             $scope.applications = apps;
+        };
+
+        $scope.integrationConnected = () => {
+            const status = youTubeApplicationsService.getIntegrationStatus();
+            if (status.errorMessage) {
+                ngToast.create({
+                    className: 'danger',
+                    content: `Error getting integration status: ${status.errorMessage}`
+                });
+                return;
+            }
+            return status.connected;
+        };
+
+        $scope.hasAnyAuthorizedApplication = () => {
+            const haaa = $scope.applications.some((app: any) => app.hasRefreshToken);
+            return haaa;
+        };
+
+        $scope.connectIntegration = async () => {
+            try {
+                const response = await youTubeApplicationsService.connectIntegration();
+                if (response.errorMessage) {
+                    ngToast.create({
+                        className: 'danger',
+                        content: `Error connecting integration: ${response.errorMessage}`
+                    });
+                    return;
+                }
+                ngToast.create({
+                    className: 'success',
+                    content: 'Integration connected successfully'
+                });
+                $scope.loadApplications();
+            } catch (error: any) {
+                ngToast.create({
+                    className: 'danger',
+                    content: `Error connecting integration: ${error.message}`
+                });
+            }
         };
 
         $scope.addButton = () => {
@@ -617,26 +667,45 @@ const youTubeApplicationsPage: AngularJsPage = {
         });
 
         backendCommunicator.on("youTube:applicationsUpdated", () => {
-            $scope.loadApplications();
+            $scope.$applyAsync(() => {
+                $scope.loadApplications();
+            });
+        });
+
+        // Listen for connection state changes
+        backendCommunicator.on("connected", (_integrationId: string) => {
+            // YouTube integration connected
+            $scope.$applyAsync(() => {
+                $scope.loadApplications();
+            });
+        });
+
+        backendCommunicator.on("disconnected", (_integrationId: string) => {
+            // YouTube integration disconnected
+            $scope.$applyAsync(() => {
+                $scope.loadApplications();
+            });
         });
 
         // Listen for application status changes
         backendCommunicator.on("youTube:applicationStatusChanged", (data: any) => {
             // Reload applications to reflect status changes
-            $scope.loadApplications();
+            $scope.$applyAsync(() => {
+                $scope.loadApplications();
 
-            // Optionally show a toast notification
-            if (data.ready) {
-                ngToast.create({
-                    className: 'success',
-                    content: `Application "${data.name}" is now ready.`
-                });
-            } else {
-                ngToast.create({
-                    className: 'warning',
-                    content: `Application "${data.name}" is no longer ready: ${data.status}`
-                });
-            }
+                // Optionally show a toast notification
+                if (data.ready) {
+                    ngToast.create({
+                        className: 'success',
+                        content: `Application "${data.name}" is now ready.`
+                    });
+                } else {
+                    ngToast.create({
+                        className: 'warning',
+                        content: `Application "${data.name}" is no longer ready: ${data.status}`
+                    });
+                }
+            });
         });
     }
 };

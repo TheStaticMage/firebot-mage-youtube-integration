@@ -211,6 +211,11 @@ export class YouTubeIntegration extends EventEmitter {
                 logger.warn("No active YouTube broadcast found. Will check periodically.");
                 this.connected = true;
                 this.currentActiveApplicationId = activeApplicationId;
+
+                // Notify UI of connection and status changes
+                const { frontendCommunicator } = firebot.modules;
+                frontendCommunicator.send("youTube:applicationsUpdated", {});
+
                 this.emit("connected", IntegrationConstants.INTEGRATION_ID);
 
                 // Start periodic stream checking
@@ -223,6 +228,11 @@ export class YouTubeIntegration extends EventEmitter {
             await this.startChatStreaming(liveChatId, accessToken, activeApplicationId);
 
             this.connected = true;
+
+            // Notify UI of connection and status changes
+            const { frontendCommunicator } = firebot.modules;
+            frontendCommunicator.send("youTube:applicationsUpdated", {});
+
             this.emit("connected", IntegrationConstants.INTEGRATION_ID);
 
             // Start periodic stream checking to detect when stream ends
@@ -844,6 +854,33 @@ export class YouTubeIntegration extends EventEmitter {
                 return { success: true, applications: serializedMap };
             } catch (error: any) {
                 logger.error(`Error refreshing application states: ${error.message}`);
+                return { errorMessage: error.message };
+            }
+        });
+
+        // Get integration connection status
+        frontendCommunicator.on('youTube:getIntegrationStatus', () => {
+            try {
+                return { connected: this.connected };
+            } catch (error: any) {
+                logger.error(`Error getting integration status: ${error.message}`);
+                return { errorMessage: error.message };
+            }
+        });
+
+        // Connect the integration
+        frontendCommunicator.onAsync('youTube:connectIntegration', async () => {
+            try {
+                if (!this.connected) {
+                    logger.info("Connect integration request received from UI");
+                    await this.connect();
+                    return { success: true, connected: this.connected };
+                }
+                logger.debug("Connect integration requested but integration is already connected");
+                return { success: true, connected: this.connected };
+
+            } catch (error: any) {
+                logger.error(`Error connecting integration: ${error.message}`);
                 return { errorMessage: error.message };
             }
         });
