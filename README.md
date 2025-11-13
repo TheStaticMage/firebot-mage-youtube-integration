@@ -30,6 +30,18 @@ _Effects are calls to the YouTube API made by Firebot as a result of event handl
 | Event | Supported | Notes |
 | ----- | --------- | ----- |
 | Chat message (incoming) | Partial | Only basic proof-of-concept information at this time. Planned for full implementation. |
+| Application Activated | :white_check_mark: | Triggered when a YouTube application becomes active. Provides cause, applicationId, applicationName, and connected status. |
+
+### Variables
+
+_Variables can be used in Firebot to access integration data dynamically._
+
+| Variable | Description | Example Usage |
+| -------- | ----------- | ------------- |
+| `$youtubeApplicationId` | UUID of the active YouTube application | `$youtubeApplicationId` |
+| `$youtubeApplicationName` | Name of the active YouTube application, or specific application by UUID | `$youtubeApplicationName` or `$youtubeApplicationName[uuid]` |
+| `$youtubeApplicationActivationCause` | Cause of the application activation (from Application Activated event) | `$youtubeApplicationActivationCause` |
+| `$youtubeIntegrationConnected` | Whether the YouTube integration is currently connected | `$youtubeIntegrationConnected` |
 
 ### Firebot features
 

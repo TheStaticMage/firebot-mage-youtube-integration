@@ -3,7 +3,7 @@ import { EventEmitter } from "events";
 import { IntegrationConstants } from "./constants";
 import { chatEffect } from "./effects/chat";
 import { selectApplicationEffect } from "./effects/select-application";
-import { YouTubeEventSource } from "./events";
+import { ApplicationActivationCause, YouTubeEventSource } from "./events";
 import { ApplicationManager } from "./internal/application-manager";
 import { getApplicationStatusMessage } from "./internal/application-utils";
 import { BroadcastManager } from "./internal/broadcast-manager";
@@ -16,6 +16,10 @@ import { firebot, logger } from "./main";
 import { ApplicationStorage, YouTubeOAuthApplication } from "./types";
 import { getDataFilePath } from "./util/datafile";
 import { registerUIExtensions } from "./ui-extensions";
+import { youtubeApplicationActivationCauseVariable } from "./variables/youtube-application-activation-cause";
+import { youtubeApplicationIdVariable } from "./variables/youtube-application-id";
+import { youtubeApplicationNameVariable } from "./variables/youtube-application-name";
+import { youtubeIntegrationConnectedVariable } from "./variables/youtube-integration-connected";
 
 type IntegrationParameters = {
     chat: {
@@ -87,9 +91,16 @@ export class YouTubeIntegration extends EventEmitter {
         }
 
         // Register event source
-        const { eventManager, httpServer } = firebot.modules;
+        const { eventManager, httpServer, replaceVariableManager } = firebot.modules;
         eventManager.registerEventSource(YouTubeEventSource);
         logger.info("YouTube event source registered");
+
+        // Register variables
+        replaceVariableManager.registerReplaceVariable(youtubeApplicationIdVariable);
+        replaceVariableManager.registerReplaceVariable(youtubeApplicationNameVariable);
+        replaceVariableManager.registerReplaceVariable(youtubeApplicationActivationCauseVariable);
+        replaceVariableManager.registerReplaceVariable(youtubeIntegrationConnectedVariable);
+        logger.info("YouTube variables registered");
 
         // Register HTTP endpoints for multi-application OAuth
         this.registerHttpEndpoints(httpServer);
@@ -185,7 +196,7 @@ export class YouTubeIntegration extends EventEmitter {
             const currentActive = this.applicationManager.getActiveApplication();
             if (!currentActive || currentActive.id !== activeApplicationId) {
                 logger.info(`Setting active application: ${activeApp.name} (${activeApplicationId})`);
-                await this.applicationManager.setActiveApplication(activeApplicationId);
+                await this.applicationManager.setActiveApplication(activeApplicationId, ApplicationActivationCause.AUTHORIZED_FIRST_APPLICATION, this.connected);
             }
 
             logger.info(`Using active application: ${activeApp.name} (${activeApplicationId})`);
@@ -463,7 +474,7 @@ export class YouTubeIntegration extends EventEmitter {
         this.currentActiveApplicationId = newApplicationId;
 
         // Update active application in ApplicationManager
-        await this.applicationManager.setActiveApplication(newApplicationId);
+        await this.applicationManager.setActiveApplication(newApplicationId, ApplicationActivationCause.USER_CLICKED, this.connected);
 
         logger.info(`Active application switched from ${previousApplicationId} to ${newApplicationId} (${newApp.name})`);
 
@@ -666,7 +677,7 @@ export class YouTubeIntegration extends EventEmitter {
             if (authorizedApps.length === 1) {
                 // This is the ONLY authorized app - set it as active
                 try {
-                    await this.applicationManager.setActiveApplication(authorizedAppId);
+                    await this.applicationManager.setActiveApplication(authorizedAppId, ApplicationActivationCause.AUTHORIZED_FIRST_APPLICATION, this.connected);
                     if (this.connected) {
                         logger.info(`Set newly authorized app as active (only authorized app, integration connected): ${authorizedAppId}`);
                     } else {
@@ -777,7 +788,7 @@ export class YouTubeIntegration extends EventEmitter {
         frontendCommunicator.onAsync('youTube:setActiveApplication', async (data: { applicationId: string | null }) => {
             try {
                 if (data.applicationId) {
-                    await this.applicationManager.setActiveApplication(data.applicationId);
+                    await this.applicationManager.setActiveApplication(data.applicationId, ApplicationActivationCause.USER_CLICKED, this.connected);
                 } else {
                     await this.applicationManager.clearActiveApplication();
                 }

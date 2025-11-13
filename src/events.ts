@@ -9,6 +9,15 @@ import { EventSource } from "@crowbartools/firebot-custom-scripts-types/types/mo
 import { IntegrationConstants } from "./constants";
 
 /**
+ * Causes for YouTube application activation
+ */
+export enum ApplicationActivationCause {
+    USER_CLICKED = "User clicked",
+    AUTHORIZED_FIRST_APPLICATION = "Authorized first application",
+    CHANGED_BY_EFFECT = "Changed by effect"
+}
+
+/**
  * YouTube chat message event metadata
  *
  * Simplified event data containing just the essential information.
@@ -37,6 +46,31 @@ export interface YouTubeChatMessageEvent {
 }
 
 /**
+ * YouTube application activated event metadata
+ */
+export interface YouTubeApplicationActivatedEvent {
+    /**
+     * The cause of the application activation
+     */
+    cause: ApplicationActivationCause | "";
+
+    /**
+     * The UUID of the application that became active
+     */
+    applicationId: string;
+
+    /**
+     * The name of the application that became active
+     */
+    applicationName: string;
+
+    /**
+     * Whether the YouTube integration is currently connected
+     */
+    connected: boolean;
+}
+
+/**
  * Event source definition for YouTube integration
  *
  * This registers with Firebot's event system and allows users to
@@ -55,6 +89,18 @@ export const YouTubeEventSource: EventSource = {
                 username: "ExampleUser",
                 message: "Hello from YouTube!",
                 messageType: "text"
+            }
+        },
+        {
+            id: "application-activated",
+            name: "Application Activated",
+            description: "When a YouTube application becomes active",
+            cached: false,
+            manualMetadata: {
+                cause: ApplicationActivationCause.USER_CLICKED,
+                applicationId: "12345678-1234-1234-1234-123456789012",
+                applicationName: "Example Application",
+                connected: true
             }
         }
     ]

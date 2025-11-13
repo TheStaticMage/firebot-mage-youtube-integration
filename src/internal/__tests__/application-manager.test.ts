@@ -11,6 +11,9 @@ jest.mock("../../main", () => ({
                 existsSync: jest.fn(),
                 readFileSync: jest.fn(),
                 writeFileSync: jest.fn()
+            },
+            eventManager: {
+                triggerEvent: jest.fn()
             }
         }
     },

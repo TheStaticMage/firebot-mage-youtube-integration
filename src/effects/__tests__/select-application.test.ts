@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
+import { ApplicationActivationCause } from "../../events";
 import { integration } from "../../integration";
 import { ApplicationManager } from "../../internal/application-manager";
 import { selectApplicationEffect } from "../select-application";
@@ -8,7 +9,8 @@ import { YouTubeOAuthApplication } from "../../types";
 // Mock the integration module
 jest.mock("../../integration", () => ({
     integration: {
-        getApplicationManager: jest.fn()
+        getApplicationManager: jest.fn(),
+        connected: false
     }
 }));
 
@@ -71,7 +73,7 @@ describe("YouTube Select Application Effect", () => {
             });
 
             expect(result).toBe(true);
-            expect(mockApplicationManager.setActiveApplication).toHaveBeenCalledWith("app-123");
+            expect(mockApplicationManager.setActiveApplication).toHaveBeenCalledWith("app-123", ApplicationActivationCause.CHANGED_BY_EFFECT, false);
             expect(logger.info).toHaveBeenCalledWith("Activated YouTube application: Test App");
         });
 
