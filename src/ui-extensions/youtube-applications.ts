@@ -240,11 +240,12 @@ const youTubeApplicationsPage: AngularJsPage = {
                 </div>
 
                 <div class="list-group" style="margin-bottom: 0;" ng-if="applications.length > 0">
-                    <div class="list-group-item flex-row-center jspacebetween" ng-repeat="app in applications track by app.id" style="position: relative; border: 2px solid {{ app.id === activeApplicationId ? '#52c41a' : 'transparent' }}; transition: border-color 0.3s;">
+                    <div class="list-group-item flex-row-center jspacebetween" ng-repeat="app in applications track by app.id" style="position: relative; border: 2px solid {{ app.id === activeApplicationId ? '#52c41a' : (app.id === pendingActiveApplicationId ? '#faad14' : 'transparent') }}; border-style: {{ app.id === activeApplicationId ? 'solid' : (app.id === pendingActiveApplicationId ? 'dashed' : 'solid') }}; transition: border-color 0.3s;">
                         <div style="flex: 1;">
                             <h4 class="list-group-item-heading">
                                 {{app.name}}
                                 <span ng-if="app.id === activeApplicationId" style="background: #52c41a; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px; margin-left: 10px;">ACTIVE</span>
+                                <span ng-if="app.id === pendingActiveApplicationId && app.id !== activeApplicationId" style="background: #faad14; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px; margin-left: 10px;">PENDING ACTIVE</span>
                             </h4>
                             <p class="list-group-item-text muted" style="margin-bottom: 5px;">
                                 <span ng-if="app.ready" style="color: #52c41a;">
@@ -261,9 +262,10 @@ const youTubeApplicationsPage: AngularJsPage = {
                             </p>
                         </div>
                         <div style="font-size:14px; display: flex; gap: 10px; align-items: center;">
-                            <button class="btn btn-sm" ng-class="{'btn-success': app.id !== activeApplicationId, 'btn-default': app.id === activeApplicationId}" ng-click="setActiveButton(app.id)" ng-disabled="!app.ready || app.id === activeApplicationId">
+                            <button class="btn btn-sm" ng-class="{'btn-success': app.id !== activeApplicationId && app.id !== pendingActiveApplicationId, 'btn-default': app.id === activeApplicationId || app.id === pendingActiveApplicationId}" ng-click="setActiveButton(app.id)" ng-disabled="!app.ready || app.id === activeApplicationId || app.id === pendingActiveApplicationId">
                                 <span ng-if="app.id === activeApplicationId">Active</span>
-                                <span ng-if="app.id !== activeApplicationId">Activate</span>
+                                <span ng-if="app.id === pendingActiveApplicationId && app.id !== activeApplicationId">Pending</span>
+                                <span ng-if="app.id !== activeApplicationId && app.id !== pendingActiveApplicationId">Activate</span>
                             </button>
                             <button class="btn btn-sm btn-default" ng-click="authorizeButton(app.id)" ng-disabled="app.hasRefreshToken">Authorize</button>
                             <button class="btn btn-sm btn-default" ng-click="deauthorizeButton(app.id)" ng-disabled="!app.hasRefreshToken">Deauthorize</button>
@@ -348,6 +350,7 @@ const youTubeApplicationsPage: AngularJsPage = {
 
             const activeResponse = youTubeApplicationsService.getActiveApplication();
             $scope.activeApplicationId = activeResponse.activeApplicationId || null;
+            $scope.pendingActiveApplicationId = activeResponse.pendingActiveApplicationId || null;
 
             const apps = Object.entries(response.applications || {})
                 .map(([id, app]: [string, any]) => ({

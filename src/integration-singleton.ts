@@ -363,9 +363,26 @@ export class YouTubeIntegration extends EventEmitter {
         this.multiAuthManager.destroy();
         logger.debug("Background token refresh timers destroyed for all applications");
 
+        // Mark all applications as not ready
+        await this.applicationManager.markAllApplicationsNotReady();
+        logger.debug("Marked all applications as not ready");
+
+        // Move active application to pending for next connection
+        const activeApp = this.applicationManager.getActiveApplication();
+        if (activeApp) {
+            await this.applicationManager.setPendingActiveApplication(activeApp.id);
+            await this.applicationManager.clearActiveApplication();
+            logger.info(`Moved active application "${activeApp.name}" to pending`);
+        }
+
         this.currentLiveChatId = null;
         this.currentActiveApplicationId = null;
         this.connected = false;
+
+        // Notify UI of all application status changes
+        const { frontendCommunicator } = firebot.modules;
+        frontendCommunicator.send("youTube:applicationsUpdated", {});
+
         this.emit("disconnected", IntegrationConstants.INTEGRATION_ID);
         logger.info("YouTube integration disconnected successfully");
     }
@@ -689,11 +706,15 @@ export class YouTubeIntegration extends EventEmitter {
             }
         });
 
-        // Get active application
+        // Get active and pending active application
         frontendCommunicator.on('youTube:getActiveApplication', () => {
             try {
                 const activeApp = this.applicationManager.getActiveApplication();
-                return { activeApplicationId: activeApp?.id || null };
+                const pendingActiveApp = this.applicationManager.getPendingActiveApplication();
+                return {
+                    activeApplicationId: activeApp?.id || null,
+                    pendingActiveApplicationId: pendingActiveApp?.id || null
+                };
             } catch (error: any) {
                 logger.error(`Error getting active application: ${error.message}`);
                 return { errorMessage: error.message };
@@ -813,10 +834,14 @@ export class YouTubeIntegration extends EventEmitter {
         // Refresh application states
         frontendCommunicator.onAsync('youTube:refreshApplicationStates', async () => {
             try {
-                // Trigger manual refresh of all application states
-                // This would trigger the MultiAuthManager to refresh tokens
                 logger.debug("Refresh application states request received");
-                return { success: true };
+                const applicationsMap = this.applicationManager.getApplications();
+                const serializedMap = this.serializeApplicationsForUI(applicationsMap);
+
+                // Notify UI of updated state
+                frontendCommunicator.send("youTube:applicationsUpdated", {});
+
+                return { success: true, applications: serializedMap };
             } catch (error: any) {
                 logger.error(`Error refreshing application states: ${error.message}`);
                 return { errorMessage: error.message };

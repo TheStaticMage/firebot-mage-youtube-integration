@@ -294,6 +294,37 @@ export class ApplicationManager {
     }
 
     /**
+     * Get pending active application (the app that will be active when connected)
+     * @returns Pending active application or null if none
+     */
+    getPendingActiveApplication(): YouTubeOAuthApplication | null {
+        const pendingId = this.storage.pendingActiveApplicationId;
+        if (!pendingId) {
+            return null;
+        }
+        return this.getApplication(pendingId);
+    }
+
+    /**
+     * Set pending active application (the app that will be active when connected)
+     * @param id Application ID to set as pending active
+     */
+    async setPendingActiveApplication(id: string | null): Promise<void> {
+        const previousPendingId = this.storage.pendingActiveApplicationId;
+        this.storage.pendingActiveApplicationId = id;
+        await this.saveApplications();
+
+        if (previousPendingId !== id) {
+            const app = id ? this.getApplication(id) : null;
+            if (app) {
+                logger.info(`Set pending active application: ${app.name} (${id})`);
+            } else {
+                logger.info(`Cleared pending active application`);
+            }
+        }
+    }
+
+    /**
      * Update application ready status
      * @param id Application ID
      * @param ready Ready status
@@ -324,6 +355,26 @@ export class ApplicationManager {
     }
 
     /**
+     * Mark all applications as not ready
+     * Called when integration disconnects
+     */
+    async markAllApplicationsNotReady(): Promise<void> {
+        let changed = false;
+        for (const app of Object.values(this.storage.applications)) {
+            if (app.ready) {
+                updateApplicationReadyStatus(app, false);
+                this.storage.applications[app.id] = app;
+                changed = true;
+                logger.debug(`Marked application "${app.name}" as not ready`);
+            }
+        }
+
+        if (changed) {
+            await this.saveApplications();
+        }
+    }
+
+    /**
      * Validate all applications and update ready status
      * Applications are only ready when the integration is connected and a token has been obtained.
      * During initialization, all applications are marked as not ready.
@@ -351,9 +402,10 @@ export class ApplicationManager {
 
         await this.saveApplications();
 
-        // Clear active application - it needs to be re-selected after connecting
+        // Move active application to pending - it will be restored after connecting
         if (this.storage.activeApplicationId) {
-            logger.warn(`Clearing active application on startup - will be restored after connection`);
+            logger.warn(`Moving active application to pending on startup - will be restored after connection`);
+            this.storage.pendingActiveApplicationId = this.storage.activeApplicationId;
             this.storage.activeApplicationId = null;
             await this.saveApplications();
         }
