@@ -346,20 +346,18 @@ export class ApplicationManager {
 
     /**
      * Validate all applications and update ready status
-     * Applications are only ready when the integration is connected and a token has been obtained.
-     * During initialization, all applications are marked as not ready.
+     * Ready status is determined by authorization (presence of refresh token), not integration connection
      */
     async validateAllApplications(): Promise<void> {
         for (const app of Object.values(this.getApplications())) {
-            // On startup, all applications are marked as not ready.
-            // Ready status is only set after successful token refresh in the current session.
-            // This ensures we don't trust stale tokenExpiresAt values from previous sessions.
+            // Ready status is determined by whether the application is authorized (has refresh token)
+            // This persists across sessions and integration connections
             if (!app.refreshToken) {
                 updateApplicationReadyStatus(app, false);
                 logger.debug(`Application "${app.name}" is not ready: no refresh token`);
             } else {
-                updateApplicationReadyStatus(app, false);
-                logger.debug(`Application "${app.name}" has refresh token but needs token refresh before use`);
+                updateApplicationReadyStatus(app, true);
+                logger.debug(`Application "${app.name}" is ready: authorized with refresh token`);
             }
 
             this.storage.applications[app.id] = app;

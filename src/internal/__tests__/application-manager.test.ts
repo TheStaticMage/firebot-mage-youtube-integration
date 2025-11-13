@@ -546,9 +546,9 @@ describe("ApplicationManager", () => {
             await applicationManager.validateAllApplications();
 
             const { updateApplicationReadyStatus: mockUpdateReadyStatus } = require("../application-utils");
-            // Both applications should be marked as not ready on startup
-            // Ready status is now computed dynamically, no error messages passed
-            expect(mockUpdateReadyStatus).toHaveBeenCalledWith(apps[0], false);
+            // Application with refresh token should be marked as ready
+            // Application without refresh token should be marked as not ready
+            expect(mockUpdateReadyStatus).toHaveBeenCalledWith(apps[0], true);
             expect(mockUpdateReadyStatus).toHaveBeenCalledWith(apps[1], false);
         });
 

@@ -373,10 +373,6 @@ export class YouTubeIntegration extends EventEmitter {
         this.multiAuthManager.destroy();
         logger.debug("Background token refresh timers destroyed for all applications");
 
-        // Mark all applications as not ready
-        await this.applicationManager.markAllApplicationsNotReady();
-        logger.debug("Marked all applications as not ready");
-
         this.currentLiveChatId = null;
         this.currentActiveApplicationId = null;
         this.connected = false;
