@@ -9,30 +9,38 @@ import * as grpc from '@grpc/grpc-js';
 import { LiveChatMessage, LiveChatMessageListRequest, LiveChatMessageListResponse, V3DataLiveChatMessageServiceClient } from '../generated/proto/stream_list';
 import { YouTubeMessageTypes, YouTubeMessageTypeStrings } from '../constants';
 import { logger } from '../main';
+import type { YouTubeIntegration } from '../integration-singleton';
+import { QUOTA_COSTS } from '../types/quota-tracking';
 
 export class ChatStreamClient {
     private client: V3DataLiveChatMessageServiceClient;
+    private integration: YouTubeIntegration;
 
-    constructor() {
+    constructor(integration: YouTubeIntegration) {
         // Create SSL credentials for secure connection
         const credentials = grpc.credentials.createSsl();
         this.client = new V3DataLiveChatMessageServiceClient(
             'youtube.googleapis.com:443',
             credentials
         );
+        this.integration = integration;
         logger.info('ChatStreamClient initialized successfully');
     }
 
     /**
      * Chat stream live chat messages from YouTube
      *
+     * @param applicationId - YouTube application ID for quota tracking
      * @param liveChatId - The live chat ID to stream from
      * @param accessToken - OAuth 2.0 access token
+     * @param dailyQuota - Daily quota limit for the application
      * @param options - Optional parameters (maxResults, pageToken, etc.)
      */
     async *chatStreamMessages(
+        applicationId: string,
         liveChatId: string,
         accessToken: string,
+        dailyQuota: number,
         options: {
             maxResults?: number;
             pageToken?: string;
@@ -58,6 +66,10 @@ export class ChatStreamClient {
 
         // Make the streaming RPC call using generated client
         const stream = this.client.streamList(request, metadata);
+
+        // Record quota consumption for tracking purposes
+        const quotaManager = this.integration.getQuotaManager();
+        quotaManager.recordApiCall(applicationId, 'streamList', QUOTA_COSTS.STREAM_LIST);
 
         // Handle stream events
         stream.on('error', (error: Error) => {

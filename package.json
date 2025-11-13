@@ -25,6 +25,7 @@
         "@eslint/js": "^9.38.0",
         "@stylistic/eslint-plugin": "^5.5.0",
         "@types/jest": "^30.0.0",
+        "@types/luxon": "^3.7.1",
         "jest": "^30.2.0",
         "node-loader": "^2.1.0",
         "protoc": "^33.0.0",
@@ -41,6 +42,7 @@
         "@googleapis/youtube": "^29.0.0",
         "@grpc/grpc-js": "^1.14.0",
         "@grpc/proto-loader": "^0.8.0",
-        "google-auth-library": "^10.5.0"
+        "google-auth-library": "^10.5.0",
+        "luxon": "^3.7.2"
     }
 }
