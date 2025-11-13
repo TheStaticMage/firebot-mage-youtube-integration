@@ -120,7 +120,7 @@ export class MultiAuthManager {
      * @param req Express request object
      * @param res Express response object
      */
-    async handleAuthCallback(req: any, res: any): Promise<void> {
+    async handleAuthCallback(req: any, res: any): Promise<string | undefined> {
         const { code, state } = req.query;
 
         if (!code) {
@@ -196,6 +196,9 @@ export class MultiAuthManager {
             res.status(200).send(
                 `<p>YouTube application "${app.name}" authorized! You can close this tab.</p>`
             );
+
+            // Return the authorized application ID so the caller can set it as active if needed
+            return applicationId;
 
         } catch (error: any) {
             logger.error(`Failed to exchange code for tokens for application ${applicationId}: ${error.message}`);

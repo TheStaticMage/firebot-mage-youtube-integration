@@ -636,8 +636,8 @@ export class YouTubeIntegration extends EventEmitter {
         const applications = Object.values(this.applicationManager.getApplications());
         await this.multiAuthManager.updateApplications(applications);
 
-        // Delegate to multi-auth manager
-        await this.multiAuthManager.handleAuthCallback(req, res);
+        // Delegate to multi-auth manager and get the authorized app ID
+        const authorizedAppId = await this.multiAuthManager.handleAuthCallback(req, res);
 
         // Extract the updated application from MultiAuthManager and sync back to ApplicationManager
         // This ensures the refresh token received from Google OAuth is persisted to disk
@@ -651,6 +651,29 @@ export class YouTubeIntegration extends EventEmitter {
                 });
             } catch (error: any) {
                 logger.error(`Failed to sync updated application ${app.id} after OAuth callback: ${error.message}`);
+            }
+        }
+
+        // Conditionally set the newly authorized application as active if it's the only one
+        if (authorizedAppId) {
+            const allApps = Object.values(this.applicationManager.getApplications());
+            const authorizedApps = allApps.filter(app => app.refreshToken);
+
+            if (authorizedApps.length === 1) {
+                // This is the ONLY authorized app - set it as active
+                try {
+                    await this.applicationManager.setActiveApplication(authorizedAppId);
+                    if (this.connected) {
+                        logger.info(`Set newly authorized app as active (only authorized app, integration connected): ${authorizedAppId}`);
+                    } else {
+                        logger.info(`Set newly authorized app as pending active (only authorized app, integration disconnected): ${authorizedAppId}`);
+                    }
+                } catch (error: any) {
+                    logger.error(`Failed to set active application after authorization: ${error.message}`);
+                }
+            } else if (authorizedApps.length > 1) {
+                // Other authorized apps exist - don't change active app
+                logger.info(`Newly authorized app is Ready but not active (${authorizedApps.length} authorized apps exist)`);
             }
         }
     }
