@@ -62,6 +62,7 @@ export interface YouTubeOAuthApplication {
     clientId: string;
     clientSecret: string;
     refreshToken: string;
+    email?: string;
     quotaSettings: QuotaSettings;
     ready: boolean; // Indicates connection has a valid token
     tokenExpiresAt?: number; // Unix timestamp (ms) of when the access token expires

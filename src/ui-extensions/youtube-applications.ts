@@ -248,8 +248,9 @@ const youTubeApplicationsPage: AngularJsPage = {
                 </div>
 
                 <div class="list-group" style="margin-bottom: 0;" ng-if="applications.length > 0">
-                    <div class="list-group-item flex-row-center jspacebetween" ng-repeat="app in applications track by app.id" style="position: relative; border: 2px solid {{ (app.id === activeApplicationId && integrationConnected()) ? '#52c41a' : (app.id === activeApplicationId && !integrationConnected() ? '#faad14' : 'transparent') }}; border-style: {{ (app.id === activeApplicationId && integrationConnected()) ? 'solid' : (app.id === activeApplicationId && !integrationConnected() ? 'dashed' : 'solid') }}; transition: border-color 0.3s;">
-                        <div style="flex: 1;">
+                    <div ng-repeat="app in applications track by app.id">
+                        <div class="list-group-item flex-row-center jspacebetween" style="position: relative; border: 2px solid {{ (app.id === activeApplicationId && integrationConnected()) ? '#52c41a' : (app.id === activeApplicationId && !integrationConnected() ? '#faad14' : 'transparent') }}; border-style: {{ (app.id === activeApplicationId && integrationConnected()) ? 'solid' : (app.id === activeApplicationId && !integrationConnected() ? 'dashed' : 'solid') }}; transition: border-color 0.3s;">
+                            <div style="flex: 1;">
                             <h4 class="list-group-item-heading">
                                 {{app.name}}
                                 <span ng-if="app.id === activeApplicationId && integrationConnected()" style="background: #52c41a; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px; margin-left: 10px;">ACTIVE</span>
@@ -264,6 +265,9 @@ const youTubeApplicationsPage: AngularJsPage = {
                                 </span>
                                 <span style="margin-left: 15px;">Quota: {{app.quotaUnitsUsed || 0}}/{{app.quotaSettings.dailyQuota}}</span>
                                 <span style="margin-left: 15px;">Stream Hours: {{app.quotaSettings.maxStreamHours}}</span>
+                                <span ng-if="app.email" style="margin-left: 15px;">
+                                    Email: <span ng-if="!showFullEmails">{{redactEmail(app.email)}}</span><span ng-if="showFullEmails">{{app.email}}</span>
+                                </span>
                             </p>
                             <p class="list-group-item-text muted" ng-if="app.status">
                                 {{app.status}}
@@ -280,7 +284,9 @@ const youTubeApplicationsPage: AngularJsPage = {
                             <span uib-tooltip="Delete Application" tooltip-append-to-body="true" class="clickable" style="color:red;" ng-click="deleteButton(app.id)">
                                 <i class="fas fa-trash-alt"></i>
                             </span>
+                            </div>
                         </div>
+                        <div ng-if="!$last && applications.length > 1" style="height: 1px; background-color: #d0d0d0; margin: 15px 0;"></div>
                     </div>
                 </div>
 
@@ -288,6 +294,10 @@ const youTubeApplicationsPage: AngularJsPage = {
                     <button type="button" class="btn btn-primary" ng-click="addButton()">Add New Application</button>
                     <button type="button" class="btn btn-default" ng-click="refreshButton()">Refresh Status</button>
                     <button type="button" class="btn btn-success" ng-click="connectIntegration()" ng-if="!integrationConnected() && hasAnyAuthorizedApplication()">Connect Integration</button>
+                    <button type="button" class="btn btn-default" ng-click="toggleEmailDisplay()">
+                        <span ng-if="!showFullEmails">Show Full Email Addresses</span>
+                        <span ng-if="showFullEmails">Hide Full Email Addresses</span>
+                    </button>
                 </div>
             </eos-container>
         </div>
@@ -345,6 +355,32 @@ const youTubeApplicationsPage: AngularJsPage = {
         $scope.authUrl = "";
         $scope.authorizeApplicationName = "";
         $scope.deauthorizeApplicationId = "";
+        $scope.showFullEmails = false;
+
+        $scope.redactEmail = (email: string): string => {
+            if (!email) {
+                return "";
+            }
+
+            const atIndex = email.indexOf("@");
+            if (atIndex === -1) {
+                return email;
+            }
+
+            const localPart = email.substring(0, atIndex);
+            const domainPart = email.substring(atIndex + 1);
+
+            const firstLetter = localPart.charAt(0);
+            const localMask = "*".repeat(localPart.length - 1);
+
+            const domainMask = domainPart.split(".").map(segment => "*".repeat(segment.length)).join(".");
+
+            return `${firstLetter}${localMask}@${domainMask}`;
+        };
+
+        $scope.toggleEmailDisplay = () => {
+            $scope.showFullEmails = !$scope.showFullEmails;
+        };
 
         $scope.loadApplications = () => {
             const response = youTubeApplicationsService.getApplications();
@@ -363,7 +399,8 @@ const youTubeApplicationsPage: AngularJsPage = {
                 .map(([id, app]: [string, any]) => ({
                     ...(app),
                     id
-                }));
+                }))
+                .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
             $scope.applications = apps;
         };
 
