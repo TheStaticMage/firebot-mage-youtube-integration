@@ -265,8 +265,8 @@ const youTubeApplicationsPage: AngularJsPage = {
                                 <span ng-if="app.id === activeApplicationId">Active</span>
                                 <span ng-if="app.id !== activeApplicationId">Activate</span>
                             </button>
-                            <button class="btn btn-sm btn-default" ng-click="authorizeButton(app.id)" ng-disabled="app.ready">Authorize</button>
-                            <button class="btn btn-sm btn-default" ng-click="deauthorizeButton(app.id)" ng-disabled="!app.ready">Deauthorize</button>
+                            <button class="btn btn-sm btn-default" ng-click="authorizeButton(app.id)" ng-disabled="app.hasRefreshToken">Authorize</button>
+                            <button class="btn btn-sm btn-default" ng-click="deauthorizeButton(app.id)" ng-disabled="!app.hasRefreshToken">Deauthorize</button>
                             <button class="btn btn-sm btn-default" ng-click="editButton(app.id)">Edit</button>
                             <span uib-tooltip="Delete Application" tooltip-append-to-body="true" class="clickable" style="color:red;" ng-click="deleteButton(app.id)">
                                 <i class="fas fa-trash-alt"></i>

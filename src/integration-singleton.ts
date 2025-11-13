@@ -527,6 +527,7 @@ export class YouTubeIntegration extends EventEmitter {
                 id: app.id,
                 name: app.name,
                 ready: app.ready,
+                hasRefreshToken: !!app.refreshToken,
                 status: getApplicationStatusMessage(app),
                 quotaSettings: {
                     dailyQuota: app.quotaSettings.dailyQuota,
