@@ -97,6 +97,8 @@ Learnings:
 - Variables support optional arguments for flexible data retrieval (e.g., $youtubeApplicationName[uuid])
 - Variable examples in definition help users understand usage patterns (examples array with usage and description)
 - ApplicationManager detects active application changes and notifies integration to switch polling via dynamic require to avoid circular dependencies; only triggers when integration is connected and application ID actually changed
+- Polling interval display uses QuotaManager.getPollingIntervalDisplayText() to format: "Polling interval: Xs" for overridden delays, "Polling interval: Auto (Xs)" for calculated delays
+- Connect phase refreshes tokens for ALL authorized applications during step 2b, ensuring UI shows consistent token expiration times across active and non-active applications before notifying the UI
 
 Conventions:
 

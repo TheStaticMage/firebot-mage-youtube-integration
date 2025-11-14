@@ -151,6 +151,25 @@ export class QuotaManager {
     }
 
     /**
+     * Get polling interval display text for UI
+     * Returns "Polling interval: Xs" for override or "Polling interval: Auto (Xs)" for calculated
+     */
+    getPollingIntervalDisplayText(quotaSettings: QuotaSettings): string {
+        const delay = this.calculateDelay(quotaSettings);
+        if (delay === null) {
+            return "Polling interval: Error";
+        }
+
+        const delayFormatted = this.formatDelay(delay);
+
+        if (quotaSettings.overridePollingDelay && quotaSettings.customPollingDelaySeconds >= 0) {
+            return `Polling interval: ${delayFormatted}`;
+        }
+
+        return `Polling interval: Auto (${delayFormatted})`;
+    }
+
+    /**
      * Record an API call and update quota usage
      * Automatically schedules a debounced save
      *

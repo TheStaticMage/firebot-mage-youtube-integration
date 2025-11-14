@@ -264,7 +264,7 @@ const youTubeApplicationsPage: AngularJsPage = {
                                     <i class="fas fa-times-circle"></i> Not Ready
                                 </span>
                                 <span style="margin-left: 15px;">Quota: {{app.quotaUnitsUsed || 0}}/{{app.quotaSettings.dailyQuota}}</span>
-                                <span style="margin-left: 15px;">Stream Hours: {{app.quotaSettings.maxStreamHours}}</span>
+                                <span style="margin-left: 15px;">{{app.pollingIntervalDisplay}}</span>
                                 <span ng-if="app.email" style="margin-left: 15px;">
                                     Email: <span ng-if="!showFullEmails">{{redactEmail(app.email)}}</span><span ng-if="showFullEmails">{{app.email}}</span>
                                 </span>
