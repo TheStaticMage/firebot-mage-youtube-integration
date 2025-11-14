@@ -34,7 +34,7 @@ TODO:
 - Message chunking for long messages due to overly restrictive character limit
 - Messages typed in Firebot chat feed are sent to YouTube chat
 - Create platform independent library for Twitch, Kick, YouTube supporting chat, username standardization, etc.
-- Handle commands sent via YouTube messages
+- ~~Handle commands sent via YouTube messages~~ (DONE)
 - Implement streamer filter for YouTube messages
 - Detect broadcast online and broadcast offline
 - Set broadcast title and detect broadcast title change
@@ -68,6 +68,8 @@ TODO:
 - Reply functionality (if YouTube API adds support)
 - Retry logic on sending chat messages for transient failures
 - Rate limiting to prevent quota exhaustion
+- Add filters to commands
+- Create a "platform aware chat" effect that handles YouTube
 
 Tech: TypeScript, Jest
 
@@ -114,19 +116,22 @@ Conventions:
 - Events: Use enums for event-specific constants (causes, types) to ensure type safety
 - Variables: Test only the evaluator method; priority order: argument → event metadata → integration state
 - Variables: Include examples array in definition showing usage with and without arguments
+- Command handling: YouTube integration uses the same Firebot command manager, restriction manager, and effect runner as Kick integration; command processing happens before event triggering in chat message flow; commands are still added to chat feed and trigger events (no auto-delete yet)
 
 Tests:
 
 - Unit tests: Use jest, put in `__tests__` subdirectory under where the functions under test reside
 - Test only the `onTriggerEvent` method of effects
 - Meaningful tests must call actual functions or methods defined elsewhere (not in the test file itself). A test that only constructs mock data and checks properties is meaningless.
+- AI may add `/* eslint-disable @typescript-eslint/unbound-method */` to unit test files only if needed to make the linter pass (e.g., when mocking Firebot module methods)
 - Test coverage strategy:
   - Isolated unit tests for each component (application-utils, multi-auth-manager, etc.)
   - Edge case testing for state transitions and error handling
   - Multi-application scenario tests for integration between components
   - Functional tests simulating real-world usage patterns (chat sending, stream detection, token refresh)
   - Status indicator accuracy tests to validate UI display correctness
-- Current coverage (216 tests):
+  - Command handler tests for trigger matching, aliases, restrictions, and execution
+- Current coverage (233 tests):
   - application-utils: Ready status edge cases, transitions, validation
   - multi-auth-manager: Per-application OAuth flows, concurrent refresh, token management
   - application-manager: Application creation, activation, list management, event triggering
@@ -137,6 +142,7 @@ Tests:
   - chat effect: Message sending validation
   - select-application effect: Application activation with enum causes, edge case handling
   - variables: Event metadata fallback, optional arguments, integration state access
+  - command handler: Trigger matching, aliases, subcommands, restrictions, argument parsing, message deduplication, command counting
 
 Things to check:
 

@@ -19,6 +19,7 @@ import { LiveChatMessage } from '../generated/proto/stream_list';
 import { firebot } from '../main';
 import { YouTubeUser } from '../types';
 import { QuotaManager } from './quota-manager';
+import { commandHandler } from './command';
 import type { YouTubeIntegration } from '../integration-singleton';
 
 export class ChatManager {
@@ -204,6 +205,12 @@ export class ChatManager {
             // Log to console
             this.logger.info(`[YouTube Chat] ${firebotChatMessage.username}: ${messageText} (${messageType})`);
             this.logger.debug(`User roles: ${twitchBadgeRoles.join(", ")}`);
+
+            // Check if message is a command and handle it
+            const wasCommand = await commandHandler.handleChatMessage(firebotChatMessage);
+            if (wasCommand) {
+                this.logger.debug("Message was handled as a command");
+            }
 
             // Emit Firebot event with full chat message
             const { eventManager } = firebot.modules;

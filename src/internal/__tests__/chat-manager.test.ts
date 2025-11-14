@@ -20,6 +20,13 @@ jest.mock('../../main', () => ({
     }
 }));
 
+// Mock command handler
+jest.mock('../command', () => ({
+    commandHandler: {
+        handleChatMessage: jest.fn(() => Promise.resolve(false)) // Mock returns false (not a command)
+    }
+}));
+
 // Mock logger
 const mockLogger = {
     info: jest.fn(),
