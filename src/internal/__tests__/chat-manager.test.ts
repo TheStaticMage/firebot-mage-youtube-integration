@@ -397,4 +397,103 @@ describe('ChatManager handleMessage', () => {
             }) as unknown as Record<string, unknown>
         );
     });
+
+    it('should filter out messages posted before the connection timestamp', async () => {
+        // Arrange
+        const now = new Date();
+        const messageBeforeConnection = {
+            ...SAMPLE_YOUTUBE_TEXT_MESSAGE,
+            snippet: {
+                ...SAMPLE_YOUTUBE_TEXT_MESSAGE.snippet,
+                publishedAt: new Date(now.getTime() - 60000).toISOString(), // 60 seconds before
+                type: YouTubeMessageTypes.TEXT_MESSAGE_EVENT
+            }
+        } as unknown as LiveChatMessage;
+
+        // Set connection timestamp to now
+        (chatManager as any).connectionTimestamp = now;
+
+        // Act
+        await (chatManager as any).handleMessage(messageBeforeConnection);
+
+        // Assert
+        expect(firebot.modules.eventManager.triggerEvent).not.toHaveBeenCalled();
+        expect(firebot.modules.frontendCommunicator.send).not.toHaveBeenCalled();
+        expect(mockLogger.debug).toHaveBeenCalledWith(
+            expect.stringContaining('Filtered message posted before connection')
+        );
+    });
+
+    it('should process messages posted after the connection timestamp', async () => {
+        // Arrange
+        jest.clearAllMocks();
+        mockIntegration.isChatFeedEnabled.mockReturnValue(true);
+        const now = new Date();
+        const messageAfterConnection = {
+            ...SAMPLE_YOUTUBE_TEXT_MESSAGE,
+            snippet: {
+                ...SAMPLE_YOUTUBE_TEXT_MESSAGE.snippet,
+                publishedAt: new Date(now.getTime() + 5000).toISOString(), // 5 seconds after
+                type: YouTubeMessageTypes.TEXT_MESSAGE_EVENT
+            }
+        } as unknown as LiveChatMessage;
+
+        // Set connection timestamp to now
+        (chatManager as any).connectionTimestamp = now;
+
+        // Act
+        await (chatManager as any).handleMessage(messageAfterConnection);
+
+        // Assert
+        expect(firebot.modules.eventManager.triggerEvent).toHaveBeenCalled();
+        expect(firebot.modules.frontendCommunicator.send).toHaveBeenCalled();
+    });
+
+    it('should process messages when connection timestamp is not set', async () => {
+        // Arrange
+        jest.clearAllMocks();
+        mockIntegration.isChatFeedEnabled.mockReturnValue(true);
+        const sampleMessage = {
+            ...SAMPLE_YOUTUBE_TEXT_MESSAGE,
+            snippet: {
+                ...SAMPLE_YOUTUBE_TEXT_MESSAGE.snippet,
+                publishedAt: new Date().toISOString(),
+                type: YouTubeMessageTypes.TEXT_MESSAGE_EVENT
+            }
+        } as unknown as LiveChatMessage;
+
+        // Ensure connection timestamp is null (not set)
+        (chatManager as any).connectionTimestamp = null;
+
+        // Act
+        await (chatManager as any).handleMessage(sampleMessage);
+
+        // Assert
+        expect(firebot.modules.eventManager.triggerEvent).toHaveBeenCalled();
+        expect(firebot.modules.frontendCommunicator.send).toHaveBeenCalled();
+    });
+
+    it('should process messages without publishedAt timestamp', async () => {
+        // Arrange
+        jest.clearAllMocks();
+        mockIntegration.isChatFeedEnabled.mockReturnValue(true);
+        const messageWithoutTimestamp = {
+            ...SAMPLE_YOUTUBE_TEXT_MESSAGE,
+            snippet: {
+                ...SAMPLE_YOUTUBE_TEXT_MESSAGE.snippet,
+                publishedAt: undefined,
+                type: YouTubeMessageTypes.TEXT_MESSAGE_EVENT
+            }
+        } as unknown as LiveChatMessage;
+
+        // Set connection timestamp
+        (chatManager as any).connectionTimestamp = new Date();
+
+        // Act
+        await (chatManager as any).handleMessage(messageWithoutTimestamp);
+
+        // Assert - should process (fail-safe behavior)
+        expect(firebot.modules.eventManager.triggerEvent).toHaveBeenCalled();
+        expect(firebot.modules.frontendCommunicator.send).toHaveBeenCalled();
+    });
 });
