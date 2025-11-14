@@ -34,14 +34,12 @@ TODO:
 - Message chunking for long messages due to overly restrictive character limit
 - Messages typed in Firebot chat feed are sent to YouTube chat
 - Create platform independent library for Twitch, Kick, YouTube supporting chat, username standardization, etc.
-- ~~Handle commands sent via YouTube messages~~ (DONE)
 - Implement streamer filter for YouTube messages
 - Detect broadcast online and broadcast offline
 - Set broadcast title and detect broadcast title change
 - Further evaluation of capabilities exposed by YouTube API
 - Visual distinction of platform in chat feed
 - Indicate YouTube broadcaster in chat feed
-- Do not display YouTube messages in chat feed or trigger events for messages before Firebot started
 - Effects to change polling interval for YouTube messages (e.g. poll more frequently at times)
 - Support multiple YouTube applications (COMPLETE - Phase 1-10)
   - Multi-application OAuth management with automatic token refresh (DONE)
@@ -54,13 +52,10 @@ TODO:
   - Firebot variables indicating active YouTube configuration (DONE)
   - Application switching stops previous app polling and starts new app polling (DONE)
   - Option to display authorized Google account in YouTube application list (TODO)
-- Enhanced quota management (IN PROGRESS - see plans/enhanced-quota.md)
-  - Every API call records the number of quota units consumed (PHASE 2)
-  - Track quota units consumed between Firebot sessions (PHASE 1)
-  - Reset available quota units at 00:00 Pacific time (PHASE 1)
-  - Add Firebot variables for quota units used, quota units remaining (PHASE 5 - FUTURE)
-  - Add Firebot event for YouTube quota threshold reached (e.g. trigger event when quota use first exceeds 80%) (PHASE 5 - FUTURE)
-  - Documentation for quota management (PHASE 5 - FUTURE)
+- Enhanced quota management (IN PROGRESS)
+  - Add Firebot variables for quota units used, quota units remaining
+  - Add Firebot event for YouTube quota threshold reached (e.g. trigger event when quota use first exceeds 80%)
+  - Documentation for quota management
     - Explanation of YouTube quotas like:
       - <https://github.com/ThioJoe/YT-Spammer-Purge/wiki/Understanding-YouTube-API-Quota-Limits>
       - <https://www.getphyllo.com/post/youtube-api-limits-how-to-calculate-api-usage-cost-and-fix-exceeded-api-quota>
@@ -99,6 +94,8 @@ Learnings:
 - ApplicationManager detects active application changes and notifies integration to switch polling via dynamic require to avoid circular dependencies; only triggers when integration is connected and application ID actually changed
 - Polling interval display uses QuotaManager.getPollingIntervalDisplayText() to format: "Polling interval: Xs" for overridden delays, "Polling interval: Auto (Xs)" for calculated delays
 - Connect phase refreshes tokens for ALL authorized applications during step 2b, ensuring UI shows consistent token expiration times across active and non-active applications before notifying the UI
+- Chat history replay on initial connection prevented via client-side timestamp filtering; connection timestamp stored when startChatStreaming() is called, and messages with publishedAt before this timestamp are filtered during processing
+- Timestamp-based filtering is the only viable approach for skipping old messages because streamList GRPC endpoint does not support timestamp filtering parameters; only pageToken pagination and client-side publishedAt comparison available
 
 Conventions:
 

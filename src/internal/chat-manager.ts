@@ -36,6 +36,7 @@ export class ChatManager {
     private integration: YouTubeIntegration;
     private activeApplicationId = '';
     private dailyQuota = 10000;
+    private connectionTimestamp: Date | null = null;
 
     constructor(logger: any, quotaManager: QuotaManager, clientFactory: () => any, integration: YouTubeIntegration) {
         this.logger = logger;
@@ -78,6 +79,7 @@ export class ChatManager {
         this.client = this.clientFactory();
         this.isStreaming = true;
         this.pageToken = undefined;
+        this.connectionTimestamp = new Date();
 
         this.logger.info(`Starting YouTube chat stream for: ${liveChatId}`);
         this.logger.info(`Polling delay: ${this.quotaManager.formatDelay(delay)}`);
@@ -182,6 +184,15 @@ export class ChatManager {
                 return;
             }
 
+            // Filter out messages posted before the connection timestamp
+            if (message.snippet?.publishedAt && this.connectionTimestamp) {
+                const publishedTime = new Date(message.snippet.publishedAt);
+                if (publishedTime < this.connectionTimestamp) {
+                    this.logger.debug(`Filtered message posted before connection: ${publishedTime.toISOString()}`);
+                    return;
+                }
+            }
+
             // Create a broadcaster object (we would need to get this from the stream context)
             // For now, use a placeholder that would be set from the integration context
             const broadcaster: YouTubeUser = {
@@ -266,6 +277,7 @@ export class ChatManager {
         this.liveChatId = null;
         this.accessToken = null;
         this.pageToken = undefined;
+        this.connectionTimestamp = null;
     }
 
     /**
