@@ -48,6 +48,7 @@ _Variables can be used in Firebot to access integration data dynamically._
 | Feature | Support Status | Notes |
 | ------- | -------------- | ----- |
 | Channel point rewards: | :x: | No YouTube equivalent |
+| Commands | :white_check_mark: | Supported. Cooldowns will not work due to Firebot limitations. |
 | Chat feed: Display YouTube messages | Planned | |
 | Chat feed: All other context menu items | Maybe | Need to be evaluated  |
 | Commands | Planned | Cooldowns will not work due to Firebot limitations |
