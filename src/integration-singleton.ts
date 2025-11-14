@@ -205,9 +205,17 @@ export class YouTubeIntegration extends EventEmitter {
             await this.multiAuthManager.initialize(applications);
             logger.info(`Initialized MultiAuthManager with ${applications.length} application(s) - background refresh started`);
 
-            // Step 3: Immediately refresh active application's token before use
-            logger.debug(`Refreshing active application token before use: ${activeApp.name}`);
-            await this.multiAuthManager.refreshApplicationToken(activeApplicationId);
+            // Step 3: Refresh all authorized applications to populate token expiration times
+            logger.debug("Refreshing tokens for all authorized applications...");
+            for (const app of applications) {
+                if (app.refreshToken) {
+                    try {
+                        await this.multiAuthManager.refreshApplicationToken(app.id);
+                    } catch (error: any) {
+                        logger.warn(`Failed to refresh token for application "${app.name}": ${error.message}`);
+                    }
+                }
+            }
 
             // Step 4: Get access token for active application
             const accessToken = await this.multiAuthManager.getAccessToken(activeApplicationId);
@@ -555,6 +563,7 @@ export class YouTubeIntegration extends EventEmitter {
         for (const [id, app] of Object.entries(applicationsMap)) {
             const quotaUsage = this.quotaManager.getQuotaUsage(id);
             const quotaUnitsUsed = quotaUsage?.quotaUnitsUsed || 0;
+            const pollingIntervalDisplay = this.quotaManager.getPollingIntervalDisplayText(app.quotaSettings);
             serializedMap[id] = {
                 id: app.id,
                 name: app.name,
@@ -568,7 +577,8 @@ export class YouTubeIntegration extends EventEmitter {
                     overridePollingDelay: app.quotaSettings.overridePollingDelay,
                     customPollingDelaySeconds: app.quotaSettings.customPollingDelaySeconds
                 },
-                quotaUnitsUsed: quotaUnitsUsed
+                quotaUnitsUsed: quotaUnitsUsed,
+                pollingIntervalDisplay: pollingIntervalDisplay
             };
         }
         return serializedMap;
