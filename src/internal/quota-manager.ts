@@ -61,7 +61,7 @@ export class QuotaManager {
      */
     calculateDelay(quotaSettings: QuotaSettings): number | null {
         // Check if user has overridden the delay
-        if (quotaSettings.overridePollingDelay && quotaSettings.customPollingDelaySeconds > 0) {
+        if (quotaSettings.overridePollingDelay && quotaSettings.customPollingDelaySeconds >= 0) {
             logger.info(`Using custom polling delay: ${quotaSettings.customPollingDelaySeconds}s`);
             return quotaSettings.customPollingDelaySeconds;
         }
