@@ -52,6 +52,7 @@ TODO:
   - Create Firebot effect to change active YouTube configuration (DONE)
   - Firebot event triggered on application activation (DONE)
   - Firebot variables indicating active YouTube configuration (DONE)
+  - Application switching stops previous app polling and starts new app polling (DONE)
   - Option to display authorized Google account in YouTube application list (TODO)
 - Enhanced quota management (IN PROGRESS - see plans/enhanced-quota.md)
   - Every API call records the number of quota units consumed (PHASE 2)
@@ -95,6 +96,7 @@ Learnings:
 - Enum-based constants for event causes improve type safety and prevent string literal typos
 - Variables support optional arguments for flexible data retrieval (e.g., $youtubeApplicationName[uuid])
 - Variable examples in definition help users understand usage patterns (examples array with usage and description)
+- ApplicationManager detects active application changes and notifies integration to switch polling via dynamic require to avoid circular dependencies; only triggers when integration is connected and application ID actually changed
 
 Conventions:
 
@@ -123,7 +125,7 @@ Tests:
 - Unit tests: Use jest, put in `__tests__` subdirectory under where the functions under test reside
 - Test only the `onTriggerEvent` method of effects
 - Meaningful tests must call actual functions or methods defined elsewhere (not in the test file itself). A test that only constructs mock data and checks properties is meaningless.
-- AI may add `/* eslint-disable @typescript-eslint/unbound-method */` to unit test files only if needed to make the linter pass (e.g., when mocking Firebot module methods)
+- Only add `/* eslint-disable @typescript-eslint/unbound-method */` to unit test files if the linter actually requires it (e.g., when mocking Firebot module methods causes linter errors); do not add preemptively
 - Test coverage strategy:
   - Isolated unit tests for each component (application-utils, multi-auth-manager, etc.)
   - Edge case testing for state transitions and error handling
@@ -131,10 +133,10 @@ Tests:
   - Functional tests simulating real-world usage patterns (chat sending, stream detection, token refresh)
   - Status indicator accuracy tests to validate UI display correctness
   - Command handler tests for trigger matching, aliases, restrictions, and execution
-- Current coverage (233 tests):
+- Current coverage (236 tests):
   - application-utils: Ready status edge cases, transitions, validation
   - multi-auth-manager: Per-application OAuth flows, concurrent refresh, token management
-  - application-manager: Application creation, activation, list management, event triggering
+  - application-manager: Application creation, activation, list management, event triggering, polling switch on active app change
   - chat-manager: Message retrieval, error handling per-application
   - quota-manager: Delay calculation, quota tracking, Pacific Time reset logic, DST handling
   - rest-api-client: API communication, quota tracking, streaming resumption
@@ -143,6 +145,7 @@ Tests:
   - select-application effect: Application activation with enum causes, edge case handling
   - variables: Event metadata fallback, optional arguments, integration state access
   - command handler: Trigger matching, aliases, subcommands, restrictions, argument parsing, message deduplication, command counting
+  - integration-singleton: Active application polling switch when connected, no switch when disconnected, edge cases
 
 Things to check:
 

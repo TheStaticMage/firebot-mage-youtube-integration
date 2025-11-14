@@ -280,6 +280,7 @@ export class ApplicationManager {
         }
 
         const previousActiveId = this.storage.activeApplicationId;
+        const applicationChanged = previousActiveId !== id;
         this.storage.activeApplicationId = id;
         await this.saveApplications();
 
@@ -293,6 +294,23 @@ export class ApplicationManager {
             connected: connected
         };
         eventManager.triggerEvent(IntegrationConstants.INTEGRATION_ID, "application-activated", metadata);
+
+        // If the integration is connected and the active application changed, switch polling
+        if (connected && applicationChanged && previousActiveId) {
+            try {
+                // Dynamically import to avoid circular dependency
+                const { integration } = require("../integration-singleton");
+                if (integration && integration.switchActiveApplication) {
+                    logger.debug(`Notifying integration to switch polling from ${previousActiveId} to ${id}`);
+                    // Fire and forget - don't await to avoid blocking
+                    integration.switchActiveApplication(id).catch((error: any) => {
+                        logger.error(`Failed to switch active application polling: ${error.message}`);
+                    });
+                }
+            } catch (error: any) {
+                logger.debug(`Could not notify integration to switch polling: ${error.message}`);
+            }
+        }
     }
 
     /**
