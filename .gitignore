@@ -26,3 +26,6 @@ node_modules/
 
 # Development assistants
 /plans/
+/.claude
+/.github/copilot-instructions.md
+/AGENTS.md
