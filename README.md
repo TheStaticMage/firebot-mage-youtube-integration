@@ -1,3 +1,5 @@
+**ATTENTION: THIS IS A WORK IN PROGRESS THAT HAS SHOWN PROMISE BUT IS NOT YET WORKING IN FIREBOT**
+
 # Firebot YouTube Integration
 
 ## Disclaimer and Warning
