@@ -95,18 +95,23 @@ export class YouTubeIntegration extends EventEmitter {
         // Register event source
         const { eventManager, httpServer, replaceVariableManager } = firebot.modules;
         eventManager.registerEventSource(YouTubeEventSource);
-        logger.info("YouTube event source registered");
+        logger.debug("YouTube event source registered");
 
         // Register variables
         replaceVariableManager.registerReplaceVariable(youtubeApplicationIdVariable);
         replaceVariableManager.registerReplaceVariable(youtubeApplicationNameVariable);
         replaceVariableManager.registerReplaceVariable(youtubeApplicationActivationCauseVariable);
         replaceVariableManager.registerReplaceVariable(youtubeIntegrationConnectedVariable);
-        logger.info("YouTube variables registered");
+        logger.debug("YouTube variables registered");
+
+        // Additional events for variables
+        replaceVariableManager.addEventToVariable("chatMessage", IntegrationConstants.INTEGRATION_ID, "chat-message");
+        replaceVariableManager.addEventToVariable("chatMessage", IntegrationConstants.INTEGRATION_ID, "viewer-arrived");
+        logger.debug("YouTube variable events registered");
 
         // Register HTTP endpoints for multi-application OAuth
         this.registerHttpEndpoints(httpServer);
-        logger.info("Multi-application OAuth HTTP endpoints registered");
+        logger.debug("Multi-application OAuth HTTP endpoints registered");
 
         // Register frontend communicator listeners
         const { frontendCommunicator } = firebot.modules;
@@ -135,26 +140,31 @@ export class YouTubeIntegration extends EventEmitter {
                     break;
             }
         });
-        logger.info("Frontend communicator listeners registered");
+        logger.debug("Frontend communicator listeners registered");
 
         // Register UI Extension communicator listeners
         this.registerUIExtensionListeners(frontendCommunicator);
-        logger.info("UI Extension communicator listeners registered");
+        logger.debug("UI Extension communicator listeners registered");
 
         // Register effects
         const { effectManager } = firebot.modules;
         effectManager.registerEffect(chatEffect);
         effectManager.registerEffect(selectApplicationEffect);
 
+        // Add events to effects, filters, and variables
+        effectManager.addEventToEffect("firebot:chat-feed-custom-highlight", IntegrationConstants.INTEGRATION_ID, "chat-message");
+        effectManager.addEventToEffect("firebot:chat-feed-custom-highlight", IntegrationConstants.INTEGRATION_ID, "viewer-arrived");
+        effectManager.addEventToEffect("firebot:chat-feed-message-hide", IntegrationConstants.INTEGRATION_ID, "chat-message");
+
         // Register UI extensions
         registerUIExtensions();
-        logger.info("UI Extensions registered");
+        logger.debug("UI Extensions registered");
 
         // Initialize QuotaManager
         this.quotaManager.initialize().catch((error) => {
             logger.error(`Failed to initialize QuotaManager: ${error.message}`);
         });
-        logger.info("QuotaManager initialized");
+        logger.debug("QuotaManager initialized");
 
         // Initialize ApplicationManager
         this.dataFilePath = getDataFilePath("integration-data.json");
@@ -165,6 +175,7 @@ export class YouTubeIntegration extends EventEmitter {
         this.applicationManager.initialize().catch((error) => {
             logger.error(`Failed to initialize ApplicationManager: ${error.message}`);
         });
+        logger.debug("ApplicationManager initialization started asynchronously");
     }
 
     async connect() {

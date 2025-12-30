@@ -27,6 +27,11 @@ jest.mock('../command', () => ({
     }
 }));
 
+// Mock viewer-arrived event trigger
+jest.mock('../../events/viewer-arrived', () => ({
+    triggerViewerArrived: jest.fn()
+}));
+
 // Mock logger
 const mockLogger = {
     info: jest.fn(),
@@ -498,5 +503,69 @@ describe('ChatManager handleMessage', () => {
         // Assert - should process (fail-safe behavior)
         expect(firebot.modules.eventManager.triggerEvent).toHaveBeenCalled();
         expect(firebot.modules.frontendCommunicator.send).toHaveBeenCalled();
+    });
+});
+
+describe('ChatManager viewer arrival tracking', () => {
+    let chatManager: ChatManager;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+
+        chatManager = new ChatManager(
+            mockLogger,
+            mockQuotaManager,
+            mockClientFactory,
+            mockIntegration
+        );
+    });
+
+    it('should track viewer arrival on first chat', () => {
+        expect(chatManager.checkViewerArrived('user1')).toBe(true);
+        expect(chatManager.checkViewerArrived('user1')).toBe(false);
+    });
+
+    it('should trigger viewer-arrived event for first-time chatters', async () => {
+        const { triggerViewerArrived } = require('../../events/viewer-arrived');
+        jest.clearAllMocks();
+        mockIntegration.isChatFeedEnabled.mockReturnValue(true);
+
+        const sampleMessage = {
+            ...SAMPLE_YOUTUBE_TEXT_MESSAGE,
+            snippet: {
+                ...SAMPLE_YOUTUBE_TEXT_MESSAGE.snippet,
+                type: YouTubeMessageTypes.TEXT_MESSAGE_EVENT
+            }
+        } as unknown as LiveChatMessage;
+
+        await (chatManager as any).handleMessage(sampleMessage);
+
+        expect(triggerViewerArrived).toHaveBeenCalledWith(
+            'John Viewer@youtube',
+            'yUCrDkAvwXgOFDjlW9wqyYeIQ',
+            'John Viewer',
+            'Great stream!',
+            expect.any(Object)
+        );
+    });
+
+    it('should not trigger viewer-arrived event for returning chatters', async () => {
+        const { triggerViewerArrived } = require('../../events/viewer-arrived');
+        jest.clearAllMocks();
+        mockIntegration.isChatFeedEnabled.mockReturnValue(true);
+
+        const sampleMessage = {
+            ...SAMPLE_YOUTUBE_TEXT_MESSAGE,
+            snippet: {
+                ...SAMPLE_YOUTUBE_TEXT_MESSAGE.snippet,
+                type: YouTubeMessageTypes.TEXT_MESSAGE_EVENT
+            }
+        } as unknown as LiveChatMessage;
+
+        await (chatManager as any).handleMessage(sampleMessage);
+        jest.clearAllMocks();
+        await (chatManager as any).handleMessage(sampleMessage);
+
+        expect(triggerViewerArrived).not.toHaveBeenCalled();
     });
 });

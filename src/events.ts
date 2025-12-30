@@ -71,6 +71,26 @@ export interface YouTubeApplicationActivatedEvent {
 }
 
 /**
+ * YouTube viewer arrived event metadata
+ */
+export interface YouTubeViewerArrivedEvent {
+    /**
+     * The username of the viewer who arrived
+     */
+    username: string;
+
+    /**
+     * The user ID of the viewer who arrived
+     */
+    userId: string;
+
+    /**
+     * The display name of the viewer who arrived
+     */
+    userDisplayName: string;
+}
+
+/**
  * Event source definition for YouTube integration
  *
  * This registers with Firebot's event system and allows users to
@@ -82,7 +102,7 @@ export const YouTubeEventSource: EventSource = {
     events: [
         {
             id: "chat-message",
-            name: "Chat Message",
+            name: "Chat Message (YouTube)",
             description: "When a message is sent in YouTube live chat",
             cached: false,
             manualMetadata: {
@@ -92,8 +112,26 @@ export const YouTubeEventSource: EventSource = {
             }
         },
         {
+            id: "viewer-arrived",
+            name: "Viewer Arrived (YouTube)",
+            description: "When a viewer initially chats in any given stream.",
+            cached: true,
+            cacheMetaKey: "username",
+            activityFeed: {
+                icon: "fad fa-house-return",
+                getMessage: (eventData: Record<string, unknown>) => {
+                    return `**${eventData.userDisplayName || eventData.username}** has arrived!`;
+                }
+            },
+            manualMetadata: {
+                username: "ExampleUser@youtube",
+                userId: "yUC1234567890",
+                userDisplayName: "ExampleUser"
+            }
+        },
+        {
             id: "application-activated",
-            name: "Application Activated",
+            name: "YouTube Application Activated",
             description: "When a YouTube application becomes active",
             cached: false,
             manualMetadata: {
