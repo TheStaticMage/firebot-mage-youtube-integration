@@ -73,6 +73,8 @@ This integration is experimental and aimed at users comfortable with technical s
 
 [Upgrading instructions](/doc/upgrading.md) are available if you felt adventurous in the past and are still feeling adventurous.
 
+[Configuration instructions](/doc/configuration.md) are available to help you create the necessary Google OAuth applications and authorize your account to use them.
+
 ## Support
 
 **Again: This project is not associated with or supported by Firebot or YouTube.**
