@@ -109,6 +109,7 @@ describe('ChatManager handleMessage', () => {
             twitchUserRoles: [],
             messageText: 'Great stream!',
             messageId: 'MTU0ODEyMzQ1NjczODk2NzUzNDQ.CtHSEg',
+            profilePicUrl: 'https://yt3.ggpht.com/-v0sQRFezryc/AAAAAAAAAAI/AAAAAAAAAAA/OixOH_nQN3s/s28-c-k-no-mo-rj-c0xffffff/photo.jpg',
             chatMessage: expect.any(Object)
         };
 

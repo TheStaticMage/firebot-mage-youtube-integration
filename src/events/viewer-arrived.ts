@@ -29,7 +29,8 @@ export function triggerViewerArrived(
         userId: userId,
         userDisplayName: userDisplayName,
         messageText: messageText,
-        chatMessage: chatMessage
+        chatMessage: chatMessage,
+        profilePicUrl: chatMessage.profilePicUrl
     };
 
     logger.debug(`Triggering viewer-arrived event for user: ${userDisplayName} (${userId})`);
