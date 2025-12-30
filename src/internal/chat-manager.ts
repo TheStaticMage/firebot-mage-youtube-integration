@@ -249,7 +249,8 @@ export class ChatManager {
                 twitchUserRoles: twitchBadgeRoles,
                 messageText: firebotChatMessage.rawText,
                 messageId: firebotChatMessage.id,
-                chatMessage: firebotChatMessage
+                chatMessage: firebotChatMessage,
+                profilePicUrl: chatMessage.sender.profilePicture
             };
 
             eventManager.triggerEvent(
