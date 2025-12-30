@@ -72,12 +72,11 @@ export const chatEffect: Firebot.EffectType<chatEffectParams> = {
         return errors;
     },
     onTriggerEvent: async ({ effect }) => {
-        try {
-            const restApiClient = integration.getRestApiClient();
-            return await restApiClient.sendChatMessage(effect.message);
-        } catch (error) {
-            logger.error(`Error in chat effect: ${error}`);
-            return false;
-        }
+        // Fire and forget: don't await the API call to avoid blocking
+        const restApiClient = integration.getRestApiClient();
+        restApiClient.sendChatMessage(effect.message).catch((error) => {
+            logger.error(`Error sending YouTube chat message in effect: ${error}`);
+        });
+        return true;
     }
 };

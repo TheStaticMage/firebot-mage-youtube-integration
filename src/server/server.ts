@@ -42,12 +42,15 @@ export function registerRoutes(youtubeIntegration: YouTubeIntegration) {
                 }
 
                 const restApiClient = youtubeIntegration.getRestApiClient();
-                const success = await restApiClient.sendChatMessage(message);
-                if (success) {
-                    res.json({ success: true });
-                } else {
-                    res.status(500).json({ success: false, error: "Failed to send message" });
-                }
+                // Fire and forget: don't await the API call to avoid blocking
+                restApiClient.sendChatMessage(message).then((success) => {
+                    if (!success) {
+                        logger.warn("YouTube chat message send returned false");
+                    }
+                }).catch((error) => {
+                    logger.error(`Error sending YouTube chat message in server API: ${error}`);
+                });
+                res.json({ success: true });
             } catch (error) {
                 logger.error(`send-chat-message operation failed: ${error}`);
                 res.status(500).json({ success: false, error: String(error) });
