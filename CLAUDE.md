@@ -23,55 +23,31 @@ Key features:
 - Uses streamList GRPC endpoint to reduce API quota usage
 - Chat messages from YouTube show up in Firebot chat feed (dashboard)
 - Chat (YouTube) effect that posts message into YouTube chat
-- Seamless switching between multiple YouTube channels via active application selection
 - Real-time status indicators for application ready state and token expiration
 - Application Activated event triggered when active application changes with type-safe enum causes
 - Variables exposing application metadata: applicationId, applicationName, activationCause, integrationConnected
+- Fully compatible with firebot-mage-platform-lib for platform detection and version standardization
 
 TODO:
 
-- Determine the actual current limit on chat message length
-- Message chunking for long messages due to overly restrictive character limit
+- Message chunking for long messages due to overly restrictive 200 character limit
 - Messages typed in Firebot chat feed are sent to YouTube chat
-- Create platform independent library for Twitch, Kick, YouTube supporting chat, username standardization, etc. (DONE - firebot-mage-platform-lib)
-- Integration with platform-lib (COMPLETE)
-  - Platform-lib client dependency added (DONE)
-  - Version compatibility check on startup (DONE)
-  - Event metadata includes eventSource.id and platform fields (DONE)
-  - HTTP operation handlers for send-chat-message and get-user-display-name (DONE)
-  - User ID/username transformation compatible with platform-lib (DONE)
 - Implement streamer filter for YouTube messages
 - Detect broadcast online and broadcast offline
 - Set broadcast title and detect broadcast title change
 - Further evaluation of capabilities exposed by YouTube API
-- Visual distinction of platform in chat feed
 - Indicate YouTube broadcaster in chat feed
 - Effects to change polling interval for YouTube messages (e.g. poll more frequently at times)
-- Support multiple YouTube applications (COMPLETE - Phase 1-10)
-  - Multi-application OAuth management with automatic token refresh (DONE)
-  - Seamless application switching with ready status validation (DONE)
-  - Per-application chat streaming and stream detection (DONE)
-  - Per-application quota management and settings (DONE)
-  - UI Extension for app management (DONE)
-  - Create Firebot effect to change active YouTube configuration (DONE)
-  - Firebot event triggered on application activation (DONE)
-  - Firebot variables indicating active YouTube configuration (DONE)
-  - Application switching stops previous app polling and starts new app polling (DONE)
-  - Option to display authorized Google account in YouTube application list (TODO)
-- Enhanced quota management (IN PROGRESS)
-  - Add Firebot variables for quota units used, quota units remaining
-  - Add Firebot event for YouTube quota threshold reached (e.g. trigger event when quota use first exceeds 80%)
-  - Documentation for quota management
-    - Explanation of YouTube quotas like:
-      - <https://github.com/ThioJoe/YT-Spammer-Purge/wiki/Understanding-YouTube-API-Quota-Limits>
-      - <https://www.getphyllo.com/post/youtube-api-limits-how-to-calculate-api-usage-cost-and-fix-exceeded-api-quota>
-    - Explanation of why Kick and Twitch don't have this problem (they have webhooks and EventSub not polling)
+- Documentation for quota management
+  - Explanation of YouTube quotas like:
+    - <https://github.com/ThioJoe/YT-Spammer-Purge/wiki/Understanding-YouTube-API-Quota-Limits>
+    - <https://www.getphyllo.com/post/youtube-api-limits-how-to-calculate-api-usage-cost-and-fix-exceeded-api-quota>
+  - Explanation of why Kick and Twitch don't have this problem (they have webhooks and EventSub not polling)
 - Bot account support
 - Reply functionality (if YouTube API adds support)
 - Retry logic on sending chat messages for transient failures
 - Rate limiting to prevent quota exhaustion
 - Add filters to commands
-- Create a "platform aware chat" effect that handles YouTube
 
 Tech: TypeScript, Jest, firebot-mage-platform-lib
 
@@ -146,19 +122,6 @@ Tests:
   - Functional tests simulating real-world usage patterns (chat sending, stream detection, token refresh)
   - Status indicator accuracy tests to validate UI display correctness
   - Command handler tests for trigger matching, aliases, restrictions, and execution
-- Current coverage (236 tests):
-  - application-utils: Ready status edge cases, transitions, validation
-  - multi-auth-manager: Per-application OAuth flows, concurrent refresh, token management
-  - application-manager: Application creation, activation, list management, event triggering, polling switch on active app change
-  - chat-manager: Message retrieval, error handling per-application
-  - quota-manager: Delay calculation, quota tracking, Pacific Time reset logic, DST handling
-  - rest-api-client: API communication, quota tracking, streaming resumption
-  - status-indicators: Status message accuracy, token expiration display
-  - chat effect: Message sending validation
-  - select-application effect: Application activation with enum causes, edge case handling
-  - variables: Event metadata fallback, optional arguments, integration state access
-  - command handler: Trigger matching, aliases, subcommands, restrictions, argument parsing, message deduplication, command counting
-  - integration-singleton: Active application polling switch when connected, no switch when disconnected, edge cases
 
 Things to check:
 
@@ -168,4 +131,5 @@ Things to check:
 Notes:
 
 - Reference similar implementation for Kick.com streaming service in `../firebot-mage-kick-integration`
+- Reference platform library in `../firebot-mage-platform-lib`
 - Firebot source code is in `../Firebot`

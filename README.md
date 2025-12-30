@@ -1,5 +1,3 @@
-**ATTENTION: THIS IS A WORK IN PROGRESS THAT HAS SHOWN PROMISE BUT IS NOT YET WORKING IN FIREBOT**
-
 # Firebot YouTube Integration
 
 ## Disclaimer and Warning
@@ -9,6 +7,8 @@
 **ALL DATA STRUCTURES AND EVENTS IN THIS INTEGRATION -- EVEN THOSE THAT SEEM TO MAP CLEANLY -- ARE TOTAL HACKS. ALL EVENTS ARE IMPLEMENTED ... HACKILY. THIS INTEGRATION CONTAINS FORWARD-INCOMPATIBLE WORKAROUNDS AND DUE TO ITS CONTENT IT SHOULD NOT BE USED BY ANYONE.**
 
 Use caution: this integration uses forward-incompatible workarounds and should be treated as experimental.
+
+- At this point, it's _very_ early, highly experimental, and not well documented.
 
 - Firebot is designed for a single streaming platform (Twitch), and many core assumptions and functionality are tightly coupled to this design. As a result, full compatibility with YouTube is not achievable under the current architecture.
 
@@ -31,7 +31,7 @@ _Effects are calls to the YouTube API made by Firebot as a result of event handl
 
 | Event | Supported | Notes |
 | ----- | --------- | ----- |
-| Chat message (incoming) | Partial | Only basic proof-of-concept information at this time. Planned for full implementation. |
+| Chat message (incoming) | :white_check_mark: | |
 | Application Activated | :white_check_mark: | Triggered when a YouTube application becomes active. Provides cause, applicationId, applicationName, and connected status. |
 
 ### Variables
@@ -50,20 +50,34 @@ _Variables can be used in Firebot to access integration data dynamically._
 | Feature | Support Status | Notes |
 | ------- | -------------- | ----- |
 | Channel point rewards: | :x: | No YouTube equivalent |
-| Commands | :white_check_mark: | Supported. Cooldowns will not work due to Firebot limitations. |
-| Chat feed: Display YouTube messages | Planned | |
-| Chat feed: All other context menu items | Maybe | Need to be evaluated |
-| Commands | Planned | Cooldowns will not work due to Firebot limitations |
+| Chat feed: Display YouTube messages | :white_check_mark: | |
+| Chat feed: Other context menu items | ? | Need to evaluate |
+| Commands | :white_check_mark: | Cooldowns will not work due to Firebot limitations |
 | Currency | :x: | Firebot assumes all users are Twitch users |
 | Currency: Watch time | :x: | No way to track this on YouTube |
+| Conditions based on YouTube roles | ? | Need to evaluate |
+| Filters based on YouTube roles | ? | Need to evaluate |
+| Profile pictures | :white_check_mark: | Display in chat feed and passed in metadata |
+| Restrictions based on YouTube roles | ? | Need to evaluate |
 | Viewer database | :x: | Firebot assumes all users are Twitch users |
+
+### YouTube features
+
+| Feature | Support Status | Notes |
+| ------- | -------------- | ----- |
+| Chat message: incoming | :white_check_mark: | |
+| Chat message: outgoing | :white_check_mark: | |
+| Monetization: ads | ? | Need to evaluate |
+| Monetization: super chat / stickers | ? | Need to evaluate |
+| Stream: change stream title / metadata | ? | Need to evaluate |
+| Stream: start streaming | ? | Need to evaluate |
 
 ### Limitations due to Firebot
 
 - Firebot's viewer database uses Twitch user IDs as primary keys and assumes every user is from Twitch. This rigid design prevents many features that depend on storing information about users (e.g. currency, metadata).
 - Rate limiting (cooldowns) for commands doesn't work natively. Consider using the [Firebot Rate Limiter](https://github.com/TheStaticMage/firebot-rate-limiter) if needed.
 - Slash commands in the Firebot chat (e.g. `/clear`) only apply to Twitch.
-- You won't be able to add a YouTube user to a custom role via the Firebot GUI, because Firebot does a Twitch lookup on whatever you type. It is, however, possible to have events add YouTube users to custom roles. You can remove YouTube users from custom roles through the GUI.
+- You won't be able to add a YouTube user to a custom role via the Firebot GUI, because Firebot does a Twitch lookup on whatever you type.
 
 ## Installation
 
