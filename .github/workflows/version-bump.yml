@@ -16,6 +16,8 @@ jobs:
   bump-version:
     name: 'Bump patch version on main branch'
     runs-on: ubuntu-latest
+    env:
+      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
 
     steps:
       - name: 'Checkout source code'

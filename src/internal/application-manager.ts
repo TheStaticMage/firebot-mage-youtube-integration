@@ -288,6 +288,10 @@ export class ApplicationManager {
 
         const { eventManager } = firebot.modules;
         const metadata = {
+            eventSource: {
+                id: IntegrationConstants.INTEGRATION_ID
+            },
+            platform: "youtube",
             cause: cause,
             applicationId: id,
             applicationName: app.name,

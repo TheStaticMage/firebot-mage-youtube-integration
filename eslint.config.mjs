@@ -5,11 +5,16 @@ import tseslint from 'typescript-eslint';
 import stylistic from '@stylistic/eslint-plugin';
 
 export default tseslint.config(
-  eslint.configs.recommended,
-  tseslint.configs.strictTypeChecked,
-  tseslint.configs.stylistic,
+    eslint.configs.recommended,
+    {
+        ignores: ['**/*.mjs', '**/*.js', 'node_modules/**', 'dist/**', 'coverage/**', 'src/generated/**']
+    },
     {
         files: ['**/*.ts', '**/*.tsx'],
+        extends: [
+            ...tseslint.configs.strictTypeChecked,
+            ...tseslint.configs.stylistic,
+        ],
         languageOptions: {
             parserOptions: {
                 projectService: true,

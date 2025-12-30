@@ -232,10 +232,10 @@ const youTubeAuthorizeUrl: AngularJsComponent = {
     }
 };
 
-const youTubeApplicationsPage: AngularJsPage = {
-    id: "youTubeApplicationsPage",
-    name: "YouTube Applications",
-    icon: "fa-youtube",
+const youTubePage: AngularJsPage = {
+    id: "youTubePage",
+    name: "YouTube",
+    icon: "fa-plug",
     type: "angularjs",
     template: `
         <div class="modal-body">
@@ -748,7 +748,7 @@ const youTubeApplicationsPage: AngularJsPage = {
 
 export const youTubeApplicationsExtension: UIExtension = {
     id: "youTubeApplicationsExtension",
-    pages: [youTubeApplicationsPage],
+    pages: [youTubePage],
     providers: {
         components: [youTubeAddOrEditApplication, youTubeAuthorizeUrl, youTubeDeleteConfirmation, youTubeDeauthorizeConfirmation],
         factories: [youTubeApplicationsService]

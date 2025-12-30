@@ -6,12 +6,14 @@
     "main": "",
     "scripts": {
         "build": "npm run build:version && npm run build:webpack",
-        "build:dev": "npm run build:version && npm run build:webpack && npm run copy",
+        "build:dev": "node ./scripts/build-dev-local-client.js",
+        "build:dev:base": "npm run build:version && npm run build:webpack && npm run copy",
         "build:version": "node ./scripts/update-version.js",
         "build:webpack": "webpack",
         "copy": "node ./scripts/copy-build.js",
         "prepare": "",
         "test": "jest",
+        "lint": "eslint .",
         "gen:proto": "protoc --plugin=./node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=src/generated --ts_proto_opt=outputServices=grpc-js,esModuleInterop=true,forceLong=string ./proto/stream_list.proto",
         "poc:compile": "tsc -p poc/tsconfig.json",
         "poc:test": "npm run poc:compile && node dist/poc/test-chatstream.js",
@@ -42,6 +44,7 @@
         "@googleapis/youtube": "^29.0.0",
         "@grpc/grpc-js": "^1.14.0",
         "@grpc/proto-loader": "^0.8.0",
+        "@thestaticmage/mage-platform-lib-client": "^0.0.2-sha.2d9f97e",
         "google-auth-library": "^10.5.0",
         "luxon": "^3.7.2"
     }

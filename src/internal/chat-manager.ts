@@ -226,14 +226,17 @@ export class ChatManager {
             // Emit Firebot event with full chat message
             const { eventManager } = firebot.modules;
             const metadata = {
+                eventSource: {
+                    id: IntegrationConstants.INTEGRATION_ID
+                },
+                platform: "youtube",
                 username: firebotChatMessage.username,
                 userId: firebotChatMessage.userId,
                 userDisplayName: firebotChatMessage.userDisplayName,
                 twitchUserRoles: twitchBadgeRoles,
                 messageText: firebotChatMessage.rawText,
                 messageId: firebotChatMessage.id,
-                chatMessage: firebotChatMessage,
-                platform: "youtube"
+                chatMessage: firebotChatMessage
             };
 
             eventManager.triggerEvent(
