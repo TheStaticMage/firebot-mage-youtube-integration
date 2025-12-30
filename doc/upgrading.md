@@ -9,23 +9,23 @@
 
 - A **major release** changes the first number (e.g. `0.1.5` -> `1.0.0`). Since version 1.0 typically implies stability and production-readiness, and that is highly unlikely ever to happen with this project, I do not intend to release version 1.0 or higher of this project, unless this somehow becomes an officially supported plugin for Firebot version 6.
 
+## Version Requirements
+
+- **Versions 0.0.1 and higher** require Firebot 5.65 and [firebot-mage-platform-lib](https://github.com/TheStaticMage/firebot-mage-platform-lib/) 0.0.2 or higher
+
 ## General Upgrade Procedure
 
 1. Review the upgrade notes below, especially if you are upgrading more than just a patch release.
 
-2. From the latest [Release](https://github.com/TheStaticMage/firebot-mage-youtube-integration/releases), download: `firebot-mage-youtube-integration-<version>.js` into your Firebot scripts directory
+2. If necessary, upgrade [firebot-mage-platform-lib](https://github.com/TheStaticMage/firebot-mage-platform-lib/) to a supported version.
 
-    (File > Open Data Folder, then select the "scripts" directory)
+3. Download the new version `firebot-mage-youtube-integration-<version>.js` from the [Releases](https://github.com/TheStaticMage/firebot-mage-youtube-integration/releases) page.
 
-    :warning: Be sure you download the file from the releases page, not the source code of the GitHub repository!
+4. Go to Settings &gt; Scripts &gt; Manage Startup Scripts in Firebot.
 
-3. In Firebot, go to **Settings > Scripts > Manage Startup Scripts** and click the **Edit** button next to MageYouTubeIntegration. Select the new version of the script from the dropdown. (If necessary, click the refresh icon to update the directory contents.)
+5. Edit the existing script entry and select the new file.
 
-4. Restart Firebot. (The new version of the script will _not_ be loaded until you actually restart Firebot.)
-
-    :bulb: You may optionally remove older versions of the script from the scripts directory once you have installed new ones.
-
-5. After upgrading, review your integration settings under **Settings > Integrations > MageYouTubeIntegration**. If the upgrade includes new configuration options, you may need to update your Google OAuth credentials or re-authorize your Google account.
+6. Restart Firebot.
 
 ## Upgrade Notes
 
