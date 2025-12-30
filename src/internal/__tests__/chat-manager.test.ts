@@ -94,14 +94,17 @@ describe('ChatManager handleMessage', () => {
         } as unknown as LiveChatMessage;
 
         const expectedMetadata = {
+            eventSource: {
+                id: 'mage-youtube-integration'
+            },
+            platform: 'youtube',
             username: 'John Viewer@youtube',
             userId: 'yUCrDkAvwXgOFDjlW9wqyYeIQ',
             userDisplayName: 'John Viewer',
             twitchUserRoles: [],
             messageText: 'Great stream!',
             messageId: 'MTU0ODEyMzQ1NjczODk2NzUzNDQ.CtHSEg',
-            chatMessage: expect.any(Object),
-            platform: 'youtube'
+            chatMessage: expect.any(Object)
         };
 
         // Act - Access private method using bracket notation for testing

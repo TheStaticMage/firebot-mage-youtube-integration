@@ -86,13 +86,11 @@ export class QuotaManager {
         const callsPerHour = maxCallsPerDay / maxStreamHours;
         const delaySeconds = 3600 / callsPerHour;
 
-        logger.debug(`Quota calculation:
-  Daily quota: ${dailyQuota}
-  Max stream hours: ${maxStreamHours}
-  Quota budget (80%): ${quotaBudget}
-  Max calls per day: ${maxCallsPerDay}
-  Calls per hour: ${callsPerHour.toFixed(2)}
-  Calculated delay: ${delaySeconds.toFixed(2)}s`);
+        logger.debug(
+            `Quota calculation: dailyQuota=${dailyQuota}, maxStreamHours=${maxStreamHours}, ` +
+            `quotaBudget80=${quotaBudget}, maxCallsPerDay=${maxCallsPerDay}, ` +
+            `callsPerHour=${callsPerHour.toFixed(2)}, calculatedDelaySeconds=${delaySeconds.toFixed(2)}s`
+        );
 
         return Math.round(delaySeconds);
     }

@@ -1,5 +1,6 @@
 import { Firebot, RunRequest } from '@crowbartools/firebot-custom-scripts-types';
 import { Logger } from '@crowbartools/firebot-custom-scripts-types/types/modules/logger';
+import { checkPlatformLibCompatibility } from '@thestaticmage/mage-platform-lib-client';
 import { IntegrationConstants } from './constants';
 import { definition, integration } from './integration';
 
@@ -22,10 +23,23 @@ const script: Firebot.CustomScript = {
     getDefaultParameters: () => {
         return {};
     },
-    run: (runRequest: RunRequest<any>) => {
+    run: async (runRequest: RunRequest<any>) => {
         firebot = runRequest;
         logger = new LogWrapper(runRequest.modules.logger);
         logger.info(`Mage YouTube Integration v${scriptVersion} initializing...`);
+
+        const platformLibCheck = await checkPlatformLibCompatibility(
+            runRequest,
+            IntegrationConstants.INTEGRATION_NAME,
+            IntegrationConstants.PLATFORM_LIB_VERSION_CONSTRAINT,
+            logger
+        );
+
+        if (platformLibCheck.success) {
+            logger.info("Platform library is compatible");
+        } else {
+            logger.warn(`Platform library compatibility check: ${platformLibCheck.errorMessage || "Unknown error"}`);
+        }
 
         const { integrationManager } = runRequest.modules;
         integrationManager.registerIntegration({ definition, integration });

@@ -33,7 +33,13 @@ TODO:
 - Determine the actual current limit on chat message length
 - Message chunking for long messages due to overly restrictive character limit
 - Messages typed in Firebot chat feed are sent to YouTube chat
-- Create platform independent library for Twitch, Kick, YouTube supporting chat, username standardization, etc.
+- Create platform independent library for Twitch, Kick, YouTube supporting chat, username standardization, etc. (DONE - firebot-mage-platform-lib)
+- Integration with platform-lib (COMPLETE)
+  - Platform-lib client dependency added (DONE)
+  - Version compatibility check on startup (DONE)
+  - Event metadata includes eventSource.id and platform fields (DONE)
+  - HTTP operation handlers for send-chat-message and get-user-display-name (DONE)
+  - User ID/username transformation compatible with platform-lib (DONE)
 - Implement streamer filter for YouTube messages
 - Detect broadcast online and broadcast offline
 - Set broadcast title and detect broadcast title change
@@ -67,7 +73,7 @@ TODO:
 - Add filters to commands
 - Create a "platform aware chat" effect that handles YouTube
 
-Tech: TypeScript, Jest
+Tech: TypeScript, Jest, firebot-mage-platform-lib
 
 Learnings:
 
@@ -96,6 +102,11 @@ Learnings:
 - Connect phase refreshes tokens for ALL authorized applications during step 2b, ensuring UI shows consistent token expiration times across active and non-active applications before notifying the UI
 - Chat history replay on initial connection prevented via client-side timestamp filtering; connection timestamp stored when startChatStreaming() is called, and messages with publishedAt before this timestamp are filtered during processing
 - Timestamp-based filtering is the only viable approach for skipping old messages because streamList GRPC endpoint does not support timestamp filtering parameters; only pageToken pagination and client-side publishedAt comparison available
+- Platform-lib integration enables cross-platform features: YouTube events include metadata.eventSource.id and metadata.platform fields for platform detection
+- Platform-lib HTTP operation handlers registered during connect() and unregistered during disconnect() at integration URIs /mage-youtube-integration/operations/send-chat-message (POST) and /mage-youtube-integration/operations/get-user-display-name (GET)
+- YouTube user transformation (y prefix for IDs, @youtube suffix for usernames) is compatible with platform-lib conventions
+- Platform-lib compatibility check runs on startup; warns if platform-lib not installed or incompatible version
+- Integration connect now performs a platform-lib ping check using the Firebot web server port before proceeding
 
 Conventions:
 
@@ -103,11 +114,14 @@ Conventions:
 - "YouTube": Capitalize as "YouTube" (or "youTube" in variable names or functions starting with "youTube")
 - Logging: Provide observability via logger.debug
 - Documentation: In Markdown, placed in `docs` directory, referenced from `README.md`, satisfies markdownlint
+- Documentation: In Markdown, placed in `doc` directory, referenced from `README.md`
 - Build: Code and GRPC proto consolidated to one file with webpack (webpack file loaded by Firebot as startup script)
 - User ID: UserIDs from youtube are 'y' plus the given YouTube user ID
 - User name: Usernames from youtube are the given YouTube username plus '@youtube'
 - Files under `src/generated` are generated and must never be written by AI coding agents
 - Import the YouTube API as: `import { youtube_v3 as youtubeV3 } from "@googleapis/youtube";`
+- UI extensions live in `src/ui-extensions/youtube.ts`
+- Local dev helper: `scripts/build-dev-local-client.js` swaps platform-lib client to local file dependency, runs build, then restores the original dependency
 - No emojis in log messages or code comments
 - Emojis are acceptable in documentation but must use GitHub markdown emojis (e.g. `:white_check_mark:`)
 - No emdashes anywhere (code, comments, or documentation)

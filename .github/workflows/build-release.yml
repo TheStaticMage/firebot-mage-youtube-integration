@@ -5,6 +5,8 @@ on: workflow_dispatch
 jobs:
   build_release:
     runs-on: ubuntu-latest
+    env:
+      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:

@@ -1,4 +1,5 @@
 import { IntegrationData } from "@crowbartools/firebot-custom-scripts-types";
+import { checkPlatformLibPing } from "@thestaticmage/mage-platform-lib-client";
 import { EventEmitter } from "events";
 import { IntegrationConstants } from "./constants";
 import { chatEffect } from "./effects/chat";
@@ -13,9 +14,10 @@ import { MultiAuthManager } from "./internal/multi-auth-manager";
 import { QuotaManager } from "./internal/quota-manager";
 import { RestApiClient } from "./internal/rest-api-client";
 import { firebot, logger } from "./main";
+import { registerRoutes, unregisterRoutes } from "./server/server";
 import { ApplicationStorage, YouTubeOAuthApplication } from "./types";
-import { getDataFilePath } from "./util/datafile";
 import { registerUIExtensions } from "./ui-extensions";
+import { getDataFilePath } from "./util/datafile";
 import { youtubeApplicationActivationCauseVariable } from "./variables/youtube-application-activation-cause";
 import { youtubeApplicationIdVariable } from "./variables/youtube-application-id";
 import { youtubeApplicationNameVariable } from "./variables/youtube-application-name";
@@ -168,6 +170,14 @@ export class YouTubeIntegration extends EventEmitter {
     async connect() {
         logger.info("YouTube integration connecting...");
 
+        const pingResult = await checkPlatformLibPing(this.getPlatformLibPingPort());
+        if (!pingResult.success) {
+            logger.error(`Platform library ping failed: ${pingResult.errorMessage || "Unknown error"}`);
+            await this.disconnect();
+            this.sendCriticalErrorNotification(`Platform library ping failed. ${pingResult.errorMessage || "Please verify that the platform library is loaded."}`);
+            return;
+        }
+
         try {
             // Step 0: Get applications from ApplicationManager
             const applicationsMap = this.applicationManager.getApplications();
@@ -259,6 +269,9 @@ export class YouTubeIntegration extends EventEmitter {
             // Start periodic stream checking to detect when stream ends
             this.startStreamChecking();
 
+            // Register HTTP operation handlers for platform-lib
+            registerRoutes(this);
+
             logger.info("YouTube integration connected successfully");
 
         } catch (error: any) {
@@ -285,6 +298,11 @@ export class YouTubeIntegration extends EventEmitter {
         // Start streaming (ChatManager will calculate delay internally)
         await this.chatManager.startChatStreaming(liveChatId, accessToken);
         logger.debug(`Chat streaming started for application ${activeApplicationId}`);
+    }
+
+    private getPlatformLibPingPort(): number {
+        const { settings } = firebot.firebot;
+        return settings.getSetting("WebServerPort") as number || 7472;
     }
 
     /**
@@ -372,6 +390,9 @@ export class YouTubeIntegration extends EventEmitter {
     async disconnect() {
         logger.info("YouTube integration disconnecting...");
         this.emit("disconnecting", IntegrationConstants.INTEGRATION_ID);
+
+        // Unregister HTTP operation handlers
+        unregisterRoutes();
 
         // Stop periodic stream checking
         if (this.streamCheckInterval) {

@@ -52,7 +52,7 @@ _Variables can be used in Firebot to access integration data dynamically._
 | Channel point rewards: | :x: | No YouTube equivalent |
 | Commands | :white_check_mark: | Supported. Cooldowns will not work due to Firebot limitations. |
 | Chat feed: Display YouTube messages | Planned | |
-| Chat feed: All other context menu items | Maybe | Need to be evaluated  |
+| Chat feed: All other context menu items | Maybe | Need to be evaluated |
 | Commands | Planned | Cooldowns will not work due to Firebot limitations |
 | Currency | :x: | Firebot assumes all users are Twitch users |
 | Currency: Watch time | :x: | No way to track this on YouTube |

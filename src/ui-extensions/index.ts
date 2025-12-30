@@ -1,5 +1,5 @@
 import { firebot, logger } from "../main";
-import { youTubeApplicationsExtension } from "./youtube-applications";
+import { youTubeApplicationsExtension } from "./youtube";
 
 export function registerUIExtensions(): void {
     const { uiExtensionManager } = firebot.modules;
