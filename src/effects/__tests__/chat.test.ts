@@ -41,7 +41,7 @@ describe("YouTube Chat Effect", () => {
         const mockSendDataToOverlay = jest.fn();
         const mockAbortSignal = new AbortController().signal;
 
-        it("should send message successfully", async () => {
+        it("should send message in fire-and-forget mode", async () => {
             const message = "Test message";
 
             mockRestApiClient.sendChatMessage.mockResolvedValue(true);
@@ -58,7 +58,7 @@ describe("YouTube Chat Effect", () => {
             expect(mockRestApiClient.sendChatMessage).toHaveBeenCalledWith(message);
         });
 
-        it("should return false when sendChatMessage fails", async () => {
+        it("should return true immediately even if sendChatMessage fails", async () => {
             const message = "Test message";
 
             mockRestApiClient.sendChatMessage.mockResolvedValue(false);
@@ -71,13 +71,11 @@ describe("YouTube Chat Effect", () => {
                 abortSignal: mockAbortSignal
             });
 
-            expect(result).toBe(false);
+            expect(result).toBe(true);
         });
 
-        it("should handle exceptions gracefully", async () => {
-            mockRestApiClient.sendChatMessage.mockImplementation(() => {
-                throw new Error("Test error");
-            });
+        it("should handle exceptions without crashing (fire-and-forget)", async () => {
+            mockRestApiClient.sendChatMessage.mockRejectedValue(new Error("Test error"));
 
             const effect = { message: "Test message", chatter: "Streamer" as const };
             const result = await chatEffect.onTriggerEvent({
@@ -87,7 +85,7 @@ describe("YouTube Chat Effect", () => {
                 abortSignal: mockAbortSignal
             });
 
-            expect(result).toBe(false);
+            expect(result).toBe(true);
         });
     });
 });

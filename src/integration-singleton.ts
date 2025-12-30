@@ -262,6 +262,11 @@ export class YouTubeIntegration extends EventEmitter {
 
                 // Start periodic stream checking
                 this.startStreamChecking();
+
+                // Register HTTP operation handlers for platform-lib
+                registerRoutes(this);
+
+                logger.info("YouTube integration connected successfully (no broadcast found)");
                 return;
             }
 
