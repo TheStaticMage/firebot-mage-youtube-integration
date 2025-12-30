@@ -15,6 +15,7 @@
 import { IntegrationConstants } from '../constants';
 import { YouTubeMessageTypeStrings } from '../constants';
 import { FirebotChatHelpers, mapYouTubeChatMessageToChat } from '../events/chat-message-sent';
+import { triggerViewerArrived } from '../events/viewer-arrived';
 import { LiveChatMessage } from '../generated/proto/stream_list';
 import { firebot } from '../main';
 import { YouTubeUser } from '../types';
@@ -37,6 +38,7 @@ export class ChatManager {
     private activeApplicationId = '';
     private dailyQuota = 10000;
     private connectionTimestamp: Date | null = null;
+    private viewerArrivedCache = new Set<string>();
 
     constructor(logger: any, quotaManager: QuotaManager, clientFactory: () => any, integration: YouTubeIntegration) {
         this.logger = logger;
@@ -223,6 +225,17 @@ export class ChatManager {
                 this.logger.debug("Message was handled as a command");
             }
 
+            // Check if this is the first time we've seen this user (viewer arrived)
+            if (this.checkViewerArrived(firebotChatMessage.userId)) {
+                triggerViewerArrived(
+                    firebotChatMessage.username,
+                    firebotChatMessage.userId,
+                    firebotChatMessage.userDisplayName || firebotChatMessage.username,
+                    firebotChatMessage.rawText,
+                    firebotChatMessage
+                );
+            }
+
             // Emit Firebot event with full chat message
             const { eventManager } = firebot.modules;
             const metadata = {
@@ -288,5 +301,17 @@ export class ChatManager {
      */
     isChatStreaming(): boolean {
         return this.isStreaming;
+    }
+
+    /**
+     * Check if a viewer has arrived (first chat in stream)
+     * Returns true if this is the first time seeing this user, false otherwise
+     */
+    checkViewerArrived(userId: string): boolean {
+        if (this.viewerArrivedCache.has(userId)) {
+            return false;
+        }
+        this.viewerArrivedCache.add(userId);
+        return true;
     }
 }
