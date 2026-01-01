@@ -27,9 +27,9 @@ export class ChatManager {
     private client: any = null;
     private isStreaming = false;
     private liveChatId: string | null = null;
-    private accessToken: string | null = null;
     private logger: any;
     private quotaManager: QuotaManager;
+    private multiAuthManager: any;
     private pollingDelaySeconds = 0;
     private nextPollTimer: NodeJS.Timeout | null = null;
     private pageToken: string | undefined;
@@ -40,9 +40,10 @@ export class ChatManager {
     private connectionTimestamp: Date | null = null;
     private viewerArrivedCache = new Set<string>();
 
-    constructor(logger: any, quotaManager: QuotaManager, clientFactory: () => any, integration: YouTubeIntegration) {
+    constructor(logger: any, quotaManager: QuotaManager, multiAuthManager: any, clientFactory: () => any, integration: YouTubeIntegration) {
         this.logger = logger;
         this.quotaManager = quotaManager;
+        this.multiAuthManager = multiAuthManager;
         this.clientFactory = clientFactory;
         this.integration = integration;
     }
@@ -50,7 +51,7 @@ export class ChatManager {
     /**
      * Start chat streaming for YouTube chat messages
      */
-    async startChatStreaming(liveChatId: string, accessToken: string): Promise<void> {
+    async startChatStreaming(liveChatId: string): Promise<void> {
         if (this.isStreaming) {
             this.logger.warn("Already streaming, stopping previous stream first");
             await this.stopChatStreaming();
@@ -75,7 +76,6 @@ export class ChatManager {
 
         this.pollingDelaySeconds = delay;
         this.liveChatId = liveChatId;
-        this.accessToken = accessToken;
         this.activeApplicationId = applicationsStorage.activeApplicationId;
         this.dailyQuota = activeApplication.quotaSettings.dailyQuota;
         this.client = this.clientFactory();
@@ -125,15 +125,27 @@ export class ChatManager {
      * Perform a single poll of the chat API
      */
     private async pollOnce(): Promise<void> {
-        if (!this.client || !this.liveChatId || !this.accessToken || !this.isStreaming) {
+        if (!this.client || !this.liveChatId || !this.isStreaming) {
             return;
         }
 
-        // Each call is a new chat API request
+        // Get fresh access token for this poll
+        const accessToken = await this.multiAuthManager.getAccessToken(this.activeApplicationId);
+        if (!accessToken) {
+            this.logger.error("Failed to get access token for chat polling");
+            this.isStreaming = false;
+
+            // Notify integration of token failure so it can disconnect
+            this.integration.sendCriticalErrorNotification("Failed to get access token for chat polling. Please reconnect the integration.");
+            await this.integration.disconnect();
+            return;
+        }
+
+        // Each call is a new chat API request with fresh token
         for await (const response of this.client.chatStreamMessages(
             this.activeApplicationId,
             this.liveChatId,
-            this.accessToken,
+            accessToken,
             this.dailyQuota,
             { pageToken: this.pageToken }
         )) {
@@ -292,7 +304,6 @@ export class ChatManager {
 
         this.client = null;
         this.liveChatId = null;
-        this.accessToken = null;
         this.pageToken = undefined;
         this.connectionTimestamp = null;
     }
