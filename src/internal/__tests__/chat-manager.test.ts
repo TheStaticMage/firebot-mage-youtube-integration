@@ -43,12 +43,20 @@ const mockLogger = {
 // Mock quota manager
 const mockQuotaManager = {
     calculateDelay: jest.fn(() => 10), // Return 10 seconds as default delay
-    isQuotaExceededError: jest.fn(() => false)
+    isQuotaExceededError: jest.fn(() => false),
+    formatDelay: jest.fn(() => "10s")
 } as unknown as QuotaManager;
+
+// Mock multi-auth manager
+const mockMultiAuthManager = {
+    getAccessToken: jest.fn(() => Promise.resolve('mock-access-token'))
+} as any;
 
 // Mock integration
 const mockIntegration = {
     isChatFeedEnabled: jest.fn(() => true),
+    sendCriticalErrorNotification: jest.fn(),
+    disconnect: jest.fn(() => Promise.resolve()),
     getApplicationsStorage: jest.fn(() => ({
         applications: {
             'test-app-id': {
@@ -83,6 +91,7 @@ describe('ChatManager handleMessage', () => {
         chatManager = new ChatManager(
             mockLogger,
             mockQuotaManager,
+            mockMultiAuthManager,
             mockClientFactory,
             mockIntegration
         );
@@ -516,6 +525,7 @@ describe('ChatManager viewer arrival tracking', () => {
         chatManager = new ChatManager(
             mockLogger,
             mockQuotaManager,
+            mockMultiAuthManager,
             mockClientFactory,
             mockIntegration
         );
@@ -568,5 +578,109 @@ describe('ChatManager viewer arrival tracking', () => {
         await (chatManager as any).handleMessage(sampleMessage);
 
         expect(triggerViewerArrived).not.toHaveBeenCalled();
+    });
+});
+
+describe('ChatManager token refresh during polling', () => {
+    let chatManager: ChatManager;
+    let mockClient: any;
+    let tokenCallCount: number;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        tokenCallCount = 0;
+
+        const mockMultiAuthManagerWithCounter = {
+            getAccessToken: jest.fn(() => {
+                tokenCallCount++;
+                return Promise.resolve(`mock-access-token-${tokenCallCount}`);
+            })
+        } as any;
+
+        mockClient = {
+            chatStreamMessages: jest.fn(async function* () {
+                yield {
+                    items: [],
+                    nextPageToken: undefined,
+                    offlineAt: undefined
+                };
+            })
+        };
+
+        const mockClientFactoryWithClient = jest.fn(() => mockClient);
+
+        chatManager = new ChatManager(
+            mockLogger,
+            mockQuotaManager,
+            mockMultiAuthManagerWithCounter,
+            mockClientFactoryWithClient,
+            mockIntegration
+        );
+    });
+
+    it('should retrieve fresh token before each poll', async () => {
+        await chatManager.startChatStreaming('test-live-chat-id');
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const pollOnceMethod = (chatManager as any).pollOnce.bind(chatManager);
+        await pollOnceMethod();
+        await pollOnceMethod();
+
+        expect(tokenCallCount).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should handle token refresh failures gracefully', async () => {
+        const mockMultiAuthManagerWithError = {
+            getAccessToken: jest.fn(() => Promise.resolve(''))
+        } as any;
+
+        const mockIntegrationWithDisconnect = {
+            ...mockIntegration,
+            sendCriticalErrorNotification: jest.fn(),
+            disconnect: jest.fn(() => Promise.resolve())
+        };
+
+        const mockClientFactoryWithClient = jest.fn(() => mockClient);
+
+        const chatManagerWithFailingToken = new ChatManager(
+            mockLogger,
+            mockQuotaManager,
+            mockMultiAuthManagerWithError,
+            mockClientFactoryWithClient,
+            mockIntegrationWithDisconnect
+        );
+
+        await chatManagerWithFailingToken.startChatStreaming('test-live-chat-id');
+
+        const pollOnceMethod = (chatManagerWithFailingToken as any).pollOnce.bind(chatManagerWithFailingToken);
+        await pollOnceMethod();
+
+        expect(chatManagerWithFailingToken.isChatStreaming()).toBe(false);
+        expect(mockIntegrationWithDisconnect.sendCriticalErrorNotification).toHaveBeenCalled();
+        expect(mockIntegrationWithDisconnect.disconnect).toHaveBeenCalled();
+    });
+
+    it('should pass correct applicationId to getAccessToken', async () => {
+        const mockMultiAuthManagerSpy = {
+            getAccessToken: jest.fn(() => Promise.resolve('mock-access-token'))
+        } as any;
+
+        const mockClientFactoryWithClient = jest.fn(() => mockClient);
+
+        const chatManagerWithSpy = new ChatManager(
+            mockLogger,
+            mockQuotaManager,
+            mockMultiAuthManagerSpy,
+            mockClientFactoryWithClient,
+            mockIntegration
+        );
+
+        await chatManagerWithSpy.startChatStreaming('test-live-chat-id');
+
+        const pollOnceMethod = (chatManagerWithSpy as any).pollOnce.bind(chatManagerWithSpy);
+        await pollOnceMethod();
+
+        expect(mockMultiAuthManagerSpy.getAccessToken).toHaveBeenCalledWith('test-app-id');
     });
 });

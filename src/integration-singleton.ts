@@ -272,7 +272,7 @@ export class YouTubeIntegration extends EventEmitter {
 
             // Step 6: Start streaming chat
             this.currentActiveApplicationId = activeApplicationId;
-            await this.startChatStreaming(liveChatId, accessToken, activeApplicationId);
+            await this.startChatStreaming(liveChatId, activeApplicationId);
 
             this.connected = true;
 
@@ -301,7 +301,7 @@ export class YouTubeIntegration extends EventEmitter {
     /**
      * Start streaming chat for a specific liveChatId
      */
-    private async startChatStreaming(liveChatId: string, accessToken: string, activeApplicationId: string): Promise<void> {
+    private async startChatStreaming(liveChatId: string, activeApplicationId: string): Promise<void> {
         // Stop any existing stream first
         if (this.chatManager) {
             await this.chatManager.stopChatStreaming();
@@ -309,10 +309,10 @@ export class YouTubeIntegration extends EventEmitter {
 
         this.currentLiveChatId = liveChatId;
         // Create ChatManager with ChatStreamClient factory and integration reference
-        this.chatManager = new ChatManager(logger, this.quotaManager, () => new ChatStreamClient(this), this);
+        this.chatManager = new ChatManager(logger, this.quotaManager, this.multiAuthManager, () => new ChatStreamClient(this), this);
 
-        // Start streaming (ChatManager will calculate delay internally)
-        await this.chatManager.startChatStreaming(liveChatId, accessToken);
+        // Start streaming (ChatManager will retrieve token internally)
+        await this.chatManager.startChatStreaming(liveChatId);
         logger.debug(`Chat streaming started for application ${activeApplicationId}`);
     }
 
@@ -369,7 +369,7 @@ export class YouTubeIntegration extends EventEmitter {
             // Case 1: Stream just started
             if (!this.currentLiveChatId && liveChatId) {
                 logger.info("YouTube stream detected, starting chat streaming");
-                await this.startChatStreaming(liveChatId, accessToken, this.currentActiveApplicationId);
+                await this.startChatStreaming(liveChatId, this.currentActiveApplicationId);
                 return;
             }
 
@@ -387,7 +387,7 @@ export class YouTubeIntegration extends EventEmitter {
             // Case 3: Different stream started (liveChatId changed)
             if (this.currentLiveChatId && liveChatId && this.currentLiveChatId !== liveChatId) {
                 logger.info("Different YouTube stream detected, switching streams");
-                await this.startChatStreaming(liveChatId, accessToken, this.currentActiveApplicationId);
+                await this.startChatStreaming(liveChatId, this.currentActiveApplicationId);
                 return;
             }
 
@@ -534,14 +534,8 @@ export class YouTubeIntegration extends EventEmitter {
                     this.chatManager = null;
                 }
 
-                // Get access token for new application
-                const accessToken = await this.multiAuthManager.getAccessToken(newApplicationId);
-                if (!accessToken) {
-                    throw new Error(`Failed to get access token for new application ${newApplicationId}`);
-                }
-
                 // Restart chat streaming with new application
-                await this.startChatStreaming(this.currentLiveChatId, accessToken, newApplicationId);
+                await this.startChatStreaming(this.currentLiveChatId, newApplicationId);
                 logger.info("Chat streaming restarted successfully with new active application");
             } catch (error: any) {
                 logger.error(`Failed to restart chat streaming with new application: ${error.message}`);
