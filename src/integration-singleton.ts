@@ -175,6 +175,13 @@ export class YouTubeIntegration extends EventEmitter {
         effectManager.addEventToEffect("firebot:chat-feed-custom-highlight", IntegrationConstants.INTEGRATION_ID, "chat-message");
         effectManager.addEventToEffect("firebot:chat-feed-custom-highlight", IntegrationConstants.INTEGRATION_ID, "viewer-arrived");
         effectManager.addEventToEffect("firebot:chat-feed-message-hide", IntegrationConstants.INTEGRATION_ID, "chat-message");
+        logger.debug("YouTube effects registered");
+
+        // Register restrictions
+        const { restrictionManager } = firebot.modules;
+        const youtubeOnlyWhenLive = require("./restrictions/youtube-only-when-live");
+        restrictionManager.registerRestriction(youtubeOnlyWhenLive);
+        logger.debug("YouTube restrictions registered");
 
         // Register UI extensions
         registerUIExtensions();
@@ -344,7 +351,6 @@ export class YouTubeIntegration extends EventEmitter {
 
     /**
      * Start periodic checking for stream status
-     * Checks every 60 seconds to see if stream started/ended
      */
     private startStreamChecking(): void {
         if (this.streamCheckInterval) {
@@ -357,7 +363,7 @@ export class YouTubeIntegration extends EventEmitter {
             } catch (error: any) {
                 logger.error(`Error checking stream status: ${error.message}`);
             }
-        }, 60000); // Check every 60 seconds
+        }, IntegrationConstants.STREAM_STATUS_CHECK_INTERVAL_MS);
     }
 
     /**
@@ -473,6 +479,10 @@ export class YouTubeIntegration extends EventEmitter {
 
     isChatFeedEnabled(): boolean {
         return this.settings.chat.chatFeed;
+    }
+
+    isLive(): boolean {
+        return this.currentLiveChatId !== null;
     }
 
     getSettings(): IntegrationParameters {
