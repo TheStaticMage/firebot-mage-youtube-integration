@@ -4,14 +4,22 @@
 import { MultiAuthManager } from "../multi-auth-manager";
 import { YouTubeOAuthApplication } from "../../types";
 import { logger } from "../../main";
+import { ErrorTracker } from "../error-tracker";
 
-// Mock logger
+// Mock logger and firebot
 jest.mock("../../main", () => ({
     logger: {
         debug: jest.fn(),
         info: jest.fn(),
         warn: jest.fn(),
         error: jest.fn()
+    },
+    firebot: {
+        modules: {
+            eventManager: {
+                triggerEvent: jest.fn()
+            }
+        }
     }
 }));
 
@@ -40,9 +48,11 @@ jest.useFakeTimers();
 describe("MultiAuthManager", () => {
     let multiAuthManager: MultiAuthManager;
     let mockApplications: YouTubeOAuthApplication[];
+    let errorTracker: ErrorTracker;
 
     beforeEach(() => {
-        multiAuthManager = new MultiAuthManager();
+        errorTracker = new ErrorTracker();
+        multiAuthManager = new MultiAuthManager(errorTracker);
         jest.clearAllMocks();
 
         // Reset mockOAuth2Client methods

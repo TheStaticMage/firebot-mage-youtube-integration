@@ -1,14 +1,19 @@
 import { youtube_v3 as youtubeV3 } from "@googleapis/youtube";
 import { OAuth2Client } from "google-auth-library";
+import { IntegrationConstants } from "../constants";
 import type { YouTubeIntegration } from "../integration-singleton";
-import { logger } from "../main";
+import { firebot, logger } from "../main";
 import { QUOTA_COSTS } from "../types/quota-tracking";
+import { ApiCallType } from "./error-constants";
+import { ErrorTracker } from "./error-tracker";
 
 export class RestApiClient {
     private integration: YouTubeIntegration;
+    private errorTracker: ErrorTracker;
 
-    constructor(integration: YouTubeIntegration) {
+    constructor(integration: YouTubeIntegration, errorTracker: ErrorTracker) {
         this.integration = integration;
+        this.errorTracker = errorTracker;
     }
 
     private async getAuthClient(): Promise<OAuth2Client> {
@@ -107,16 +112,38 @@ export class RestApiClient {
 
             if (response.status === 200) {
                 logger.debug(`Successfully sent YouTube chat message. Message ID: ${response.data.id}`);
+                this.errorTracker.recordSuccess(ApiCallType.SEND_CHAT_MESSAGE);
                 return true;
             }
+
+            const error = new Error(`Failed to send YouTube chat message. Status: ${response.status}`);
+            (error as any).status = response.status;
+            const errorMetadata = this.errorTracker.recordError(ApiCallType.SEND_CHAT_MESSAGE, error);
             logger.error(`Failed to send YouTube chat message. Status: ${response.status}`);
+
+            const { eventManager } = firebot.modules;
+            eventManager.triggerEvent(
+                IntegrationConstants.INTEGRATION_ID,
+                "api-error",
+                errorMetadata as unknown as Record<string, unknown>
+            );
+
             return false;
 
         } catch (error: any) {
+            const errorMetadata = this.errorTracker.recordError(ApiCallType.SEND_CHAT_MESSAGE, error);
             logger.error(`Error sending YouTube chat message: ${error}`);
             if (error.response?.data) {
                 logger.error(`YouTube API error details: ${JSON.stringify(error.response.data)}`);
             }
+
+            const { eventManager } = firebot.modules;
+            eventManager.triggerEvent(
+                IntegrationConstants.INTEGRATION_ID,
+                "api-error",
+                errorMetadata as unknown as Record<string, unknown>
+            );
+
             return false;
         }
     }

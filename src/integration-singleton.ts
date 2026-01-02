@@ -4,13 +4,17 @@ import { EventEmitter } from "events";
 import { IntegrationConstants } from "./constants";
 import { chatEffect } from "./effects/chat";
 import { selectApplicationEffect } from "./effects/select-application";
-import { streamerFilter } from "./filters/streamer";
 import { ApplicationActivationCause, YouTubeEventSource } from "./events";
+import { apiCallFilter } from "./filters/api-call";
+import { consecutiveErrorsFilter } from "./filters/consecutive-errors";
+import { errorTypeFilter } from "./filters/error-type";
+import { streamerFilter } from "./filters/streamer";
 import { ApplicationManager } from "./internal/application-manager";
 import { getApplicationStatusMessage } from "./internal/application-utils";
 import { BroadcastManager } from "./internal/broadcast-manager";
 import { ChatManager } from "./internal/chat-manager";
 import { ChatStreamClient } from "./internal/chatstream-client";
+import { ErrorTracker } from "./internal/error-tracker";
 import { MultiAuthManager } from "./internal/multi-auth-manager";
 import { QuotaManager } from "./internal/quota-manager";
 import { RestApiClient } from "./internal/rest-api-client";
@@ -22,6 +26,9 @@ import { getDataFilePath } from "./util/datafile";
 import { youtubeApplicationActivationCauseVariable } from "./variables/youtube-application-activation-cause";
 import { youtubeApplicationIdVariable } from "./variables/youtube-application-id";
 import { youtubeApplicationNameVariable } from "./variables/youtube-application-name";
+import { youtubeErrorCategoryVariable } from "./variables/youtube-error-category";
+import { youtubeErrorConsecutiveFailuresVariable } from "./variables/youtube-error-consecutive-failures";
+import { youtubeErrorMessageVariable } from "./variables/youtube-error-message";
 import { youtubeIntegrationConnectedVariable } from "./variables/youtube-integration-connected";
 
 type IntegrationParameters = {
@@ -51,12 +58,13 @@ export class YouTubeIntegration extends EventEmitter {
     connected = false;
 
     // Managers for production integration
+    private errorTracker: ErrorTracker = new ErrorTracker();
     private applicationManager: ApplicationManager = new ApplicationManager();
-    private multiAuthManager: MultiAuthManager = new MultiAuthManager();
-    private quotaManager: QuotaManager = new QuotaManager();
-    private broadcastManager: BroadcastManager = new BroadcastManager(this);
+    private broadcastManager: BroadcastManager = new BroadcastManager(this, this.errorTracker);
     private chatManager: ChatManager | null = null;
-    private restApiClient: RestApiClient = new RestApiClient(this);
+    private multiAuthManager: MultiAuthManager = new MultiAuthManager(this.errorTracker);
+    private quotaManager: QuotaManager = new QuotaManager();
+    private restApiClient: RestApiClient = new RestApiClient(this, this.errorTracker);
 
     // Stream monitoring
     private streamCheckInterval: NodeJS.Timeout | null = null;
@@ -99,9 +107,12 @@ export class YouTubeIntegration extends EventEmitter {
         logger.debug("YouTube event source registered");
 
         // Register variables
+        replaceVariableManager.registerReplaceVariable(youtubeApplicationActivationCauseVariable);
         replaceVariableManager.registerReplaceVariable(youtubeApplicationIdVariable);
         replaceVariableManager.registerReplaceVariable(youtubeApplicationNameVariable);
-        replaceVariableManager.registerReplaceVariable(youtubeApplicationActivationCauseVariable);
+        replaceVariableManager.registerReplaceVariable(youtubeErrorCategoryVariable);
+        replaceVariableManager.registerReplaceVariable(youtubeErrorConsecutiveFailuresVariable);
+        replaceVariableManager.registerReplaceVariable(youtubeErrorMessageVariable);
         replaceVariableManager.registerReplaceVariable(youtubeIntegrationConnectedVariable);
         logger.debug("YouTube variables registered");
 
@@ -112,8 +123,11 @@ export class YouTubeIntegration extends EventEmitter {
 
         // Register filters
         const { eventFilterManager } = firebot.modules;
+        eventFilterManager.registerFilter(apiCallFilter);
+        eventFilterManager.registerFilter(consecutiveErrorsFilter);
+        eventFilterManager.registerFilter(errorTypeFilter);
         eventFilterManager.registerFilter(streamerFilter);
-        logger.debug("YouTube streamer filter registered");
+        logger.debug("YouTube filters registered");
 
         // Register HTTP endpoints for multi-application OAuth
         this.registerHttpEndpoints(httpServer);
@@ -314,8 +328,9 @@ export class YouTubeIntegration extends EventEmitter {
         }
 
         this.currentLiveChatId = liveChatId;
+
         // Create ChatManager with ChatStreamClient factory and integration reference
-        this.chatManager = new ChatManager(logger, this.quotaManager, this.multiAuthManager, () => new ChatStreamClient(this), this);
+        this.chatManager = new ChatManager(logger, this.quotaManager, this.multiAuthManager, () => new ChatStreamClient(this, this.errorTracker), this);
 
         // Start streaming (ChatManager will retrieve token internally)
         await this.chatManager.startChatStreaming(liveChatId);

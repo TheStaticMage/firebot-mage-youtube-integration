@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { RestApiClient } from "../rest-api-client";
 import { logger } from "../../main";
+import { ErrorTracker } from "../error-tracker";
 
 // Mock google-auth-library first
 const mockOAuth2Client = {
@@ -25,21 +26,30 @@ jest.mock("@googleapis/youtube", () => ({
     }
 }));
 
-// Mock the logger
+// Mock the logger and firebot
 jest.mock("../../main", () => ({
     logger: {
         error: jest.fn(),
         debug: jest.fn(),
         info: jest.fn(),
         warn: jest.fn()
+    },
+    firebot: {
+        modules: {
+            eventManager: {
+                triggerEvent: jest.fn()
+            }
+        }
     }
 }));
 
 describe("RestApiClient", () => {
     let restApiClient: RestApiClient;
     let mockIntegration: any;
+    let errorTracker: ErrorTracker;
 
     beforeEach(() => {
+        errorTracker = new ErrorTracker();
         mockIntegration = {
             getApplicationsStorage: jest.fn(),
             getCurrentLiveChatId: jest.fn(),
@@ -47,7 +57,7 @@ describe("RestApiClient", () => {
             getQuotaManager: jest.fn()
         };
 
-        restApiClient = new RestApiClient(mockIntegration);
+        restApiClient = new RestApiClient(mockIntegration, errorTracker);
         jest.clearAllMocks();
         mockLiveChatMessages.insert.mockReset();
 
