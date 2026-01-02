@@ -23,5 +23,5 @@ export type QuotaTrackingStorage = Record<string, QuotaUsage>;
 export const QUOTA_COSTS = {
     STREAM_LIST: 5, // streamList gRPC endpoint
     LIVE_BROADCASTS_LIST: 1, // liveBroadcasts.list REST API
-    LIVE_CHAT_MESSAGES_INSERT: 50 // liveChatMessages.insert REST API
+    LIVE_CHAT_MESSAGES_INSERT: 20 // liveChatMessages.insert REST API
 } as const;
