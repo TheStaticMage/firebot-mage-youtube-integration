@@ -6,17 +6,20 @@
  */
 
 import * as grpc from '@grpc/grpc-js';
+import { IntegrationConstants, YouTubeMessageTypes, YouTubeMessageTypeStrings } from '../constants';
 import { LiveChatMessage, LiveChatMessageListRequest, LiveChatMessageListResponse, V3DataLiveChatMessageServiceClient } from '../generated/proto/stream_list';
-import { YouTubeMessageTypes, YouTubeMessageTypeStrings } from '../constants';
-import { logger } from '../main';
 import type { YouTubeIntegration } from '../integration-singleton';
+import { firebot, logger } from '../main';
 import { QUOTA_COSTS } from '../types/quota-tracking';
+import { ApiCallType } from './error-constants';
+import { ErrorTracker } from './error-tracker';
 
 export class ChatStreamClient {
     private client: V3DataLiveChatMessageServiceClient;
     private integration: YouTubeIntegration;
+    private errorTracker: ErrorTracker;
 
-    constructor(integration: YouTubeIntegration) {
+    constructor(integration: YouTubeIntegration, errorTracker: ErrorTracker) {
         // Create SSL credentials for secure connection
         const credentials = grpc.credentials.createSsl();
         this.client = new V3DataLiveChatMessageServiceClient(
@@ -24,6 +27,7 @@ export class ChatStreamClient {
             credentials
         );
         this.integration = integration;
+        this.errorTracker = errorTracker;
         logger.info('ChatStreamClient initialized successfully');
     }
 
@@ -71,17 +75,32 @@ export class ChatStreamClient {
         const quotaManager = this.integration.getQuotaManager();
         quotaManager.recordApiCall(applicationId, 'streamList', QUOTA_COSTS.STREAM_LIST);
 
+        // Track whether an error occurred to prevent recording success after error
+        let errorOccurred = false;
+
         // Handle stream events
-        stream.on('error', (error: Error) => {
+        stream.on('error', async (error: Error) => {
+            errorOccurred = true;
             logger.error(`[chatStreamMessages] error: ${error.message}`);
+            const errorMetadata = this.errorTracker.recordError(ApiCallType.STREAM_CHAT_MESSAGES, error);
+            const { eventManager } = firebot.modules;
+            eventManager.triggerEvent(
+                IntegrationConstants.INTEGRATION_ID,
+                "api-error",
+                errorMetadata as unknown as Record<string, unknown>
+            );
         });
 
         stream.on('end', () => {
             logger.debug('[chatStreamMessages] chat stream ended');
+            if (!errorOccurred) {
+                this.errorTracker.recordSuccess(ApiCallType.STREAM_CHAT_MESSAGES);
+            }
         });
 
         // Yield responses as they arrive
         for await (const response of stream as AsyncIterable<LiveChatMessageListResponse>) {
+            this.errorTracker.recordSuccess(ApiCallType.STREAM_CHAT_MESSAGES);
             yield response;
         }
     }

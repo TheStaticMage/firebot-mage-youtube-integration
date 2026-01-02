@@ -7,6 +7,7 @@
 
 import { EventSource } from "@crowbartools/firebot-custom-scripts-types/types/modules/event-manager";
 import { IntegrationConstants } from "./constants";
+import { ApiCallType, ErrorCategory } from "./internal/error-constants";
 
 /**
  * Causes for YouTube application activation
@@ -91,6 +92,31 @@ export interface YouTubeViewerArrivedEvent {
 }
 
 /**
+ * YouTube API error event metadata
+ */
+export interface YouTubeApiErrorEvent {
+    /**
+     * The type of API call that failed
+     */
+    apiCall: ApiCallType;
+
+    /**
+     * The categorized error type
+     */
+    errorCategory: ErrorCategory;
+
+    /**
+     * The full error message (sensitive)
+     */
+    errorMessage: string;
+
+    /**
+     * Number of consecutive failures for this API call
+     */
+    consecutiveFailures: number;
+}
+
+/**
  * Event source definition for YouTube integration
  *
  * This registers with Firebot's event system and allows users to
@@ -139,6 +165,18 @@ export const YouTubeEventSource: EventSource = {
                 applicationId: "12345678-1234-1234-1234-123456789012",
                 applicationName: "Example Application",
                 connected: true
+            }
+        },
+        {
+            id: "api-error",
+            name: "YouTube API Error",
+            description: "When a YouTube API call fails",
+            cached: false,
+            manualMetadata: {
+                apiCall: ApiCallType.SEND_CHAT_MESSAGE,
+                errorCategory: ErrorCategory.UNAUTHENTICATED,
+                errorMessage: "Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential.",
+                consecutiveFailures: 3
             }
         }
     ]

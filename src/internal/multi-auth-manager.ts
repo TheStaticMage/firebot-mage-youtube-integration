@@ -1,8 +1,11 @@
-import { YouTubeOAuthApplication } from "../types";
-import { logger } from "../main";
-import { OAuth2Client } from "google-auth-library";
-import { updateApplicationReadyStatus } from "./application-utils";
 import { createHash } from "crypto";
+import { OAuth2Client } from "google-auth-library";
+import { IntegrationConstants } from "../constants";
+import { firebot, logger } from "../main";
+import { YouTubeOAuthApplication } from "../types";
+import { updateApplicationReadyStatus } from "./application-utils";
+import { ApiCallType } from "./error-constants";
+import { ErrorTracker } from "./error-tracker";
 
 /**
  * MultiAuthManager handles YouTube OAuth 2.0 authentication for multiple applications
@@ -19,6 +22,11 @@ export class MultiAuthManager {
     private authManagers = new Map<string, ApplicationAuthManager>();
     private refreshTimers = new Map<string, NodeJS.Timeout>();
     private applications = new Map<string, YouTubeOAuthApplication>();
+    private errorTracker: ErrorTracker;
+
+    constructor(errorTracker: ErrorTracker) {
+        this.errorTracker = errorTracker;
+    }
 
     /**
      * Initialize the MultiAuthManager with applications
@@ -265,12 +273,14 @@ export class MultiAuthManager {
 
         try {
             await manager.refreshAccessToken();
+            this.errorTracker.recordSuccess(ApiCallType.REFRESH_TOKEN);
             updateApplicationReadyStatus(app, true);
             logger.info(`Token refreshed successfully for application "${app.name}" (${applicationId}). Valid until: ${new Date(Date.now() + 3600000).toISOString()}`);
 
             // Notify UI of status change
             this.notifyApplicationStatusChange(applicationId, app);
         } catch (error: any) {
+            const errorMetadata = this.errorTracker.recordError(ApiCallType.REFRESH_TOKEN, error);
             logger.error(`Failed to refresh token for application "${app.name}" (${applicationId}): ${error.message}`);
             updateApplicationReadyStatus(app, false);
 
@@ -281,6 +291,13 @@ export class MultiAuthManager {
             if (error.response?.data) {
                 logger.debug(`Error details: ${JSON.stringify(error.response.data)}`);
             }
+
+            const { eventManager } = firebot.modules;
+            eventManager.triggerEvent(
+                IntegrationConstants.INTEGRATION_ID,
+                "api-error",
+                errorMetadata as unknown as Record<string, unknown>
+            );
 
             // Notify UI of status change
             this.notifyApplicationStatusChange(applicationId, app);

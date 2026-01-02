@@ -1,7 +1,10 @@
 import { youtube_v3 as youtubeV3 } from "@googleapis/youtube";
-import { logger } from "../main";
+import { IntegrationConstants } from "../constants";
 import type { YouTubeIntegration } from "../integration-singleton";
+import { firebot, logger } from "../main";
 import { QUOTA_COSTS } from "../types/quota-tracking";
+import { ApiCallType } from "./error-constants";
+import { ErrorTracker } from "./error-tracker";
 
 /**
  * BroadcastManager detects active YouTube live streams
@@ -16,10 +19,12 @@ import { QUOTA_COSTS } from "../types/quota-tracking";
 export class BroadcastManager {
     private youtube: youtubeV3.Youtube;
     private integration: YouTubeIntegration;
+    private errorTracker: ErrorTracker;
 
-    constructor(integration: YouTubeIntegration) {
+    constructor(integration: YouTubeIntegration, errorTracker: ErrorTracker) {
         this.youtube = new youtubeV3.Youtube({});
         this.integration = integration;
+        this.errorTracker = errorTracker;
     }
 
     /**
@@ -47,6 +52,8 @@ export class BroadcastManager {
             // Record quota consumption
             const quotaManager = this.integration.getQuotaManager();
             quotaManager.recordApiCall(applicationId, 'liveBroadcasts.list', QUOTA_COSTS.LIVE_BROADCASTS_LIST);
+
+            this.errorTracker.recordSuccess(ApiCallType.GET_LIVE_BROADCASTS);
 
             const broadcasts = response.data.items || [];
 
@@ -119,7 +126,16 @@ export class BroadcastManager {
                 throw error;
             }
 
+            const errorMetadata = this.errorTracker.recordError(ApiCallType.GET_LIVE_BROADCASTS, error);
             logger.error(`Error finding active broadcasts: ${error.message}`);
+
+            const { eventManager } = firebot.modules;
+            eventManager.triggerEvent(
+                IntegrationConstants.INTEGRATION_ID,
+                "api-error",
+                errorMetadata as unknown as Record<string, unknown>
+            );
+
             throw new Error(`Failed to query YouTube broadcasts: ${error.message}`);
         }
     }
@@ -146,6 +162,8 @@ export class BroadcastManager {
             const quotaManager = this.integration.getQuotaManager();
             quotaManager.recordApiCall(applicationId, 'liveBroadcasts.list', QUOTA_COSTS.LIVE_BROADCASTS_LIST);
 
+            this.errorTracker.recordSuccess(ApiCallType.GET_LIVE_BROADCASTS);
+
             const broadcasts = response.data.items || [];
             if (broadcasts.length === 0) {
                 return false;
@@ -158,7 +176,16 @@ export class BroadcastManager {
             return status === 'live' || status === 'liveStarting';
 
         } catch (error: any) {
+            const errorMetadata = this.errorTracker.recordError(ApiCallType.GET_LIVE_BROADCASTS, error);
             logger.error(`Error checking live chat status: ${error.message}`);
+
+            const { eventManager } = firebot.modules;
+            eventManager.triggerEvent(
+                IntegrationConstants.INTEGRATION_ID,
+                "api-error",
+                errorMetadata as unknown as Record<string, unknown>
+            );
+
             return false;
         }
     }
