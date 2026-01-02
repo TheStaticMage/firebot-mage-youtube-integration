@@ -28,10 +28,13 @@ import { getDataFilePath } from "./util/datafile";
 import { youtubeApplicationActivationCauseVariable } from "./variables/youtube-application-activation-cause";
 import { youtubeApplicationIdVariable } from "./variables/youtube-application-id";
 import { youtubeApplicationNameVariable } from "./variables/youtube-application-name";
+import { youtubeChannelIdVariable } from "./variables/youtube-channel-id";
 import { youtubeErrorCategoryVariable } from "./variables/youtube-error-category";
 import { youtubeErrorConsecutiveFailuresVariable } from "./variables/youtube-error-consecutive-failures";
 import { youtubeErrorMessageVariable } from "./variables/youtube-error-message";
 import { youtubeIntegrationConnectedVariable } from "./variables/youtube-integration-connected";
+import { youtubeLiveChatIdVariable } from "./variables/youtube-live-chat-id";
+import { youtubeVideoIdVariable } from "./variables/youtube-video-id";
 
 type IntegrationParameters = {
     chat: {
@@ -71,6 +74,8 @@ export class YouTubeIntegration extends EventEmitter {
     // Stream monitoring
     private streamCheckInterval: NodeJS.Timeout | null = null;
     private currentLiveChatId: string | null = null;
+    private currentBroadcastId: string | null = null;
+    private currentChannelId: string | null = null;
     private currentActiveApplicationId: string | null = null;
     private isStreamLive = false;
     private hasCheckedInitialStreamState = false;
@@ -114,10 +119,13 @@ export class YouTubeIntegration extends EventEmitter {
         replaceVariableManager.registerReplaceVariable(youtubeApplicationActivationCauseVariable);
         replaceVariableManager.registerReplaceVariable(youtubeApplicationIdVariable);
         replaceVariableManager.registerReplaceVariable(youtubeApplicationNameVariable);
+        replaceVariableManager.registerReplaceVariable(youtubeChannelIdVariable);
         replaceVariableManager.registerReplaceVariable(youtubeErrorCategoryVariable);
         replaceVariableManager.registerReplaceVariable(youtubeErrorConsecutiveFailuresVariable);
         replaceVariableManager.registerReplaceVariable(youtubeErrorMessageVariable);
         replaceVariableManager.registerReplaceVariable(youtubeIntegrationConnectedVariable);
+        replaceVariableManager.registerReplaceVariable(youtubeLiveChatIdVariable);
+        replaceVariableManager.registerReplaceVariable(youtubeVideoIdVariable);
         logger.debug("YouTube variables registered");
 
         // Additional events for variables
@@ -279,9 +287,9 @@ export class YouTubeIntegration extends EventEmitter {
 
             // Step 5: Find active live stream
             logger.info("Searching for active YouTube broadcast...");
-            const liveChatId = await this.broadcastManager.findActiveLiveChatId(accessToken, undefined, activeApplicationId);
+            const broadcastInfo = await this.broadcastManager.findLiveBroadcast(accessToken, undefined, activeApplicationId);
 
-            if (!liveChatId) {
+            if (!broadcastInfo) {
                 logger.warn("No active YouTube broadcast found. Will check periodically.");
                 this.connected = true;
                 this.currentActiveApplicationId = activeApplicationId;
@@ -304,7 +312,10 @@ export class YouTubeIntegration extends EventEmitter {
 
             // Step 6: Start streaming chat
             this.currentActiveApplicationId = activeApplicationId;
-            await this.startChatStreaming(liveChatId, activeApplicationId);
+            this.currentLiveChatId = broadcastInfo.liveChatId;
+            this.currentBroadcastId = broadcastInfo.broadcastId;
+            this.currentChannelId = broadcastInfo.channelId;
+            await this.startChatStreaming(broadcastInfo.liveChatId, activeApplicationId);
 
             this.connected = true;
 
@@ -396,10 +407,10 @@ export class YouTubeIntegration extends EventEmitter {
                 return;
             }
 
-            const liveChatId = await this.broadcastManager.findActiveLiveChatId(accessToken, undefined, this.currentActiveApplicationId);
+            const broadcastInfo = await this.broadcastManager.findLiveBroadcast(accessToken, undefined, this.currentActiveApplicationId);
 
-            // Determine current stream state (live = has active liveChatId)
-            const isCurrentlyLive = !!liveChatId;
+            // Determine current stream state (live = has active broadcastInfo)
+            const isCurrentlyLive = !!broadcastInfo;
 
             // Detect state transitions ONLY (not liveChatId changes)
             if (this.hasCheckedInitialStreamState) {
@@ -420,27 +431,35 @@ export class YouTubeIntegration extends EventEmitter {
 
             // Handle chat streaming based on current state (existing logic)
             // Case 1: Stream just started
-            if (!this.currentLiveChatId && liveChatId) {
+            if (!this.currentLiveChatId && broadcastInfo) {
                 logger.info("YouTube stream detected, starting chat streaming");
-                await this.startChatStreaming(liveChatId, this.currentActiveApplicationId);
+                this.currentLiveChatId = broadcastInfo.liveChatId;
+                this.currentBroadcastId = broadcastInfo.broadcastId;
+                this.currentChannelId = broadcastInfo.channelId;
+                await this.startChatStreaming(broadcastInfo.liveChatId, this.currentActiveApplicationId);
                 return;
             }
 
             // Case 2: Stream ended
-            if (this.currentLiveChatId && !liveChatId) {
+            if (this.currentLiveChatId && !broadcastInfo) {
                 logger.info("YouTube stream ended, stopping chat streaming");
                 if (this.chatManager) {
                     await this.chatManager.stopChatStreaming();
                     this.chatManager = null;
                 }
                 this.currentLiveChatId = null;
+                this.currentBroadcastId = null;
+                this.currentChannelId = null;
                 return;
             }
 
             // Case 3: Different stream started (liveChatId changed)
-            if (this.currentLiveChatId && liveChatId && this.currentLiveChatId !== liveChatId) {
+            if (this.currentLiveChatId && broadcastInfo && this.currentLiveChatId !== broadcastInfo.liveChatId) {
                 logger.info("Different YouTube stream detected, switching streams");
-                await this.startChatStreaming(liveChatId, this.currentActiveApplicationId);
+                this.currentLiveChatId = broadcastInfo.liveChatId;
+                this.currentBroadcastId = broadcastInfo.broadcastId;
+                this.currentChannelId = broadcastInfo.channelId;
+                await this.startChatStreaming(broadcastInfo.liveChatId, this.currentActiveApplicationId);
                 return;
             }
 
@@ -485,6 +504,8 @@ export class YouTubeIntegration extends EventEmitter {
         logger.debug("Background token refresh timers destroyed for all applications");
 
         this.currentLiveChatId = null;
+        this.currentBroadcastId = null;
+        this.currentChannelId = null;
         this.currentActiveApplicationId = null;
         this.isStreamLive = false;
         this.hasCheckedInitialStreamState = false;
@@ -527,6 +548,14 @@ export class YouTubeIntegration extends EventEmitter {
 
     getCurrentLiveChatId(): string | null {
         return this.currentLiveChatId;
+    }
+
+    getCurrentBroadcastId(): string | null {
+        return this.currentBroadcastId;
+    }
+
+    getCurrentChannelId(): string | null {
+        return this.currentChannelId;
     }
 
     getMultiAuthManager(): MultiAuthManager {

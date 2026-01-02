@@ -40,10 +40,13 @@ _Variables can be used in Firebot to access integration data dynamically._
 
 | Variable | Description | Example Usage |
 | -------- | ----------- | ------------- |
+| `$youtubeApplicationActivationCause` | Cause of the application activation (from Application Activated event) | `$youtubeApplicationActivationCause` |
 | `$youtubeApplicationId` | UUID of the active YouTube application | `$youtubeApplicationId` |
 | `$youtubeApplicationName` | Name of the active YouTube application, or specific application by UUID | `$youtubeApplicationName` or `$youtubeApplicationName[uuid]` |
-| `$youtubeApplicationActivationCause` | Cause of the application activation (from Application Activated event) | `$youtubeApplicationActivationCause` |
+| `$youtubeChannelId` | Broadcaster's YouTube channel ID when a stream is live | `$youtubeChannelId` |
 | `$youtubeIntegrationConnected` | Whether the YouTube integration is currently connected | `$youtubeIntegrationConnected` |
+| `$youtubeLiveChatId` | Current YouTube live chat ID when a stream is live | `$youtubeLiveChatId` |
+| `$youtubeVideoId` | Current YouTube video/broadcast ID when a stream is live | `http://www.youtube.com/live/$youtubeVideoId` |
 
 ### Firebot features
 
