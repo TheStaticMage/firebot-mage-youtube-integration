@@ -26,5 +26,6 @@ export const IntegrationConstants = {
         "https://www.googleapis.com/auth/youtube",
         "https://www.googleapis.com/auth/youtube.force-ssl"
     ],
-    YOUTUBE_CHAT_MESSAGE_CHARACTER_LIMIT: 200 // Hard limit, determined by testing
+    YOUTUBE_CHAT_MESSAGE_CHARACTER_LIMIT: 200, // Hard limit, determined by testing
+    STREAM_STATUS_CHECK_INTERVAL_MS: 10000 // Check stream status every 10 seconds
 } as const;
