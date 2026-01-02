@@ -89,6 +89,7 @@ Conventions:
 - TypeScript: camelCase, PascalCase classes, satisfies eslint rules defined in package
 - "YouTube": Capitalize as "YouTube" (or "youTube" in variable names or functions starting with "youTube")
 - Logging: Provide observability via logger.debug
+- Filters: Streamer filter uses role-based detection via `twitchUserRoles` array for reliable broadcaster identification
 - Documentation: In Markdown, placed in `docs` directory, referenced from `README.md`, satisfies markdownlint
 - Documentation: In Markdown, placed in `doc` directory, referenced from `README.md`
 - Build: Code and GRPC proto consolidated to one file with webpack (webpack file loaded by Firebot as startup script)

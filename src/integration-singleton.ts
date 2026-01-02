@@ -4,6 +4,7 @@ import { EventEmitter } from "events";
 import { IntegrationConstants } from "./constants";
 import { chatEffect } from "./effects/chat";
 import { selectApplicationEffect } from "./effects/select-application";
+import { streamerFilter } from "./filters/streamer";
 import { ApplicationActivationCause, YouTubeEventSource } from "./events";
 import { ApplicationManager } from "./internal/application-manager";
 import { getApplicationStatusMessage } from "./internal/application-utils";
@@ -108,6 +109,11 @@ export class YouTubeIntegration extends EventEmitter {
         replaceVariableManager.addEventToVariable("chatMessage", IntegrationConstants.INTEGRATION_ID, "chat-message");
         replaceVariableManager.addEventToVariable("chatMessage", IntegrationConstants.INTEGRATION_ID, "viewer-arrived");
         logger.debug("YouTube variable events registered");
+
+        // Register filters
+        const { eventFilterManager } = firebot.modules;
+        eventFilterManager.registerFilter(streamerFilter);
+        logger.debug("YouTube streamer filter registered");
 
         // Register HTTP endpoints for multi-application OAuth
         this.registerHttpEndpoints(httpServer);
