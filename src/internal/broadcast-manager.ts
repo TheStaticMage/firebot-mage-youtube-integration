@@ -6,13 +6,19 @@ import { QUOTA_COSTS } from "../types/quota-tracking";
 import { ApiCallType } from "./error-constants";
 import { ErrorTracker } from "./error-tracker";
 
+export interface BroadcastInfo {
+    liveChatId: string;
+    broadcastId: string;
+    channelId: string;
+}
+
 /**
  * BroadcastManager detects active YouTube live streams
  *
  * Responsibilities:
  * - Query YouTube API for active broadcasts
  * - Filter by channel ID when multiple streams exist
- * - Return the liveChatId for the active stream
+ * - Return broadcast info (liveChatId, broadcastId, channelId) for the active stream
  * - Handle edge cases (0 streams, multiple streams)
  * - Track quota consumption for API calls
  */
@@ -28,15 +34,15 @@ export class BroadcastManager {
     }
 
     /**
-     * Find the active live chat ID
+     * Find the active live broadcast and its related info
      *
      * @param accessToken - YouTube API access token
      * @param channelId - Optional channel ID to filter by (if multiple streams)
      * @param applicationId - YouTube application ID for quota tracking (required)
-     * @returns liveChatId or null if no stream is active
+     * @returns BroadcastInfo with liveChatId, broadcastId, and channelId, or null if no stream is active
      * @throws Error if multiple streams and no channel ID provided
      */
-    async findActiveLiveChatId(accessToken: string, channelId: string | undefined, applicationId: string): Promise<string | null> {
+    async findLiveBroadcast(accessToken: string, channelId: string | undefined, applicationId: string): Promise<BroadcastInfo | null> {
         logger.debug("Searching for active YouTube broadcasts...");
 
         try {
@@ -67,6 +73,8 @@ export class BroadcastManager {
             if (broadcasts.length === 1) {
                 const broadcast = broadcasts[0];
                 const liveChatId = broadcast.snippet?.liveChatId;
+                const broadcastId = broadcast.id;
+                const channelId = broadcast.snippet?.channelId;
 
                 if (!liveChatId) {
                     logger.warn(`Active broadcast found but no liveChatId: ${broadcast.id}`);
@@ -74,9 +82,14 @@ export class BroadcastManager {
                     return null;
                 }
 
+                if (!broadcastId || !channelId) {
+                    logger.warn(`Active broadcast missing required fields: broadcastId=${broadcastId}, channelId=${channelId}`);
+                    return null;
+                }
+
                 logger.info(`Found active broadcast: "${broadcast.snippet?.title}" (${broadcast.id})`);
                 logger.debug(`Live chat ID: ${liveChatId}`);
-                return liveChatId;
+                return { liveChatId, broadcastId, channelId };
             }
 
             // Case 3: Multiple streams - need channel ID to filter
@@ -110,15 +123,22 @@ export class BroadcastManager {
             // Found exactly one matching broadcast
             const broadcast = matchingBroadcasts[0];
             const liveChatId = broadcast.snippet?.liveChatId;
+            const broadcastId = broadcast.id;
+            const channelIdResult = broadcast.snippet?.channelId;
 
             if (!liveChatId) {
                 logger.warn(`Broadcast ${broadcast.id} has no liveChatId`);
                 return null;
             }
 
+            if (!broadcastId || !channelIdResult) {
+                logger.warn(`Broadcast missing required fields: broadcastId=${broadcastId}, channelId=${channelIdResult}`);
+                return null;
+            }
+
             logger.info(`Found active broadcast for channel: "${broadcast.snippet?.title}" (${broadcast.id})`);
             logger.debug(`Live chat ID: ${liveChatId}`);
-            return liveChatId;
+            return { liveChatId, broadcastId, channelId: channelIdResult };
 
         } catch (error: any) {
             // If it's our own error (multiple streams), re-throw
