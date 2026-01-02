@@ -7,6 +7,7 @@ import { selectApplicationEffect } from "./effects/select-application";
 import { ApplicationActivationCause, YouTubeEventSource } from "./events";
 import { triggerStreamOffline, triggerStreamOnline } from "./events/stream";
 import { apiCallFilter } from "./filters/api-call";
+import { channelLiveFilter } from "./filters/channel-live";
 import { consecutiveErrorsFilter } from "./filters/consecutive-errors";
 import { errorTypeFilter } from "./filters/error-type";
 import { streamerFilter } from "./filters/streamer";
@@ -127,6 +128,7 @@ export class YouTubeIntegration extends EventEmitter {
         // Register filters
         const { eventFilterManager } = firebot.modules;
         eventFilterManager.registerFilter(apiCallFilter);
+        eventFilterManager.registerFilter(channelLiveFilter);
         eventFilterManager.registerFilter(consecutiveErrorsFilter);
         eventFilterManager.registerFilter(errorTypeFilter);
         eventFilterManager.registerFilter(streamerFilter);
