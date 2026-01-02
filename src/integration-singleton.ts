@@ -14,6 +14,7 @@ import { streamerFilter } from "./filters/streamer";
 import { ApplicationManager } from "./internal/application-manager";
 import { getApplicationStatusMessage } from "./internal/application-utils";
 import { BroadcastManager } from "./internal/broadcast-manager";
+import type { BroadcastPrivacyStatus } from "./internal/broadcast-manager";
 import { ChatManager } from "./internal/chat-manager";
 import { ChatStreamClient } from "./internal/chatstream-client";
 import { ErrorTracker } from "./internal/error-tracker";
@@ -35,6 +36,7 @@ import { youtubeErrorMessageVariable } from "./variables/youtube-error-message";
 import { youtubeIntegrationConnectedVariable } from "./variables/youtube-integration-connected";
 import { youtubeLiveChatIdVariable } from "./variables/youtube-live-chat-id";
 import { youtubeVideoIdVariable } from "./variables/youtube-video-id";
+import { youtubePrivacyStatusVariable } from "./variables/youtube-privacy-status";
 
 type IntegrationParameters = {
     chat: {
@@ -76,6 +78,7 @@ export class YouTubeIntegration extends EventEmitter {
     private currentLiveChatId: string | null = null;
     private currentBroadcastId: string | null = null;
     private currentChannelId: string | null = null;
+    private currentBroadcastPrivacyStatus: BroadcastPrivacyStatus | null = null;
     private currentActiveApplicationId: string | null = null;
     private isStreamLive = false;
     private hasCheckedInitialStreamState = false;
@@ -125,6 +128,7 @@ export class YouTubeIntegration extends EventEmitter {
         replaceVariableManager.registerReplaceVariable(youtubeErrorMessageVariable);
         replaceVariableManager.registerReplaceVariable(youtubeIntegrationConnectedVariable);
         replaceVariableManager.registerReplaceVariable(youtubeLiveChatIdVariable);
+        replaceVariableManager.registerReplaceVariable(youtubePrivacyStatusVariable);
         replaceVariableManager.registerReplaceVariable(youtubeVideoIdVariable);
         logger.debug("YouTube variables registered");
 
@@ -315,6 +319,7 @@ export class YouTubeIntegration extends EventEmitter {
             this.currentLiveChatId = broadcastInfo.liveChatId;
             this.currentBroadcastId = broadcastInfo.broadcastId;
             this.currentChannelId = broadcastInfo.channelId;
+            this.currentBroadcastPrivacyStatus = broadcastInfo.privacyStatus ?? null;
             await this.startChatStreaming(broadcastInfo.liveChatId, activeApplicationId);
 
             this.connected = true;
@@ -409,7 +414,7 @@ export class YouTubeIntegration extends EventEmitter {
 
             const broadcastInfo = await this.broadcastManager.findLiveBroadcast(accessToken, undefined, this.currentActiveApplicationId);
 
-            // Determine current stream state (live = has active broadcastInfo)
+            // Determine current stream state (live = has active broadcast)
             const isCurrentlyLive = !!broadcastInfo;
 
             // Detect state transitions ONLY (not liveChatId changes)
@@ -436,6 +441,7 @@ export class YouTubeIntegration extends EventEmitter {
                 this.currentLiveChatId = broadcastInfo.liveChatId;
                 this.currentBroadcastId = broadcastInfo.broadcastId;
                 this.currentChannelId = broadcastInfo.channelId;
+                this.currentBroadcastPrivacyStatus = broadcastInfo.privacyStatus ?? null;
                 await this.startChatStreaming(broadcastInfo.liveChatId, this.currentActiveApplicationId);
                 return;
             }
@@ -450,6 +456,7 @@ export class YouTubeIntegration extends EventEmitter {
                 this.currentLiveChatId = null;
                 this.currentBroadcastId = null;
                 this.currentChannelId = null;
+                this.currentBroadcastPrivacyStatus = null;
                 return;
             }
 
@@ -459,6 +466,7 @@ export class YouTubeIntegration extends EventEmitter {
                 this.currentLiveChatId = broadcastInfo.liveChatId;
                 this.currentBroadcastId = broadcastInfo.broadcastId;
                 this.currentChannelId = broadcastInfo.channelId;
+                this.currentBroadcastPrivacyStatus = broadcastInfo.privacyStatus ?? null;
                 await this.startChatStreaming(broadcastInfo.liveChatId, this.currentActiveApplicationId);
                 return;
             }
@@ -506,6 +514,7 @@ export class YouTubeIntegration extends EventEmitter {
         this.currentLiveChatId = null;
         this.currentBroadcastId = null;
         this.currentChannelId = null;
+        this.currentBroadcastPrivacyStatus = null;
         this.currentActiveApplicationId = null;
         this.isStreamLive = false;
         this.hasCheckedInitialStreamState = false;
@@ -556,6 +565,10 @@ export class YouTubeIntegration extends EventEmitter {
 
     getCurrentChannelId(): string | null {
         return this.currentChannelId;
+    }
+
+    getCurrentBroadcastPrivacyStatus(): BroadcastPrivacyStatus | null {
+        return this.currentBroadcastPrivacyStatus;
     }
 
     getMultiAuthManager(): MultiAuthManager {

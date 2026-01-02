@@ -35,7 +35,7 @@ describe("BroadcastManager.findLiveBroadcast", () => {
         broadcastManager["youtube"].liveBroadcasts.list = mockListFn;
     });
 
-    it("returns BroadcastInfo with all three fields on successful single stream", async () => {
+    it("returns BroadcastInfo with all four fields on successful single stream", async () => {
         const mockResponse = {
             data: {
                 items: [
@@ -45,6 +45,9 @@ describe("BroadcastManager.findLiveBroadcast", () => {
                             liveChatId: "KjQqz1AmIbw.1234567890123456",
                             channelId: "UCrDkAvwXgOFDjlW9wqyYeIQ",
                             title: "Test Stream"
+                        },
+                        status: {
+                            privacyStatus: "public"
                         }
                     }
                 ]
@@ -61,7 +64,8 @@ describe("BroadcastManager.findLiveBroadcast", () => {
         expect(result).toEqual({
             liveChatId: "KjQqz1AmIbw.1234567890123456",
             broadcastId: "KjQqz1AmIbw",
-            channelId: "UCrDkAvwXgOFDjlW9wqyYeIQ"
+            channelId: "UCrDkAvwXgOFDjlW9wqyYeIQ",
+            privacyStatus: "public"
         });
     });
 
@@ -91,6 +95,9 @@ describe("BroadcastManager.findLiveBroadcast", () => {
                         snippet: {
                             channelId: "UCrDkAvwXgOFDjlW9wqyYeIQ",
                             title: "Test Stream"
+                        },
+                        status: {
+                            privacyStatus: "public"
                         }
                     }
                 ]
@@ -116,6 +123,9 @@ describe("BroadcastManager.findLiveBroadcast", () => {
                             liveChatId: "KjQqz1AmIbw.1234567890123456",
                             channelId: "UCrDkAvwXgOFDjlW9wqyYeIQ",
                             title: "Test Stream"
+                        },
+                        status: {
+                            privacyStatus: "public"
                         }
                     }
                 ]
@@ -141,6 +151,9 @@ describe("BroadcastManager.findLiveBroadcast", () => {
                         snippet: {
                             liveChatId: "KjQqz1AmIbw.1234567890123456",
                             title: "Test Stream"
+                        },
+                        status: {
+                            privacyStatus: "public"
                         }
                     }
                 ]
@@ -167,6 +180,9 @@ describe("BroadcastManager.findLiveBroadcast", () => {
                             liveChatId: "chat1",
                             channelId: "channel-other",
                             title: "Other Stream"
+                        },
+                        status: {
+                            privacyStatus: "private"
                         }
                     },
                     {
@@ -175,6 +191,9 @@ describe("BroadcastManager.findLiveBroadcast", () => {
                             liveChatId: "chat2",
                             channelId: "UCrDkAvwXgOFDjlW9wqyYeIQ",
                             title: "My Stream"
+                        },
+                        status: {
+                            privacyStatus: "unlisted"
                         }
                     }
                 ]
@@ -191,7 +210,8 @@ describe("BroadcastManager.findLiveBroadcast", () => {
         expect(result).toEqual({
             liveChatId: "chat2",
             broadcastId: "broadcast2",
-            channelId: "UCrDkAvwXgOFDjlW9wqyYeIQ"
+            channelId: "UCrDkAvwXgOFDjlW9wqyYeIQ",
+            privacyStatus: "unlisted"
         });
     });
 
@@ -205,6 +225,9 @@ describe("BroadcastManager.findLiveBroadcast", () => {
                             liveChatId: "chat1",
                             channelId: "channel-other",
                             title: "Other Stream"
+                        },
+                        status: {
+                            privacyStatus: "public"
                         }
                     },
                     {
@@ -213,6 +236,9 @@ describe("BroadcastManager.findLiveBroadcast", () => {
                             liveChatId: "chat2",
                             channelId: "channel-another",
                             title: "Another Stream"
+                        },
+                        status: {
+                            privacyStatus: "private"
                         }
                     }
                 ]
@@ -235,11 +261,13 @@ describe("BroadcastManager.findLiveBroadcast", () => {
                 items: [
                     {
                         id: "broadcast1",
-                        snippet: { title: "Stream 1" }
+                        snippet: { title: "Stream 1" },
+                        status: { privacyStatus: "public" }
                     },
                     {
                         id: "broadcast2",
-                        snippet: { title: "Stream 2" }
+                        snippet: { title: "Stream 2" },
+                        status: { privacyStatus: "public" }
                     }
                 ]
             }
@@ -264,14 +292,16 @@ describe("BroadcastManager.findLiveBroadcast", () => {
                         snippet: {
                             title: "Stream 1",
                             channelId: "UCrDkAvwXgOFDjlW9wqyYeIQ"
-                        }
+                        },
+                        status: { privacyStatus: "public" }
                     },
                     {
                         id: "broadcast2",
                         snippet: {
                             title: "Stream 2",
                             channelId: "UCrDkAvwXgOFDjlW9wqyYeIQ"
-                        }
+                        },
+                        status: { privacyStatus: "public" }
                     }
                 ]
             }
@@ -297,6 +327,9 @@ describe("BroadcastManager.findLiveBroadcast", () => {
                             liveChatId: "chat-id",
                             channelId: "channel-id",
                             title: "Test Stream"
+                        },
+                        status: {
+                            privacyStatus: "public"
                         }
                     }
                 ]
