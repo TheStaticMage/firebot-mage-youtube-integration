@@ -92,6 +92,18 @@ export interface YouTubeViewerArrivedEvent {
 }
 
 /**
+ * YouTube stream online event metadata
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface YouTubeStreamOnlineEvent {}
+
+/**
+ * YouTube stream offline event metadata
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface YouTubeStreamOfflineEvent {}
+
+/**
  * YouTube API error event metadata
  */
 export interface YouTubeApiErrorEvent {
@@ -177,6 +189,28 @@ export const YouTubeEventSource: EventSource = {
                 errorCategory: ErrorCategory.UNAUTHENTICATED,
                 errorMessage: "Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential.",
                 consecutiveFailures: 3
+            }
+        },
+        {
+            id: "stream-online",
+            name: "Stream Started (YouTube)",
+            description: "When your YouTube stream starts",
+            cached: false,
+            manualMetadata: {},
+            activityFeed: {
+                icon: "fad fa-play-circle",
+                getMessage: () => "YouTube stream started"
+            }
+        },
+        {
+            id: "stream-offline",
+            name: "Stream Ended (YouTube)",
+            description: "When your YouTube stream ends",
+            cached: false,
+            manualMetadata: {},
+            activityFeed: {
+                icon: "fad fa-stop-circle",
+                getMessage: () => "YouTube stream ended"
             }
         }
     ]

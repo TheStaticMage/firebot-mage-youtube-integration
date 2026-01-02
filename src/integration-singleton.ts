@@ -5,6 +5,7 @@ import { IntegrationConstants } from "./constants";
 import { chatEffect } from "./effects/chat";
 import { selectApplicationEffect } from "./effects/select-application";
 import { ApplicationActivationCause, YouTubeEventSource } from "./events";
+import { triggerStreamOffline, triggerStreamOnline } from "./events/stream";
 import { apiCallFilter } from "./filters/api-call";
 import { consecutiveErrorsFilter } from "./filters/consecutive-errors";
 import { errorTypeFilter } from "./filters/error-type";
@@ -70,6 +71,8 @@ export class YouTubeIntegration extends EventEmitter {
     private streamCheckInterval: NodeJS.Timeout | null = null;
     private currentLiveChatId: string | null = null;
     private currentActiveApplicationId: string | null = null;
+    private isStreamLive = false;
+    private hasCheckedInitialStreamState = false;
 
     // Data file paths
     private dataFilePath = "";
@@ -393,6 +396,27 @@ export class YouTubeIntegration extends EventEmitter {
 
             const liveChatId = await this.broadcastManager.findActiveLiveChatId(accessToken, undefined, this.currentActiveApplicationId);
 
+            // Determine current stream state (live = has active liveChatId)
+            const isCurrentlyLive = !!liveChatId;
+
+            // Detect state transitions ONLY (not liveChatId changes)
+            if (this.hasCheckedInitialStreamState) {
+                // Only trigger events after initial check
+                if (!this.isStreamLive && isCurrentlyLive) {
+                    // Stream went from offline to online
+                    triggerStreamOnline();
+                } else if (this.isStreamLive && !isCurrentlyLive) {
+                    // Stream went from online to offline
+                    triggerStreamOffline();
+                }
+                // If liveChatId changed but still live, NO event (stream restarted quickly)
+            }
+
+            // Update tracked stream state
+            this.isStreamLive = isCurrentlyLive;
+            this.hasCheckedInitialStreamState = true;
+
+            // Handle chat streaming based on current state (existing logic)
             // Case 1: Stream just started
             if (!this.currentLiveChatId && liveChatId) {
                 logger.info("YouTube stream detected, starting chat streaming");
@@ -460,6 +484,8 @@ export class YouTubeIntegration extends EventEmitter {
 
         this.currentLiveChatId = null;
         this.currentActiveApplicationId = null;
+        this.isStreamLive = false;
+        this.hasCheckedInitialStreamState = false;
         this.connected = false;
 
         // Notify UI of all application status changes
