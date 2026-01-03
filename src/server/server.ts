@@ -1,6 +1,7 @@
 import { IntegrationConstants } from "../constants";
 import { YouTubeIntegration } from "../integration-singleton";
 import { firebot, logger } from "../main";
+import { SendChatMessageRequest } from "../types";
 
 export function registerRoutes(youtubeIntegration: YouTubeIntegration) {
     const { httpServer } = firebot.modules;
@@ -11,7 +12,8 @@ export function registerRoutes(youtubeIntegration: YouTubeIntegration) {
         "POST",
         async (req, res) => {
             try {
-                const { message, chatter } = req.body;
+                const { frontendCommunicator } = firebot.modules;
+                const { message, chatter, sendMode, sendToChatFeed } = req.body as SendChatMessageRequest;
                 if (!message) {
                     res.status(400).json({ success: false, error: "Missing message" });
                     return;
@@ -33,6 +35,38 @@ export function registerRoutes(youtubeIntegration: YouTubeIntegration) {
                     logger.error("send-chat-message: Active application not found");
                     res.status(503).json({ success: false, error: "Active application not found" });
                     return;
+                }
+
+                const resolvedSendMode = sendMode ?? "always";
+                const sendGatedResponse = (reason: string) => {
+                    logger.debug(`send-chat-message: message blocked (${reason})`);
+                    if (sendToChatFeed) {
+                        frontendCommunicator.send("chatUpdate", {
+                            fbEvent: "ChatAlert",
+                            message: `[Not sent (YouTube): ${reason}] ${message}`,
+                            icon: "fad fa-exclamation-triangle"
+                        });
+                    }
+                    res.json({ success: false, error: reason });
+                };
+
+                if (resolvedSendMode === "when-connected" && !youtubeIntegration.connected) {
+                    sendGatedResponse("Not connected");
+                    return;
+                }
+
+                if (resolvedSendMode === "when-live") {
+                    try {
+                        const isLive = youtubeIntegration.isLive();
+                        if (!isLive) {
+                            sendGatedResponse("Stream offline");
+                            return;
+                        }
+                    } catch (error) {
+                        logger.error(`send-chat-message: live status check failed: ${error}`);
+                        sendGatedResponse("Status check failed");
+                        return;
+                    }
                 }
 
                 if (!youtubeIntegration.connected) {

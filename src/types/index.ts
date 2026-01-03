@@ -75,3 +75,12 @@ export interface ApplicationStorage {
     applications: Record<string, YouTubeOAuthApplication>;
     activeApplicationId: string | null;
 }
+
+export type SendChatMessageMode = "always" | "when-connected" | "when-live";
+
+export interface SendChatMessageRequest {
+    message: string;
+    chatter: "Streamer";
+    sendMode?: SendChatMessageMode;
+    sendToChatFeed?: boolean;
+}
