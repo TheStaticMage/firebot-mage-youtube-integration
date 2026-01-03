@@ -44,7 +44,7 @@
         "@googleapis/youtube": "^29.0.0",
         "@grpc/grpc-js": "^1.14.0",
         "@grpc/proto-loader": "^0.8.0",
-        "@thestaticmage/mage-platform-lib-client": "^0.0.2",
+        "@thestaticmage/mage-platform-lib-client": "^0.0.3-sha.8463b59",
         "google-auth-library": "^10.5.0",
         "luxon": "^3.7.2"
     }

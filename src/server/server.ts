@@ -1,7 +1,7 @@
+import { SendChatMessageRequest } from "@thestaticmage/mage-platform-lib-client";
 import { IntegrationConstants } from "../constants";
 import { YouTubeIntegration } from "../integration-singleton";
 import { firebot, logger } from "../main";
-import { SendChatMessageRequest } from "../types";
 
 export function registerRoutes(youtubeIntegration: YouTubeIntegration) {
     const { httpServer } = firebot.modules;
@@ -13,13 +13,22 @@ export function registerRoutes(youtubeIntegration: YouTubeIntegration) {
         async (req, res) => {
             try {
                 const { frontendCommunicator } = firebot.modules;
-                const { message, chatter, sendMode, sendToChatFeed } = req.body as SendChatMessageRequest;
+                const { message, chatter, replyId, offlineSendMode } = req.body as SendChatMessageRequest;
                 if (!message) {
                     res.status(400).json({ success: false, error: "Missing message" });
                     return;
                 }
-                if (chatter !== "Streamer") {
+                if (chatter && chatter !== "Streamer" && chatter !== "Bot") {
                     res.status(400).json({ success: false, error: "Invalid chatter value" });
+                    return;
+                }
+                if (replyId) {
+                    logger.debug("send-chat-message: replyId is not supported and will be ignored");
+                }
+
+                if (!youtubeIntegration.connected) {
+                    logger.error("send-chat-message: Integration not connected");
+                    res.status(503).json({ success: false, error: "Integration not connected" });
                     return;
                 }
 
@@ -37,10 +46,10 @@ export function registerRoutes(youtubeIntegration: YouTubeIntegration) {
                     return;
                 }
 
-                const resolvedSendMode = sendMode ?? "always";
+                const resolvedOfflineSendMode = offlineSendMode ?? "send-anyway";
                 const sendGatedResponse = (reason: string) => {
                     logger.debug(`send-chat-message: message blocked (${reason})`);
-                    if (sendToChatFeed) {
+                    if (resolvedOfflineSendMode === "chat-feed-only") {
                         frontendCommunicator.send("chatUpdate", {
                             fbEvent: "ChatAlert",
                             message: `[Not sent (YouTube): ${reason}] ${message}`,
@@ -50,29 +59,20 @@ export function registerRoutes(youtubeIntegration: YouTubeIntegration) {
                     res.json({ success: false, error: reason });
                 };
 
-                if (resolvedSendMode === "when-connected" && !youtubeIntegration.connected) {
-                    sendGatedResponse("Not connected");
-                    return;
-                }
-
-                if (resolvedSendMode === "when-live") {
+                if (resolvedOfflineSendMode !== "send-anyway") {
                     try {
                         const isLive = youtubeIntegration.isLive();
                         if (!isLive) {
-                            sendGatedResponse("Stream offline");
-                            return;
+                            if (resolvedOfflineSendMode === "chat-feed-only" || resolvedOfflineSendMode === "do-not-send") {
+                                sendGatedResponse("Stream offline");
+                                return;
+                            }
                         }
                     } catch (error) {
                         logger.error(`send-chat-message: live status check failed: ${error}`);
                         sendGatedResponse("Status check failed");
                         return;
                     }
-                }
-
-                if (!youtubeIntegration.connected) {
-                    logger.error("send-chat-message: Integration not connected");
-                    res.status(503).json({ success: false, error: "Integration not connected" });
-                    return;
                 }
 
                 const restApiClient = youtubeIntegration.getRestApiClient();
