@@ -49,7 +49,7 @@ describe("send-chat-message route", () => {
         jest.clearAllMocks();
     });
 
-    it("blocks when sendMode is when-connected and integration is disconnected", async () => {
+    it("blocks when integration is disconnected", async () => {
         const sendChatMessage = jest.fn().mockResolvedValue(true);
         const youtubeIntegration = createIntegration({
             connected: false,
@@ -61,16 +61,17 @@ describe("send-chat-message route", () => {
         const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
 
         await handler(
-            { body: { message: "Hello", chatter: "Streamer", sendMode: "when-connected", sendToChatFeed: false } },
+            { body: { message: "Hello", chatter: "Streamer", offlineSendMode: "send-anyway" } },
             res
         );
 
-        expect(res.json).toHaveBeenCalledWith({ success: false, error: "Not connected" });
+        expect(res.status).toHaveBeenCalledWith(503);
+        expect(res.json).toHaveBeenCalledWith({ success: false, error: "Integration not connected" });
         expect(firebot.modules.frontendCommunicator.send).not.toHaveBeenCalled();
         expect(sendChatMessage).not.toHaveBeenCalled();
     });
 
-    it("blocks when sendMode is when-live and integration is offline", async () => {
+    it("blocks when offlineSendMode is do-not-send and integration is offline", async () => {
         const sendChatMessage = jest.fn().mockResolvedValue(true);
         const youtubeIntegration = createIntegration({
             isLive: jest.fn().mockReturnValue(false),
@@ -82,7 +83,7 @@ describe("send-chat-message route", () => {
         const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
 
         await handler(
-            { body: { message: "Hello", chatter: "Streamer", sendMode: "when-live", sendToChatFeed: false } },
+            { body: { message: "Hello", chatter: "Streamer", offlineSendMode: "do-not-send" } },
             res
         );
 
@@ -91,21 +92,23 @@ describe("send-chat-message route", () => {
         expect(sendChatMessage).not.toHaveBeenCalled();
     });
 
-    it("posts a chat feed alert when blocked and sendToChatFeed is true", async () => {
-        const youtubeIntegration = createIntegration({ connected: false }) as unknown as YouTubeIntegration;
+    it("posts a chat feed alert when blocked and offlineSendMode is chat-feed-only", async () => {
+        const youtubeIntegration = createIntegration({
+            isLive: jest.fn().mockReturnValue(false)
+        }) as unknown as YouTubeIntegration;
         registerRoutes(youtubeIntegration);
 
         const handler = getSendChatHandler();
         const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
 
         await handler(
-            { body: { message: "Hello", chatter: "Streamer", sendMode: "when-connected", sendToChatFeed: true } },
+            { body: { message: "Hello", chatter: "Streamer", offlineSendMode: "chat-feed-only" } },
             res
         );
 
         expect(firebot.modules.frontendCommunicator.send).toHaveBeenCalledWith("chatUpdate", {
             fbEvent: "ChatAlert",
-            message: "[Not sent (YouTube): Not connected] Hello",
+            message: "[Not sent (YouTube): Stream offline] Hello",
             icon: "fad fa-exclamation-triangle"
         });
     });
