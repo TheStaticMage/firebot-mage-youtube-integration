@@ -21,6 +21,13 @@ export const definition: IntegrationDefinition = {
                     type: "boolean",
                     default: true,
                     sortRank: 1
+                },
+                chatSend: {
+                    title: "Send Chat Feed Messages to YouTube",
+                    tip: "Messages you type in the chat feed are sent to Twitch automatically. Check this box to send them to YouTube as well.",
+                    type: "boolean",
+                    default: false,
+                    sortRank: 2
                 }
             }
         },

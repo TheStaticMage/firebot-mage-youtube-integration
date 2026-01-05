@@ -6,8 +6,9 @@
     "main": "",
     "scripts": {
         "build": "npm run build:version && npm run build:webpack",
-        "build:dev": "node ./scripts/build-dev-local-client.js",
+        "build:dev": "npm run build:dev:base",
         "build:dev:base": "npm run build:version && npm run build:webpack && npm run copy",
+        "build:dev:platform": "node ./scripts/build-dev-local-client.js",
         "build:version": "node ./scripts/update-version.js",
         "build:webpack": "webpack",
         "copy": "node ./scripts/copy-build.js",
