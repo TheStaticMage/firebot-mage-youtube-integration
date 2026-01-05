@@ -41,6 +41,7 @@ import { youtubePrivacyStatusVariable } from "./variables/youtube-privacy-status
 type IntegrationParameters = {
     chat: {
         chatFeed: boolean;
+        chatSend: boolean;
     };
     triggerTwitchEvents: {
         chatMessage: boolean;
@@ -52,6 +53,12 @@ type IntegrationParameters = {
     advanced: {
         suppressChatFeedNotifications: boolean;
     };
+};
+
+type InboundSendChatMessage = {
+    message: string;
+    accountType: "Streamer" | "Bot";
+    replyToMessageId?: string;
 };
 
 interface IntegrationFileData {
@@ -88,7 +95,8 @@ export class YouTubeIntegration extends EventEmitter {
 
     private settings: IntegrationParameters = {
         chat: {
-            chatFeed: true
+            chatFeed: true,
+            chatSend: false
         },
         triggerTwitchEvents: {
             chatMessage: false
@@ -176,6 +184,9 @@ export class YouTubeIntegration extends EventEmitter {
                     logger.info(message);
                     break;
             }
+        });
+        frontendCommunicator.onAsync("send-chat-message", async (payload: InboundSendChatMessage) => {
+            return this.handleChatMessageTypedInChatFeed(payload);
         });
         logger.debug("Frontend communicator listeners registered");
 
@@ -545,6 +556,39 @@ export class YouTubeIntegration extends EventEmitter {
 
     getSettings(): IntegrationParameters {
         return this.settings;
+    }
+
+    private async handleChatMessageTypedInChatFeed(payload: InboundSendChatMessage): Promise<boolean> {
+        if (!this.settings.chat.chatSend) {
+            logger.debug("handleChatMessageTypedInChatFeed: Not sending message typed in chat feed: This option is disabled in the settings.");
+            return false;
+        }
+
+        if (!this.connected) {
+            logger.warn("handleChatMessageTypedInChatFeed: YouTube integration not connected. Ignoring inbound chat message.");
+            return false;
+        }
+
+        if (!this.isLive()) {
+            logger.debug("handleChatMessageTypedInChatFeed: Not sending message typed in chat feed: No active live chat.");
+            return false;
+        }
+
+        if (!payload?.message || payload.message.trim() === "") {
+            logger.debug("handleChatMessageTypedInChatFeed: Not sending message typed in chat feed: Message is empty.");
+            return false;
+        }
+
+        if (payload.accountType === "Bot") {
+            logger.debug("handleChatMessageTypedInChatFeed: YouTube chat integration does not support sending as Bot. Sending as streamer instead.");
+        }
+
+        if (payload.replyToMessageId) {
+            logger.debug("handleChatMessageTypedInChatFeed: Replying to specific messages is not supported for YouTube chat.");
+        }
+
+        logger.debug(`handleChatMessageTypedInChatFeed: Sending message typed in chat feed: ${payload.message}`);
+        return this.restApiClient.sendChatMessage(payload.message);
     }
 
     getRestApiClient(): RestApiClient {

@@ -1,5 +1,4 @@
-
-# Upgrading the YouTube Integration
+# Upgrading
 
 ## Versioning Philosophy
 
@@ -10,6 +9,10 @@
 - A **major release** changes the first number (e.g. `0.1.5` -> `1.0.0`). Since version 1.0 typically implies stability and production-readiness, and that is highly unlikely ever to happen with this project, I do not intend to release version 1.0 or higher of this project, unless this somehow becomes an officially supported plugin for Firebot version 6.
 
 ## Version Requirements
+
+| Plugin Version | Minimum Firebot Version |
+| --- | --- |
+| 0.0.1+ | 5.65 |
 
 - **Versions 0.0.1 and higher** require Firebot 5.65 and [firebot-mage-platform-lib](https://github.com/TheStaticMage/firebot-mage-platform-lib/) 0.0.2 or higher
 

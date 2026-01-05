@@ -99,3 +99,12 @@ To use the YouTube Data API v3 with OAuth 2.0 authentication, you must create a 
 9. Upon reaching the confirmation screen, return to Firebot. You should see that the application is now authorized.
 
 :bulb: You can re-authenticate at any time by repeating these steps.
+
+## Configuration: Chat Feed
+
+This feature is optional. You can choose to have any messages that you type in the Firebot chat be sent to YouTube chat in addition to Twitch chat.
+
+1. In Firebot, open **Settings** &gt; **Integrations** &gt; **YouTube**.
+2. In **Chat Settings**, enable **Send Chat Feed Messages to YouTube** to send chat feed messages to YouTube.
+
+:bulb: Messages only send when a YouTube live chat is active.

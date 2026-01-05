@@ -54,6 +54,7 @@ _Variables can be used in Firebot to access integration data dynamically._
 | ------- | -------------- | ----- |
 | Channel point rewards: | :x: | No YouTube equivalent |
 | Chat feed: Display YouTube messages | :white_check_mark: | |
+| Chat feed: Send messages to YouTube | :white_check_mark: | Requires enabling the chat feed send setting |
 | Chat feed: Other context menu items | ? | Need to evaluate |
 | Commands | :white_check_mark: | Cooldowns will not work due to Firebot limitations |
 | Currency | :x: | Firebot assumes all users are Twitch users |
