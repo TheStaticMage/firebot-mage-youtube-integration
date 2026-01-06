@@ -16,7 +16,8 @@ export function triggerViewerArrived(
     userId: string,
     userDisplayName: string,
     messageText: string,
-    chatMessage: FirebotChatMessage
+    chatMessage: FirebotChatMessage,
+    twitchUserRoles: string[]
 ): void {
     const { eventManager } = firebot.modules;
 
@@ -28,6 +29,7 @@ export function triggerViewerArrived(
         username: username,
         userId: userId,
         userDisplayName: userDisplayName,
+        twitchUserRoles: twitchUserRoles,
         messageText: messageText,
         chatMessage: chatMessage,
         profilePicUrl: chatMessage.profilePicUrl

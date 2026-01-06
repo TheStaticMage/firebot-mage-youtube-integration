@@ -252,7 +252,8 @@ export class ChatManager {
                     firebotChatMessage.userId,
                     firebotChatMessage.userDisplayName || firebotChatMessage.username,
                     firebotChatMessage.rawText,
-                    firebotChatMessage
+                    firebotChatMessage,
+                    firebotChatMessage.roles
                 );
             }
 

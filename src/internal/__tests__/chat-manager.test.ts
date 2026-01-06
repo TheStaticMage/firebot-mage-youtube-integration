@@ -585,7 +585,8 @@ describe('ChatManager viewer arrival tracking', () => {
             'yUCrDkAvwXgOFDjlW9wqyYeIQ',
             'John Viewer',
             'Great stream!',
-            expect.any(Object)
+            expect.any(Object),
+            expect.any(Array)
         );
     });
 
