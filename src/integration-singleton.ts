@@ -16,6 +16,7 @@ import { getApplicationStatusMessage } from "./internal/application-utils";
 import { BroadcastManager } from "./internal/broadcast-manager";
 import type { BroadcastPrivacyStatus } from "./internal/broadcast-manager";
 import { ChatManager } from "./internal/chat-manager";
+import { ChatMessageQueue } from "./internal/chat-message-queue";
 import { ChatStreamClient } from "./internal/chatstream-client";
 import { ErrorTracker } from "./internal/error-tracker";
 import { MultiAuthManager } from "./internal/multi-auth-manager";
@@ -80,6 +81,7 @@ export class YouTubeIntegration extends EventEmitter {
     private multiAuthManager: MultiAuthManager = new MultiAuthManager(this.errorTracker);
     private quotaManager: QuotaManager = new QuotaManager();
     private restApiClient: RestApiClient = new RestApiClient(this, this.errorTracker);
+    private chatMessageQueue: ChatMessageQueue = new ChatMessageQueue(message => this.restApiClient.sendChatMessage(message));
     private youtubeUserManager: YouTubeUserManager = new YouTubeUserManager();
 
     // Stream monitoring
@@ -595,6 +597,10 @@ export class YouTubeIntegration extends EventEmitter {
 
     getRestApiClient(): RestApiClient {
         return this.restApiClient;
+    }
+
+    queueChatMessage(message: string): void {
+        this.chatMessageQueue.enqueue(message);
     }
 
     getApplicationManager(): ApplicationManager {
