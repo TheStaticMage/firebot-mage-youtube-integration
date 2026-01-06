@@ -138,6 +138,7 @@ describe("QuotaManager", () => {
 
     describe("recordApiCall", () => {
         beforeEach(() => {
+            jest.useFakeTimers();
             // Create a new quotaManager AFTER mocking DateTime and Date.now to a fixed time
             // This ensures calculateNextMidnightPT is called with the mocked time
             // and Date.now() used in checkAndResetIfNeeded is also consistent
@@ -145,6 +146,11 @@ describe("QuotaManager", () => {
             jest.spyOn(DateTime, "now").mockReturnValue(mockNow as any);
             jest.spyOn(Date, "now").mockReturnValue(mockNow.toMillis());
             quotaManager = new QuotaManager();
+        });
+
+        afterEach(() => {
+            jest.clearAllTimers();
+            jest.useRealTimers();
         });
 
         it("should record API call and initialize quota for new application", () => {
@@ -288,6 +294,7 @@ describe("QuotaManager", () => {
 
     describe("getQuotaRemaining", () => {
         beforeEach(() => {
+            jest.useFakeTimers();
             // Create a new quotaManager AFTER mocking DateTime and Date.now to a fixed time
             // This ensures calculateNextMidnightPT is called with the mocked time
             // and Date.now() used in checkAndResetIfNeeded is also consistent
@@ -295,6 +302,11 @@ describe("QuotaManager", () => {
             jest.spyOn(DateTime, "now").mockReturnValue(mockNow as any);
             jest.spyOn(Date, "now").mockReturnValue(mockNow.toMillis());
             quotaManager = new QuotaManager();
+        });
+
+        afterEach(() => {
+            jest.clearAllTimers();
+            jest.useRealTimers();
         });
 
         it("should return full quota when no usage recorded", () => {
@@ -319,6 +331,7 @@ describe("QuotaManager", () => {
 
     describe("isQuotaAvailable", () => {
         beforeEach(() => {
+            jest.useFakeTimers();
             // Create a new quotaManager AFTER mocking DateTime and Date.now to a fixed time
             // This ensures calculateNextMidnightPT is called with the mocked time
             // and Date.now() used in checkAndResetIfNeeded is also consistent
@@ -326,6 +339,11 @@ describe("QuotaManager", () => {
             jest.spyOn(DateTime, "now").mockReturnValue(mockNow as any);
             jest.spyOn(Date, "now").mockReturnValue(mockNow.toMillis());
             quotaManager = new QuotaManager();
+        });
+
+        afterEach(() => {
+            jest.clearAllTimers();
+            jest.useRealTimers();
         });
 
         it("should return true when enough quota is available", () => {
@@ -360,6 +378,15 @@ describe("QuotaManager", () => {
     });
 
     describe("checkAndResetIfNeeded", () => {
+        beforeEach(() => {
+            jest.useFakeTimers();
+        });
+
+        afterEach(() => {
+            jest.clearAllTimers();
+            jest.useRealTimers();
+        });
+
         it("should reset quota when midnight PT has passed", () => {
             // Start with a fixed time in the middle of the day
             const mockNow = DateTime.fromISO("2024-06-15T14:00:00", { zone: "America/Los_Angeles" });
