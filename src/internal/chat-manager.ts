@@ -21,6 +21,7 @@ import { firebot } from '../main';
 import { YouTubeUser } from '../types';
 import { QuotaManager } from './quota-manager';
 import { commandHandler } from './command';
+import { YouTubeUserManager } from './youtube-user-manager';
 import type { YouTubeIntegration } from '../integration-singleton';
 
 export class ChatManager {
@@ -39,13 +40,15 @@ export class ChatManager {
     private dailyQuota = 10000;
     private connectionTimestamp: Date | null = null;
     private viewerArrivedCache = new Set<string>();
+    private userManager: YouTubeUserManager;
 
-    constructor(logger: any, quotaManager: QuotaManager, multiAuthManager: any, clientFactory: () => any, integration: YouTubeIntegration) {
+    constructor(logger: any, quotaManager: QuotaManager, multiAuthManager: any, clientFactory: () => any, integration: YouTubeIntegration, userManager: YouTubeUserManager) {
         this.logger = logger;
         this.quotaManager = quotaManager;
         this.multiAuthManager = multiAuthManager;
         this.clientFactory = clientFactory;
         this.integration = integration;
+        this.userManager = userManager;
     }
 
     /**
@@ -230,6 +233,11 @@ export class ChatManager {
             // Log to console
             this.logger.info(`[YouTube Chat] ${firebotChatMessage.username}: ${messageText} (${messageType})`);
             this.logger.debug(`User roles: ${twitchBadgeRoles.join(", ")}`);
+
+            // Update user statistics and roles
+            await this.userManager.updateLastSeenTime(chatMessage.sender.userId);
+            await this.userManager.incrementChatMessageCount(chatMessage.sender.userId);
+            await this.userManager.setViewerRoles(chatMessage.sender.userId, twitchBadgeRoles);
 
             // Check if message is a command and handle it
             const wasCommand = await commandHandler.handleChatMessage(firebotChatMessage);

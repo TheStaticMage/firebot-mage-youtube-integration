@@ -82,6 +82,13 @@ const mockIntegration = {
 // Mock client factory
 const mockClientFactory = jest.fn(() => ({}));
 
+// Mock user manager
+const mockUserManager = {
+    incrementChatMessageCount: jest.fn(() => Promise.resolve(true)),
+    updateLastSeenTime: jest.fn(() => Promise.resolve(true)),
+    setViewerRoles: jest.fn(() => Promise.resolve(true))
+} as any;
+
 describe('ChatManager handleMessage', () => {
     let chatManager: ChatManager;
 
@@ -93,7 +100,8 @@ describe('ChatManager handleMessage', () => {
             mockQuotaManager,
             mockMultiAuthManager,
             mockClientFactory,
-            mockIntegration
+            mockIntegration,
+            mockUserManager
         );
     });
 
@@ -145,6 +153,26 @@ describe('ChatManager handleMessage', () => {
         expect(mockLogger.debug).toHaveBeenCalledWith(
             expect.stringContaining('User roles:')
         );
+    });
+
+    it('should update user statistics when processing a message', async () => {
+        // Arrange
+        jest.clearAllMocks();
+        const sampleMessage = {
+            ...SAMPLE_YOUTUBE_TEXT_MESSAGE,
+            snippet: {
+                ...SAMPLE_YOUTUBE_TEXT_MESSAGE.snippet,
+                type: YouTubeMessageTypes.TEXT_MESSAGE_EVENT
+            }
+        } as unknown as LiveChatMessage;
+
+        // Act
+        await (chatManager as any).handleMessage(sampleMessage);
+
+        // Assert
+        expect(mockUserManager.updateLastSeenTime).toHaveBeenCalledWith('UCrDkAvwXgOFDjlW9wqyYeIQ');
+        expect(mockUserManager.incrementChatMessageCount).toHaveBeenCalledWith('UCrDkAvwXgOFDjlW9wqyYeIQ');
+        expect(mockUserManager.setViewerRoles).toHaveBeenCalledWith('UCrDkAvwXgOFDjlW9wqyYeIQ', []);
     });
 
     it('should not process non-text messages', async () => {
@@ -527,7 +555,8 @@ describe('ChatManager viewer arrival tracking', () => {
             mockQuotaManager,
             mockMultiAuthManager,
             mockClientFactory,
-            mockIntegration
+            mockIntegration,
+            mockUserManager
         );
     });
 
@@ -614,7 +643,8 @@ describe('ChatManager token refresh during polling', () => {
             mockQuotaManager,
             mockMultiAuthManagerWithCounter,
             mockClientFactoryWithClient,
-            mockIntegration
+            mockIntegration,
+            mockUserManager
         );
     });
 
@@ -648,7 +678,8 @@ describe('ChatManager token refresh during polling', () => {
             mockQuotaManager,
             mockMultiAuthManagerWithError,
             mockClientFactoryWithClient,
-            mockIntegrationWithDisconnect
+            mockIntegrationWithDisconnect,
+            mockUserManager
         );
 
         await chatManagerWithFailingToken.startChatStreaming('test-live-chat-id');
@@ -673,7 +704,8 @@ describe('ChatManager token refresh during polling', () => {
             mockQuotaManager,
             mockMultiAuthManagerSpy,
             mockClientFactoryWithClient,
-            mockIntegration
+            mockIntegration,
+            mockUserManager
         );
 
         await chatManagerWithSpy.startChatStreaming('test-live-chat-id');

@@ -21,7 +21,7 @@ export const IntegrationConstants = {
     INTEGRATION_NAME: "MageYouTubeIntegration",
     INTEGRATION_DESCRIPTION: "A preliminary, experimental, and generally not-recommended YouTube integration for Firebot.",
     INTEGRATION_URI: "mage-youtube-integration",
-    PLATFORM_LIB_VERSION_CONSTRAINT: ">=0.0.3",
+    PLATFORM_LIB_VERSION_CONSTRAINT: ">=0.0.4",
     YOUTUBE_SCOPES: [
         "https://www.googleapis.com/auth/youtube",
         "https://www.googleapis.com/auth/youtube.force-ssl"

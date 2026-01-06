@@ -21,6 +21,7 @@ import { ErrorTracker } from "./internal/error-tracker";
 import { MultiAuthManager } from "./internal/multi-auth-manager";
 import { QuotaManager } from "./internal/quota-manager";
 import { RestApiClient } from "./internal/rest-api-client";
+import { YouTubeUserManager } from "./internal/youtube-user-manager";
 import { firebot, logger } from "./main";
 import { registerRoutes, unregisterRoutes } from "./server/server";
 import { ApplicationStorage, YouTubeOAuthApplication } from "./types";
@@ -79,6 +80,7 @@ export class YouTubeIntegration extends EventEmitter {
     private multiAuthManager: MultiAuthManager = new MultiAuthManager(this.errorTracker);
     private quotaManager: QuotaManager = new QuotaManager();
     private restApiClient: RestApiClient = new RestApiClient(this, this.errorTracker);
+    private youtubeUserManager: YouTubeUserManager = new YouTubeUserManager();
 
     // Stream monitoring
     private streamCheckInterval: NodeJS.Timeout | null = null;
@@ -369,7 +371,7 @@ export class YouTubeIntegration extends EventEmitter {
         this.currentLiveChatId = liveChatId;
 
         // Create ChatManager with ChatStreamClient factory and integration reference
-        this.chatManager = new ChatManager(logger, this.quotaManager, this.multiAuthManager, () => new ChatStreamClient(this, this.errorTracker), this);
+        this.chatManager = new ChatManager(logger, this.quotaManager, this.multiAuthManager, () => new ChatStreamClient(this, this.errorTracker), this, this.youtubeUserManager);
 
         // Start streaming (ChatManager will retrieve token internally)
         await this.chatManager.startChatStreaming(liveChatId);
