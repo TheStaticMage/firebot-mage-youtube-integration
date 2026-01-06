@@ -180,7 +180,7 @@ describe("streamerFilter", () => {
             expect(result).toBe(false);
         });
 
-        it("should return false when roles array is empty", async () => {
+        it("should return false when roles array is empty with value=true", async () => {
             const filterSettings: FilterSettings = {
                 comparisonType: ComparisonType.IS as any,
                 value: "true"
@@ -196,6 +196,24 @@ describe("streamerFilter", () => {
 
             const result = await streamerFilter.predicate(filterSettings, eventData);
             expect(result).toBe(false);
+        });
+
+        it("should return true when roles array is empty with value=false", async () => {
+            const filterSettings: FilterSettings = {
+                comparisonType: ComparisonType.IS as any,
+                value: "false"
+            };
+
+            const eventData: EventData = {
+                eventSourceId: "mage-youtube-integration",
+                eventId: "chat-message",
+                eventMeta: {
+                    twitchUserRoles: []
+                }
+            };
+
+            const result = await streamerFilter.predicate(filterSettings, eventData);
+            expect(result).toBe(true);
         });
     });
 

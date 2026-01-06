@@ -50,17 +50,8 @@ export const streamerFilter: EventFilter = {
     ): Promise<boolean> => {
         const { comparisonType, value } = filterSettings;
 
-        const roles = eventData.eventMeta.twitchUserRoles;
-
-        if (!roles || !Array.isArray(roles)) {
-            logger.debug(`streamerFilter: No roles found in event metadata`);
-            return false;
-        }
-
-        if (roles.length === 0) {
-            logger.debug(`streamerFilter: Empty roles array in event metadata`);
-            return false;
-        }
+        const rawRoles = eventData.eventMeta.twitchUserRoles;
+        const roles = (!rawRoles || !Array.isArray(rawRoles)) ? [] : rawRoles;
 
         const isBroadcaster = roles.includes("broadcaster");
         logger.debug(`streamerFilter: isBroadcaster=${isBroadcaster}, comparisonType=${comparisonType}, value=${value}`);
