@@ -1,7 +1,7 @@
 {
     "name": "firebot-mage-youtube-integration",
     "scriptOutputName": "firebot-mage-youtube-integration",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "description": "A YouTube integration for Firebot",
     "main": "",
     "scripts": {
@@ -45,7 +45,7 @@
         "@googleapis/youtube": "^29.0.0",
         "@grpc/grpc-js": "^1.14.0",
         "@grpc/proto-loader": "^0.8.0",
-        "@thestaticmage/mage-platform-lib-client": "^0.0.3-sha.8463b59",
+        "@thestaticmage/mage-platform-lib-client": "^0.0.4-sha.cc79ff8",
         "google-auth-library": "^10.5.0",
         "luxon": "^3.7.2"
     }
