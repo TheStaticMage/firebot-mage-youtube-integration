@@ -617,6 +617,7 @@ describe('ChatManager token refresh during polling', () => {
     let tokenCallCount: number;
 
     beforeEach(() => {
+        jest.useFakeTimers();
         jest.clearAllMocks();
         tokenCallCount = 0;
 
@@ -649,10 +650,19 @@ describe('ChatManager token refresh during polling', () => {
         );
     });
 
+    afterEach(async () => {
+        if (chatManager?.isChatStreaming()) {
+            await chatManager.stopChatStreaming();
+        }
+        jest.clearAllTimers();
+        jest.useRealTimers();
+    });
+
     it('should retrieve fresh token before each poll', async () => {
         await chatManager.startChatStreaming('test-live-chat-id');
 
-        await new Promise(resolve => setTimeout(resolve, 100));
+        jest.advanceTimersByTime(100);
+        await Promise.resolve();
 
         const pollOnceMethod = (chatManager as any).pollOnce.bind(chatManager);
         await pollOnceMethod();
@@ -691,6 +701,7 @@ describe('ChatManager token refresh during polling', () => {
         expect(chatManagerWithFailingToken.isChatStreaming()).toBe(false);
         expect(mockIntegrationWithDisconnect.sendCriticalErrorNotification).toHaveBeenCalled();
         expect(mockIntegrationWithDisconnect.disconnect).toHaveBeenCalled();
+        await chatManagerWithFailingToken.stopChatStreaming();
     });
 
     it('should pass correct applicationId to getAccessToken', async () => {
@@ -715,5 +726,6 @@ describe('ChatManager token refresh during polling', () => {
         await pollOnceMethod();
 
         expect(mockMultiAuthManagerSpy.getAccessToken).toHaveBeenCalledWith('test-app-id');
+        await chatManagerWithSpy.stopChatStreaming();
     });
 });
