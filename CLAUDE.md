@@ -23,6 +23,7 @@ Key features:
 - Uses streamList GRPC endpoint to reduce API quota usage
 - Chat messages from YouTube show up in Firebot chat feed (dashboard)
 - Chat (YouTube) effect that posts message into YouTube chat
+- Server-initiated chat sends are queued and processed asynchronously to keep HTTP handlers fast
 - Real-time status indicators for application ready state and token expiration
 - Application Activated event triggered when active application changes with type-safe enum causes
 - Variables exposing application metadata: applicationId, applicationName, activationCause, integrationConnected
