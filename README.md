@@ -57,7 +57,7 @@ _Variables can be used in Firebot to access integration data dynamically._
 | Chat feed: Send messages to YouTube | :white_check_mark: | Requires enabling the chat feed send setting |
 | Chat feed: Other context menu items | ? | Need to evaluate |
 | Commands | :white_check_mark: | Cooldowns will not work due to Firebot limitations |
-| Currency | :x: | Firebot assumes all users are Twitch users |
+| Currency | Partial | Some support via mage-platform-lib |
 | Currency: Watch time | :x: | No way to track this on YouTube |
 | Conditions based on YouTube roles | ? | Need to evaluate |
 | Filters based on YouTube roles | ? | Need to evaluate |
@@ -83,15 +83,18 @@ _Variables can be used in Firebot to access integration data dynamically._
 - Slash commands in the Firebot chat (e.g. `/clear`) only apply to Twitch.
 - You won't be able to add a YouTube user to a custom role via the Firebot GUI, because Firebot does a Twitch lookup on whatever you type.
 
+## Documentation
+
+- [Installation](/doc/installation.md)
+- [Upgrading](/doc/upgrading.md)
+- [Configuration](/doc/configuration.md)
+- [Quota Management](/doc/quota.md)
+
 ## Installation
 
 This integration is experimental and aimed at users comfortable with technical setup. I will reconsider broader release and support once Firebot evolves for cleaner multi-platform support.
 
-[Installation instructions](/doc/installation.md) are available if you're feeling adventurous.
-
-[Upgrading instructions](/doc/upgrading.md) are available if you felt adventurous in the past and are still feeling adventurous.
-
-[Configuration instructions](/doc/configuration.md) are available to help you create the necessary Google OAuth applications and authorize your account to use them.
+See the [Installation guide](/doc/installation.md) if you're feeling adventurous.
 
 ## Support
 
