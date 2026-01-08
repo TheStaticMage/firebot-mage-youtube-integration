@@ -1,0 +1,242 @@
+# YouTube Quota Management
+
+## Why YouTube is Different
+
+YouTube uses a fundamentally different approach to communicate with applications like Firebot than platforms like Twitch and Kick. Understanding this difference is key to managing quota limits effectively.
+
+### The Car Trip Analogy
+
+Imagine you're on a car trip with your kids in the back seat:
+
+**Twitch and Kick (Webhooks/WebSockets):** The kids say "Tell me when we get there" at the start of the trip. The parent says "OK" and drives. When they arrive at the destination, the parent turns around and says "We're here!" The kids only spoke once at the beginning, and the parent notified them when something changed.
+
+**YouTube (Polling):** The kids have to repeatedly ask "Are we there yet?" over and over throughout the entire trip. The parent answers "No" each time. After a few dozen requests, the parent gets frustrated and says "No, and you can't ask me again for the rest of the day."
+
+This is exactly how these platforms work with chat messages:
+
+- **Twitch and Kick** tell Firebot when a new chat message arrives. Firebot opens a connection and waits to be notified.
+- **YouTube** requires Firebot to repeatedly ask "Are there any new messages?" YouTube responds with either new messages or "No new messages." After too many requests, YouTube stops responding until the next day.
+
+### Impact on Chat Messages
+
+Because YouTube requires polling instead of push notifications:
+
+- **Twitch and Kick:** Messages appear in Firebot instantly as they're sent.
+- **YouTube:** You may choose to wait between requests to avoid exhausting your quota. Messages may be delayed by several seconds or even minutes depending on how long you want between your polling requests.
+
+The longer you space out your requests, the more your quota will last throughout the day, but the longer the delay before messages appear in Firebot.
+
+## Understanding YouTube's Quota System
+
+YouTube provides each application with a daily quota of API request units. Think of this like a daily allowance of "question tickets" you can spend.
+
+### Daily Quota Reset
+
+Quotas reset at **midnight Pacific Time** each day. This timing is controlled by YouTube and cannot be changed.
+
+Once you exhaust your daily quota, you must wait until midnight Pacific Time for it to reset.
+
+### Default Quota Limit
+
+Most YouTube API applications start with a default quota of **10,000 units per day**. This is what you'll have unless you've requested an increase from YouTube.
+
+### Quota Costs per Operation
+
+Different operations consume different amounts of quota:
+
+| Operation | Quota Cost | What It Does |
+| --------- | ---------- | ------------ |
+| Check for new chat messages | 5 units | Polls for new messages in chat (will wait up to 10 seconds) |
+| Send a chat message | 20 units | Sends one message to YouTube chat |
+| Check if stream is live | 1 unit | Checks current broadcast status |
+
+The most quota-intensive operation is **checking for new chat messages** because it happens repeatedly throughout your stream.
+
+### How the Plugin Calculates Delays
+
+The plugin automatically calculates how long to wait between chat message checks based on:
+
+1. **Daily Quota:** How many units you have per day (default: 10,000)
+2. **Maximum Stream Hours:** Your longest expected stream duration per day (default: 8 hours)
+3. **Safety Buffer:** The plugin uses only 80% of your quota for chat polling, reserving 20% for other operations
+
+**Example calculation with default settings:**
+
+```text
+Daily quota: 10,000 units
+Safety buffer (80%): 8,000 units available for chat polling
+Cost per check: 5 units
+Maximum checks per day: 8,000 ÷ 5 = 1,600 checks
+Maximum stream hours: 8 hours
+Checks per hour: 1,600 ÷ 8 = 200 checks
+Delay between checks: 3,600 seconds ÷ 200 = 18 seconds
+```
+
+With default settings, YouTube chat messages may take up to 18 seconds to appear in Firebot.
+
+## Quota Longevity Examples
+
+How long will your quota last during a stream? Here are some realistic scenarios:
+
+### Scenario 1: Streaming with Default Settings (10,000 quota)
+
+- Stream duration: 4 hours
+- Polling interval: 18 seconds (auto-calculated)
+- Chat messages sent: 50 messages during stream
+
+**Quota breakdown:**
+
+- Chat polling: 4 hours × 200 checks/hour × 5 units = 4,000 units
+- Sending messages: 50 messages × 20 units = 1,000 units
+- Other operations: ~200 units
+- **Total used: ~5,200 units** (52% of quota)
+- Quota lasts: Entire stream with buffer remaining
+
+### Scenario 2: Long Stream with Default Settings (10,000 quota)
+
+- Stream duration: 8 hours
+- Polling interval: 18 seconds (auto-calculated)
+- Chat messages sent: 100 messages during stream
+
+**Quota breakdown:**
+
+- Chat polling: 8 hours × 200 checks/hour × 5 units = 8,000 units
+- Sending messages: 100 messages × 20 units = 2,000 units
+- Other operations: ~200 units
+- **Total used: ~10,200 units** (102% of quota)
+- Quota lasts: ~7 hours 45 minutes before exhaustion
+
+### Scenario 3: Extending a Long Stream (10,000 quota)
+
+- Stream duration: 12 hours
+- Polling interval: 30 seconds (manual override)
+- Chat messages sent: 150 messages during stream
+
+**Quota breakdown:**
+
+- Chat polling: 12 hours × 120 checks/hour × 5 units = 7,200 units
+- Sending messages: 150 messages × 20 units = 3,000 units
+- Other operations: ~200 units
+- **Total used: ~10,400 units** (104% of quota)
+- Quota lasts: ~11 hours 30 minutes before exhaustion
+
+### Scenario 4: After Quota Increase (50,000 quota)
+
+- Stream duration: 12 hours
+- Polling interval: 4 seconds (auto-calculated)
+- Chat messages sent: 200 messages during stream
+
+**Quota breakdown:**
+
+- Chat polling: 12 hours × 900 checks/hour × 5 units = 54,000 units (would exceed)
+- Auto-calculation limits to: 40,000 units for 8,000 checks
+- This works out to: ~8 seconds between checks for 12 hours
+- Sending messages: 200 messages × 20 units = 4,000 units
+- **Total used: ~44,000 units** (88% of quota)
+- Quota lasts: Entire stream comfortably
+
+## Working Around Quota Limits
+
+If you're running out of quota during streams, here are your options:
+
+### Option 1: Adjust Polling Delay Settings
+
+The plugin allows you to configure two quota-related settings for each application:
+
+**Maximum Stream Hours:** Tell the plugin how long your typical stream lasts. The plugin will space out checks to ensure quota lasts the full duration. Note that if your stream runs over, you may run out of quota before your stream ends.
+
+**Override Polling Delay:** Manually set the seconds between chat message checks. Use this if the automatic calculation doesn't fit your needs:
+
+- Shorter delays (5-15 seconds): More responsive chat but consumes quota faster
+- Longer delays (30-60 seconds): Quota lasts longer but chat messages are delayed
+
+To configure these settings, open the YouTube Integration settings in Firebot and edit your application's quota settings.
+
+### Option 2: Request a Quota Increase from YouTube
+
+YouTube allows developers to request higher quota limits, but approval is **not guaranteed** and requires justification.
+
+**Important considerations:**
+
+- YouTube expects commercial applications or those serving many users
+- Personal streaming setups may not qualify for increases
+- The request process can take days or weeks
+- You must explain why 10,000 units per day is insufficient
+
+**How to request an increase:**
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
+2. Select your YouTube API project
+3. Navigate to APIs & Services > YouTube Data API v3 > Quotas
+4. Click "Request quota increase"
+5. Provide detailed justification for your request
+
+**What to include in your request:**
+
+- Your typical stream duration and frequency
+- Number of concurrent viewers (impacts chat message volume)
+- Why current quota is insufficient for your use case
+- Any unique requirements or special circumstances
+
+Even if you don't get the full amount you request, YouTube may grant a partial increase.
+
+### Option 3: Configure Multiple Applications
+
+The plugin supports multiple YouTube applications, and each application has its own independent daily quota. You can configure multiple applications and switch between them when one runs out of quota.
+
+**How this works:**
+
+1. Create additional Google Cloud projects with YouTube Data API enabled
+2. Configure OAuth credentials for each project
+3. Add each application to the plugin
+4. When quota runs out on one application, manually switch to another
+5. The plugin can also automatically switch applications when quota is exhausted (if configured)
+
+**Example setup:**
+
+- Application 1 (Primary): 10,000 quota/day
+- Application 2 (Backup): 10,000 quota/day
+- Application 3 (Emergency): 10,000 quota/day
+- **Total available:** 30,000 quota/day across all applications
+
+**Limitations:**
+
+- Switching applications requires a brief disconnection and reconnection
+- You must authorize each application separately
+- Managing multiple applications adds complexity
+- This approach may violate the letter or the spirit of terms of service (evaluate for yourself)
+
+For setup instructions, see the [Configuration Guide](/doc/configuration.md).
+
+## Best Practices
+
+To make the most of your daily quota:
+
+1. **Set realistic stream duration:** Configure Maximum Stream Hours to match your longest typical stream, not your shortest.
+
+2. **Monitor quota usage:** The plugin displays current quota usage in the settings. Check it periodically during streams.
+
+3. **Minimize sent messages:** Each message you send costs 20 units. Use them strategically.
+
+4. **Plan for contingencies:** If you occasionally stream longer than usual, have a backup plan (multiple applications or manual polling delay override).
+
+5. **Test before going live:** Do a test stream to verify your quota settings work for your typical stream length.
+
+6. **Consider your chat volume:** Even with perfect settings, you can only send a limited number of messages. Budget accordingly.
+
+## Technical Details
+
+For those interested in the technical implementation:
+
+- Quota tracking persists across Firebot restarts
+- The plugin automatically resets quota counters at midnight Pacific Time
+- Quota calculations target 80% usage to leave buffer for unexpected operations
+- All quota data is stored locally in your Firebot data directory
+- The plugin uses gRPC and REST APIs with different quota costs per endpoint
+- Quota calculations are all done locally as YouTube does not provide API access to real-time quota consumption
+
+## Additional Resources
+
+- [Google's YouTube API Quota Guide](https://developers.google.com/youtube/v3/getting-started#quota)
+- [Understanding YouTube API Quota Limits](https://github.com/ThioJoe/YT-Spammer-Purge/wiki/Understanding-YouTube-API-Quota-Limits)
+- [YouTube API Usage Cost Calculator](https://www.getphyllo.com/post/youtube-api-limits-how-to-calculate-api-usage-cost-and-fix-exceeded-api-quota)

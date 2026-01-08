@@ -32,18 +32,10 @@ Key features:
 TODO:
 
 - Message chunking for long messages due to overly restrictive 200 character limit
-- Messages typed in Firebot chat feed are sent to YouTube chat
-- Implement streamer filter for YouTube messages
-- Detect broadcast online and broadcast offline
 - Set broadcast title and detect broadcast title change
 - Further evaluation of capabilities exposed by YouTube API
 - Indicate YouTube broadcaster in chat feed
 - Effects to change polling interval for YouTube messages (e.g. poll more frequently at times)
-- Documentation for quota management
-  - Explanation of YouTube quotas like:
-    - <https://github.com/ThioJoe/YT-Spammer-Purge/wiki/Understanding-YouTube-API-Quota-Limits>
-    - <https://www.getphyllo.com/post/youtube-api-limits-how-to-calculate-api-usage-cost-and-fix-exceeded-api-quota>
-  - Explanation of why Kick and Twitch don't have this problem (they have webhooks and EventSub not polling)
 - Bot account support
 - Reply functionality (if YouTube API adds support)
 - Retry logic on sending chat messages for transient failures
