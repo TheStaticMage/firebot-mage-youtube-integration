@@ -4,6 +4,7 @@ import { IntegrationConstants } from "../constants";
 import type { YouTubeIntegration } from "../integration-singleton";
 import { firebot, logger } from "../main";
 import { QUOTA_COSTS } from "../types/quota-tracking";
+import { chunkMessage } from "../util/message-chunker";
 import { ApiCallType } from "./error-constants";
 import { ErrorTracker } from "./error-tracker";
 
@@ -91,44 +92,60 @@ export class RestApiClient {
                 return false;
             }
 
-            logger.debug(`Sending YouTube chat message to chat ${liveChatId}: ${messageText}`);
-            const client = await this.client();
-            const response = await client.liveChatMessages.insert({
-                part: ["snippet"],
-                requestBody: {
-                    snippet: {
-                        liveChatId: liveChatId,
-                        type: "textMessageEvent",
-                        textMessageDetails: {
-                            messageText: messageText
-                        }
-                    }
-                }
-            });
+            // Chunk the message if it exceeds the character limit
+            const chunks = chunkMessage(messageText, IntegrationConstants.YOUTUBE_CHAT_MESSAGE_CHARACTER_LIMIT);
 
-            // Record quota consumption
-            const quotaManager = this.integration.getQuotaManager();
-            quotaManager.recordApiCall(activeApplicationId, 'liveChatMessages.insert', QUOTA_COSTS.LIVE_CHAT_MESSAGES_INSERT);
-
-            if (response.status === 200) {
-                logger.debug(`Successfully sent YouTube chat message. Message ID: ${response.data.id}`);
-                this.errorTracker.recordSuccess(ApiCallType.SEND_CHAT_MESSAGE);
-                return true;
+            if (chunks.length > 1) {
+                logger.debug(`Chunking message into ${chunks.length} parts (original length: ${messageText.length})`);
             }
 
-            const error = new Error(`Failed to send YouTube chat message. Status: ${response.status}`);
-            (error as any).status = response.status;
-            const errorMetadata = this.errorTracker.recordError(ApiCallType.SEND_CHAT_MESSAGE, error);
-            logger.error(`Failed to send YouTube chat message. Status: ${response.status}`);
+            const client = await this.client();
+            const quotaManager = this.integration.getQuotaManager();
 
-            const { eventManager } = firebot.modules;
-            eventManager.triggerEvent(
-                IntegrationConstants.INTEGRATION_ID,
-                "api-error",
-                errorMetadata as unknown as Record<string, unknown>
-            );
+            // Send each chunk
+            for (let i = 0; i < chunks.length; i++) {
+                const chunk = chunks[i];
+                logger.debug(`Sending YouTube chat message chunk ${i + 1}/${chunks.length} to chat ${liveChatId}`);
 
-            return false;
+                const response = await client.liveChatMessages.insert({
+                    part: ["snippet"],
+                    requestBody: {
+                        snippet: {
+                            liveChatId: liveChatId,
+                            type: "textMessageEvent",
+                            textMessageDetails: {
+                                messageText: chunk
+                            }
+                        }
+                    }
+                });
+
+                // Record quota consumption for each chunk
+                quotaManager.recordApiCall(activeApplicationId, 'liveChatMessages.insert', QUOTA_COSTS.LIVE_CHAT_MESSAGES_INSERT);
+
+                if (response.status === 200) {
+                    logger.debug(`Successfully sent chunk ${i + 1}/${chunks.length}. Message ID: ${response.data.id}`);
+                    this.errorTracker.recordSuccess(ApiCallType.SEND_CHAT_MESSAGE);
+                } else {
+                    // If any chunk fails, stop sending remaining chunks
+                    const error = new Error(`Failed to send chunk ${i + 1}/${chunks.length}. Status: ${response.status}`);
+                    (error as any).status = response.status;
+                    const errorMetadata = this.errorTracker.recordError(ApiCallType.SEND_CHAT_MESSAGE, error);
+                    logger.error(`Failed to send chunk ${i + 1}/${chunks.length}. Status: ${response.status}`);
+
+                    const { eventManager } = firebot.modules;
+                    eventManager.triggerEvent(
+                        IntegrationConstants.INTEGRATION_ID,
+                        "api-error",
+                        errorMetadata as unknown as Record<string, unknown>
+                    );
+
+                    return false;
+                }
+            }
+
+            logger.debug(`Successfully sent all ${chunks.length} chunk(s)`);
+            return true;
 
         } catch (error: any) {
             const errorMetadata = this.errorTracker.recordError(ApiCallType.SEND_CHAT_MESSAGE, error);

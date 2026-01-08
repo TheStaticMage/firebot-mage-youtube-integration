@@ -47,7 +47,7 @@ Different operations consume different amounts of quota:
 | Operation | Quota Cost | What It Does |
 | --------- | ---------- | ------------ |
 | Check for new chat messages | 5 units | Polls for new messages in chat (will wait up to 10 seconds) |
-| Send a chat message | 20 units | Sends one message to YouTube chat |
+| Send a chat message | 20 units per chunk | Sends one message to YouTube chat (messages over 200 characters are automatically split into multiple chunks) |
 | Check if stream is live | 1 unit | Checks current broadcast status |
 
 The most quota-intensive operation is **checking for new chat messages** because it happens repeatedly throughout your stream.
@@ -216,13 +216,33 @@ To make the most of your daily quota:
 
 2. **Monitor quota usage:** The plugin displays current quota usage in the settings. Check it periodically during streams.
 
-3. **Minimize sent messages:** Each message you send costs 20 units. Use them strategically.
+3. **Minimize sent messages:** Each message you send costs 20 units per chunk. Long messages (over 200 characters) are automatically split into multiple chunks, with each chunk costing 20 units. Use concise messages when possible.
 
 4. **Plan for contingencies:** If you occasionally stream longer than usual, have a backup plan (multiple applications or manual polling delay override).
 
 5. **Test before going live:** Do a test stream to verify your quota settings work for your typical stream length.
 
-6. **Consider your chat volume:** Even with perfect settings, you can only send a limited number of messages. Budget accordingly.
+6. **Consider your chat volume:** Even with perfect settings, you can only send a limited number of messages. Budget accordingly. Note that messages over 200 characters are automatically chunked, increasing quota costs proportionally.
+
+## Message Chunking
+
+YouTube has a 200-character limit for chat messages. The plugin automatically handles messages that exceed this limit by:
+
+1. **Normalizing whitespace:** Multiple spaces, tabs, and newlines are collapsed into single spaces, which may reduce the message length enough to avoid chunking
+2. **Smart splitting:** If the message still exceeds 200 characters, it's split at word boundaries to avoid cutting words in half
+3. **Sequential sending:** Each chunk is sent as a separate message, with each chunk costing 20 quota units
+
+**Example:**
+
+- A 600-character message becomes 3 chunks
+- Total quota cost: 60 units (3 × 20)
+- Chunks appear as separate consecutive messages in YouTube chat
+
+**Tips:**
+
+- Keep messages under 200 characters when possible to minimize quota usage
+- Excessive whitespace is automatically cleaned up before chunking
+- If chunking occurs, all chunks are sent sequentially (no interleaving with other messages)
 
 ## Technical Details
 
@@ -234,6 +254,7 @@ For those interested in the technical implementation:
 - All quota data is stored locally in your Firebot data directory
 - The plugin uses gRPC and REST APIs with different quota costs per endpoint
 - Quota calculations are all done locally as YouTube does not provide API access to real-time quota consumption
+- Message chunking uses a 50% minimum chunk size threshold to prevent tiny fragments
 
 ## Additional Resources
 

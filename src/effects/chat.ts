@@ -40,7 +40,7 @@ export const chatEffect: Firebot.EffectType<chatEffectParams> = {
             menu-position="under"
         />
         <div style="color: #fb7373;" ng-if="effect.message && effect.message.length > characterLimit">
-            Chat messages cannot be longer than {{characterLimit}} characters. Messages exceeding this limit will fail to send.
+            Long messages will be automatically split into multiple messages.
         </div>
     </eos-container>
     `,
