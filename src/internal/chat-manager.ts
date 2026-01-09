@@ -31,7 +31,7 @@ export class ChatManager {
     private logger: any;
     private quotaManager: QuotaManager;
     private multiAuthManager: any;
-    private pollingDelaySeconds = 0;
+    private pollingDelayMs = 0;
     private nextPollTimer: NodeJS.Timeout | null = null;
     private pageToken: string | undefined;
     private clientFactory: () => any;
@@ -77,7 +77,7 @@ export class ChatManager {
             throw new Error("Invalid quota settings. Cannot calculate polling delay.");
         }
 
-        this.pollingDelaySeconds = delay;
+        this.pollingDelayMs = delay;
         this.liveChatId = liveChatId;
         this.activeApplicationId = applicationsStorage.activeApplicationId;
         this.dailyQuota = activeApplication.quotaSettings.dailyQuota;
@@ -117,8 +117,8 @@ export class ChatManager {
                     // The integration-singleton will handle disconnection
                 } else if (this.isStreaming) {
                     // On other errors, retry after delay
-                    this.logger.warn(`Retrying after error in ${this.pollingDelaySeconds}s...`);
-                    this.scheduleNextPoll(this.pollingDelaySeconds * 1000);
+                    this.logger.warn(`Retrying after error in ${this.quotaManager.formatDelay(this.pollingDelayMs)}...`);
+                    this.scheduleNextPoll(this.pollingDelayMs);
                 }
             });
         }, delayMs);
@@ -180,8 +180,8 @@ export class ChatManager {
 
         // Schedule next poll after delay
         if (this.isStreaming) {
-            this.logger.debug(`Scheduling next poll in ${this.pollingDelaySeconds}s`);
-            this.scheduleNextPoll(this.pollingDelaySeconds * 1000);
+            this.logger.debug(`Scheduling next poll in ${this.quotaManager.formatDelay(this.pollingDelayMs)}`);
+            this.scheduleNextPoll(this.pollingDelayMs);
         }
     }
 

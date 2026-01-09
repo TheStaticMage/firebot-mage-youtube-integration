@@ -25,3 +25,10 @@ export const QUOTA_COSTS = {
     LIVE_BROADCASTS_LIST: 1, // liveBroadcasts.list REST API
     LIVE_CHAT_MESSAGES_INSERT: 20 // liveChatMessages.insert REST API
 } as const;
+
+/**
+ * Known properties of YouTube quota-related operations
+ */
+export const QUOTA_PROPERTIES = {
+    STREAM_LIST_DURATION_SECONDS: 10 // Each stream list call persists up to 10 seconds
+} as const;

@@ -15,7 +15,7 @@
 import { DateTime } from "luxon";
 import { firebot, logger } from "../main";
 import { QuotaSettings } from "../types";
-import { QuotaTrackingStorage, QuotaUsage, QUOTA_COSTS } from "../types/quota-tracking";
+import { QuotaTrackingStorage, QuotaUsage, QUOTA_COSTS, QUOTA_PROPERTIES } from "../types/quota-tracking";
 import { getDataFilePath } from "../util/datafile";
 
 export class QuotaManager {
@@ -54,16 +54,16 @@ export class QuotaManager {
     }
 
     /**
-     * Calculate the delay in seconds between streamList calls
+     * Calculate the delay in milliseconds between streamList calls
      *
      * @param quotaSettings The quota settings for active application
-     * @returns delay in seconds, or null if settings are invalid
+     * @returns delay in milliseconds, or null if settings are invalid
      */
     calculateDelay(quotaSettings: QuotaSettings): number | null {
         // Check if user has overridden the delay
         if (quotaSettings.overridePollingDelay && quotaSettings.customPollingDelaySeconds >= 0) {
             logger.info(`Using custom polling delay: ${quotaSettings.customPollingDelaySeconds}s`);
-            return quotaSettings.customPollingDelaySeconds;
+            return Math.round(1000 * quotaSettings.customPollingDelaySeconds);
         }
 
         const dailyQuota = quotaSettings.dailyQuota;
@@ -81,18 +81,17 @@ export class QuotaManager {
         }
 
         // Calculate delay based on quota budget
-        const quotaBudget = dailyQuota * QuotaManager.QUOTA_TARGET_PERCENT;
-        const maxCallsPerDay = quotaBudget / QUOTA_COSTS.STREAM_LIST;
-        const callsPerHour = maxCallsPerDay / maxStreamHours;
-        const delaySeconds = 3600 / callsPerHour;
+        const maxStreamSeconds = maxStreamHours * 3600;
+        const delayMilliseconds =
+            1000.0 * (maxStreamSeconds - (dailyQuota * QuotaManager.QUOTA_TARGET_PERCENT * QUOTA_PROPERTIES.STREAM_LIST_DURATION_SECONDS / QUOTA_COSTS.STREAM_LIST)) /
+            ((dailyQuota * QuotaManager.QUOTA_TARGET_PERCENT / QUOTA_COSTS.STREAM_LIST) - 1);
 
         logger.debug(
             `Quota calculation: dailyQuota=${dailyQuota}, maxStreamHours=${maxStreamHours}, ` +
-            `quotaBudget80=${quotaBudget}, maxCallsPerDay=${maxCallsPerDay}, ` +
-            `callsPerHour=${callsPerHour.toFixed(2)}, calculatedDelaySeconds=${delaySeconds.toFixed(2)}s`
+            `delayMilliseconds=${delayMilliseconds.toFixed(3)}ms`
         );
 
-        return Math.round(delaySeconds);
+        return delayMilliseconds < 0 ? 0 : Math.round(delayMilliseconds);
     }
 
     /**
@@ -133,7 +132,8 @@ export class QuotaManager {
     /**
      * Format delay for display to user
      */
-    formatDelay(seconds: number): string {
+    formatDelay(delayMilliseconds: number): string {
+        const seconds = Math.round(delayMilliseconds / 1000);
         if (seconds < 60) {
             return `${seconds}s`;
         }

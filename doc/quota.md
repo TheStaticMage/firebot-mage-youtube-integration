@@ -60,6 +60,8 @@ The plugin automatically calculates how long to wait between chat message checks
 2. **Maximum Stream Hours:** Your longest expected stream duration per day (default: 8 hours)
 3. **Safety Buffer:** The plugin uses only 80% of your quota for chat polling, reserving 20% for other operations
 
+Each streamList request can wait up to 10 seconds for new messages. Any messages that arrive during the streamList request are processed immediately. The plugin adds extra delay after each request to avoid exhausting your quota during your expected stream duration.
+
 **Example calculation with default settings:**
 
 ```text
@@ -67,12 +69,14 @@ Daily quota: 10,000 units
 Safety buffer (80%): 8,000 units available for chat polling
 Cost per check: 5 units
 Maximum checks per day: 8,000 ÷ 5 = 1,600 checks
-Maximum stream hours: 8 hours
-Checks per hour: 1,600 ÷ 8 = 200 checks
-Delay between checks: 3,600 seconds ÷ 200 = 18 seconds
+Maximum stream hours: 8 hours (28,800 seconds)
+StreamList wait time per check: 10 seconds
+Time already spent inside checks: 1,600 × 10 = 16,000 seconds
+Remaining time between checks: 28,800 - 16,000 = 12,800 seconds
+Delay between checks: 12,800 ÷ (1,600 - 1) = 8.005 seconds
 ```
 
-With default settings, YouTube chat messages may take up to 18 seconds to appear in Firebot.
+The streamList call waits up to 10 seconds. If the message comes in during the streamList call, it will show up almost immediately. When the streamList call completes, the plugin waits about 8 seconds before the next call. If a message comes in during this delay, the message will not show up until the next streamList call. This means chat messages may take up to about 8 seconds to appear in Firebot.
 
 ## Quota Longevity Examples
 
@@ -81,58 +85,59 @@ How long will your quota last during a stream? Here are some realistic scenarios
 ### Scenario 1: Streaming with Default Settings (10,000 quota)
 
 - Stream duration: 4 hours
-- Polling interval: 18 seconds (auto-calculated)
 - Chat messages sent: 50 messages during stream
 
 **Quota breakdown:**
 
-- Chat polling: 4 hours × 200 checks/hour × 5 units = 4,000 units
+- Checks per hour: 3600 seconds / 10 seconds per check = 360 checks per hour
+- Chat polling: 4 hours × 360 checks/hour × 5 units = 7,200 units
 - Sending messages: 50 messages × 20 units = 1,000 units
 - Other operations: ~200 units
-- **Total used: ~5,200 units** (52% of quota)
+- **Total used: ~8,400 units** (84% of quota)
 - Quota lasts: Entire stream with buffer remaining
 
-### Scenario 2: Long Stream with Default Settings (10,000 quota)
+### Scenario 2: Longer Stream with Default Settings (10,000 quota)
 
 - Stream duration: 8 hours
-- Polling interval: 18 seconds (auto-calculated)
+- Polling delay: ~8 seconds (auto-calculated)
 - Chat messages sent: 100 messages during stream
 
 **Quota breakdown:**
 
+- Checks per hour: 3600 seconds / (10 sec per check + 8 sec delay) = 200 checks per hour
 - Chat polling: 8 hours × 200 checks/hour × 5 units = 8,000 units
 - Sending messages: 100 messages × 20 units = 2,000 units
 - Other operations: ~200 units
 - **Total used: ~10,200 units** (102% of quota)
 - Quota lasts: ~7 hours 45 minutes before exhaustion
 
-### Scenario 3: Extending a Long Stream (10,000 quota)
+### Scenario 3: Longer Stream than Expected (10,000 quota)
 
-- Stream duration: 12 hours
-- Polling interval: 30 seconds (manual override)
+- Stream duration (configured): 8 hours
+- Stream duration (actual): 4 hours
 - Chat messages sent: 150 messages during stream
 
 **Quota breakdown:**
 
-- Chat polling: 12 hours × 120 checks/hour × 5 units = 7,200 units
+- Checks per hour: 3600 seconds / 10 seconds per check = 360 checks per hour
+- Chat polling: 8 hours × 360 checks/hour × 5 units = 14,400 units
 - Sending messages: 150 messages × 20 units = 3,000 units
 - Other operations: ~200 units
-- **Total used: ~10,400 units** (104% of quota)
-- Quota lasts: ~11 hours 30 minutes before exhaustion
+- **Total used: ~17,600 units** (176% of quota)
+- Quota was exhausted just over half way through the stream
 
 ### Scenario 4: After Quota Increase (50,000 quota)
 
 - Stream duration: 12 hours
-- Polling interval: 4 seconds (auto-calculated)
 - Chat messages sent: 200 messages during stream
 
 **Quota breakdown:**
 
-- Chat polling: 12 hours × 900 checks/hour × 5 units = 54,000 units (would exceed)
-- Auto-calculation limits to: 40,000 units for 8,000 checks
-- This works out to: ~8 seconds between checks for 12 hours
+- Checks per hour: 3600 seconds / (10 sec per check) = 360 checks per hour
+- Chat polling: 12 hours × 360 checks/hour × 5 units = 21,600 units
 - Sending messages: 200 messages × 20 units = 4,000 units
-- **Total used: ~44,000 units** (88% of quota)
+- Other operations: ~200 units
+- **Total used: ~25,800 units** (52% of quota)
 - Quota lasts: Entire stream comfortably
 
 ## Working Around Quota Limits
@@ -145,10 +150,10 @@ The plugin allows you to configure two quota-related settings for each applicati
 
 **Maximum Stream Hours:** Tell the plugin how long your typical stream lasts. The plugin will space out checks to ensure quota lasts the full duration. Note that if your stream runs over, you may run out of quota before your stream ends.
 
-**Override Polling Delay:** Manually set the seconds between chat message checks. Use this if the automatic calculation doesn't fit your needs:
+**Override Polling Delay:** Manually set the extra seconds to wait after each chat message check. Use this if the automatic calculation doesn't fit your needs:
 
-- Shorter delays (5-15 seconds): More responsive chat but consumes quota faster
-- Longer delays (30-60 seconds): Quota lasts longer but chat messages are delayed
+- Shorter delays (0-9 seconds after each poll): More responsive chat but consumes quota faster
+- Longer delays (10+ seconds after each poll): Quota lasts longer but chat messages are noticeably delayed
 
 To configure these settings, open the YouTube Integration settings in Firebot and edit your application's quota settings.
 
@@ -207,6 +212,25 @@ The plugin supports multiple YouTube applications, and each application has its 
 - This approach may violate the letter or the spirit of terms of service (evaluate for yourself)
 
 For setup instructions, see the [Configuration Guide](/doc/configuration.md).
+
+## Viewing Actual Quota Usage in the Google Console
+
+While Google does not expose your actual quota usage via an API, it is possible to see it in the cloud console.
+
+1. Open the [Google Cloud Console quotas page](https://console.cloud.google.com/apis/api/youtube.googleapis.com/quotas).
+
+    That is a direct link. The navigation sequence is:
+
+    - Navigation menu (3 vertical lines at top left)
+    - APIs and Services
+    - Enabled APIs & services
+    - YouTube Data API v3
+    - Quotas & System Limits
+    - Queries per day
+
+2. Select the project corresponding to your application from the project picker at the top of the screen
+
+3. Review the "Queries per day" value.
 
 ## Best Practices
 

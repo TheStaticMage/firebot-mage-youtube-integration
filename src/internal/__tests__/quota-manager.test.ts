@@ -202,10 +202,10 @@ describe("QuotaManager", () => {
             };
 
             const delay = quotaManager.calculateDelay(quotaSettings);
-            expect(delay).toBe(120);
+            expect(delay).toBe(120000);
         });
 
-        it("should calculate delay based on quota budget", () => {
+        it("should calculate the correct delay based on quota budget", () => {
             const quotaSettings = {
                 dailyQuota: 10000,
                 maxStreamHours: 8,
@@ -214,11 +214,19 @@ describe("QuotaManager", () => {
             };
 
             const delay = quotaManager.calculateDelay(quotaSettings);
+            expect(delay).toBe(8005); // 8.0050031269625 seconds converted to milliseconds and rounded
+        });
 
-            // Expected: (10000 * 0.8) / 5 = 1600 calls per day
-            // 1600 / 8 hours = 200 calls per hour
-            // 3600 seconds / 200 calls = 18 seconds per call
-            expect(delay).toBe(18);
+        it("should not return a negative delay", () => {
+            const quotaSettings = {
+                dailyQuota: 10000,
+                maxStreamHours: 4,
+                overridePollingDelay: false,
+                customPollingDelaySeconds: 0
+            };
+
+            const delay = quotaManager.calculateDelay(quotaSettings);
+            expect(delay).toBe(0);
         });
 
         it("should return null for invalid daily quota", () => {
@@ -250,44 +258,31 @@ describe("QuotaManager", () => {
                 expect.stringContaining("Invalid maxStreamHours")
             );
         });
-
-        it("should round calculated delay to nearest second", () => {
-            const quotaSettings = {
-                dailyQuota: 10000,
-                maxStreamHours: 7, // Will result in non-integer delay
-                overridePollingDelay: false,
-                customPollingDelaySeconds: 0
-            };
-
-            const delay = quotaManager.calculateDelay(quotaSettings);
-            // Should be an integer
-            expect(Number.isInteger(delay || 0)).toBe(true);
-        });
     });
 
     describe("formatDelay", () => {
         it("should format seconds only", () => {
-            const result = quotaManager.formatDelay(45);
+            const result = quotaManager.formatDelay(45000);
             expect(result).toBe("45s");
         });
 
         it("should format minutes and seconds", () => {
-            const result = quotaManager.formatDelay(125); // 2 minutes 5 seconds
+            const result = quotaManager.formatDelay(125000); // 2 minutes 5 seconds
             expect(result).toBe("2m 5s");
         });
 
         it("should format minutes without seconds", () => {
-            const result = quotaManager.formatDelay(120);
+            const result = quotaManager.formatDelay(120000);
             expect(result).toBe("2m");
         });
 
         it("should handle 1 second", () => {
-            const result = quotaManager.formatDelay(1);
+            const result = quotaManager.formatDelay(1000);
             expect(result).toBe("1s");
         });
 
         it("should handle 1 minute", () => {
-            const result = quotaManager.formatDelay(60);
+            const result = quotaManager.formatDelay(60000);
             expect(result).toBe("1m");
         });
     });
