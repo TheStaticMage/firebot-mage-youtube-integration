@@ -174,6 +174,8 @@ export class ChatManager {
             if (response.offlineAt) {
                 this.logger.info("YouTube stream ended (offline)");
                 this.isStreaming = false;
+                // Notify integration of stream offline event
+                await this.integration.handleStreamOffline();
                 return;
             }
         }

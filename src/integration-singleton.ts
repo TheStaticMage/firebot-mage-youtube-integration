@@ -85,14 +85,14 @@ export class YouTubeIntegration extends EventEmitter {
     private youtubeUserManager: YouTubeUserManager = new YouTubeUserManager();
 
     // Stream monitoring
-    private streamCheckInterval: NodeJS.Timeout | null = null;
+    private offlineMonitoringInterval: NodeJS.Timeout | null = null;
+    private offlineMonitoringInProgress = false;
     private currentLiveChatId: string | null = null;
     private currentBroadcastId: string | null = null;
     private currentChannelId: string | null = null;
     private currentBroadcastPrivacyStatus: BroadcastPrivacyStatus | null = null;
     private currentActiveApplicationId: string | null = null;
     private isStreamLive = false;
-    private hasCheckedInitialStreamState = false;
 
     // Data file paths
     private dataFilePath = "";
@@ -327,7 +327,7 @@ export class YouTubeIntegration extends EventEmitter {
             const broadcastInfo = await this.broadcastManager.findLiveBroadcast(accessToken, undefined, finalActiveApp.id);
 
             if (!broadcastInfo) {
-                logger.warn("No active YouTube broadcast found. Will check periodically.");
+                logger.warn("No active YouTube broadcast found. Starting offline monitoring.");
                 this.connected = true;
                 this.currentActiveApplicationId = finalActiveApp.id;
 
@@ -337,8 +337,8 @@ export class YouTubeIntegration extends EventEmitter {
 
                 this.emit("connected", IntegrationConstants.INTEGRATION_ID);
 
-                // Start periodic stream checking
-                this.startStreamChecking();
+                // Start offline monitoring (10-second broadcast checks)
+                this.startOfflineMonitoring();
 
                 // Register HTTP operation handlers for platform-lib
                 registerRoutes(this);
@@ -362,9 +362,6 @@ export class YouTubeIntegration extends EventEmitter {
             frontendCommunicator.send("youTube:applicationsUpdated", {});
 
             this.emit("connected", IntegrationConstants.INTEGRATION_ID);
-
-            // Start periodic stream checking to detect when stream ends
-            this.startStreamChecking();
 
             // Register HTTP operation handlers for platform-lib
             registerRoutes(this);
@@ -397,32 +394,98 @@ export class YouTubeIntegration extends EventEmitter {
         logger.debug(`Chat streaming started for application ${activeApplicationId}`);
     }
 
-    private getPlatformLibPingPort(): number {
-        const { settings } = firebot.firebot;
-        return settings.getSetting("WebServerPort") as number || 7472;
-    }
-
     /**
-     * Start periodic checking for stream status
+     * Handle stream offline event (called by ChatManager when offlineAt detected)
      */
-    private startStreamChecking(): void {
-        if (this.streamCheckInterval) {
-            clearInterval(this.streamCheckInterval);
+    async handleStreamOffline(): Promise<void> {
+        logger.info("YouTube stream offline detected");
+        triggerStreamOffline();
+
+        // Stop chat streaming
+        if (this.chatManager) {
+            await this.chatManager.stopChatStreaming();
+            this.chatManager = null;
         }
 
-        this.streamCheckInterval = setInterval(async () => {
-            try {
-                await this.checkStreamStatus();
-            } catch (error: any) {
-                logger.error(`Error checking stream status: ${error.message}`);
-            }
-        }, IntegrationConstants.STREAM_STATUS_CHECK_INTERVAL_MS);
+        // Clear stream state
+        this.currentLiveChatId = null;
+        this.currentBroadcastId = null;
+        this.currentChannelId = null;
+        this.currentBroadcastPrivacyStatus = null;
+        this.isStreamLive = false;
+
+        // Start offline monitoring (10-second broadcast checks)
+        this.startOfflineMonitoring();
     }
 
     /**
-     * Check if stream started or ended
+     * Handle stream online event (called when broadcast found during offline monitoring)
      */
-    private async checkStreamStatus(): Promise<void> {
+    private async handleStreamOnline(broadcastInfo: any): Promise<void> {
+        logger.info("YouTube stream online detected");
+
+        // Stop offline monitoring
+        this.stopOfflineMonitoring();
+
+        // Update stream state
+        this.currentLiveChatId = broadcastInfo.liveChatId;
+        this.currentBroadcastId = broadcastInfo.broadcastId;
+        this.currentChannelId = broadcastInfo.channelId;
+        this.currentBroadcastPrivacyStatus = broadcastInfo.privacyStatus ?? null;
+        this.isStreamLive = true;
+
+        // Trigger stream online event
+        triggerStreamOnline();
+
+        // Start chat streaming
+        const liveChatId = broadcastInfo.liveChatId as string | null;
+        if (liveChatId != null && this.currentActiveApplicationId != null) {
+            await this.startChatStreaming(liveChatId, this.currentActiveApplicationId);
+        }
+    }
+
+    /**
+     * Start offline monitoring (10-second broadcast checks to detect when stream comes online)
+     */
+    private startOfflineMonitoring(): void {
+        if (this.offlineMonitoringInterval) {
+            clearInterval(this.offlineMonitoringInterval);
+        }
+
+        this.offlineMonitoringInterval = setInterval(async () => {
+            if (this.offlineMonitoringInProgress) {
+                return;
+            }
+
+            this.offlineMonitoringInProgress = true;
+            try {
+                await this.checkForBroadcast();
+            } catch (error: any) {
+                logger.error(`Error checking for broadcast during offline monitoring: ${error.message}`);
+            } finally {
+                this.offlineMonitoringInProgress = false;
+            }
+        }, IntegrationConstants.STREAM_STATUS_CHECK_INTERVAL_MS);
+
+        logger.debug("Offline monitoring started (10-second broadcast checks)");
+    }
+
+    /**
+     * Stop offline monitoring
+     */
+    private stopOfflineMonitoring(): void {
+        if (this.offlineMonitoringInterval) {
+            clearInterval(this.offlineMonitoringInterval);
+            this.offlineMonitoringInterval = null;
+            logger.debug("Offline monitoring stopped");
+        }
+    }
+
+
+    /**
+     * Check for live broadcast (used during offline monitoring)
+     */
+    private async checkForBroadcast(): Promise<void> {
         if (!this.connected || !this.currentActiveApplicationId) {
             return;
         }
@@ -439,70 +502,16 @@ export class YouTubeIntegration extends EventEmitter {
 
             const accessToken = await this.multiAuthManager.getAccessToken(this.currentActiveApplicationId);
             if (!accessToken) {
-                logger.error("Failed to get access token for active application during stream status check.");
+                logger.error("Failed to get access token for active application during broadcast check.");
                 await this.disconnect();
                 return;
             }
 
             const broadcastInfo = await this.broadcastManager.findLiveBroadcast(accessToken, undefined, this.currentActiveApplicationId);
 
-            // Determine current stream state (live = has active broadcast)
-            const isCurrentlyLive = !!broadcastInfo;
-
-            // Detect state transitions ONLY (not liveChatId changes)
-            if (this.hasCheckedInitialStreamState) {
-                // Only trigger events after initial check
-                if (!this.isStreamLive && isCurrentlyLive) {
-                    // Stream went from offline to online
-                    triggerStreamOnline();
-                } else if (this.isStreamLive && !isCurrentlyLive) {
-                    // Stream went from online to offline
-                    triggerStreamOffline();
-                }
-                // If liveChatId changed but still live, NO event (stream restarted quickly)
+            if (broadcastInfo) {
+                await this.handleStreamOnline(broadcastInfo);
             }
-
-            // Update tracked stream state
-            this.isStreamLive = isCurrentlyLive;
-            this.hasCheckedInitialStreamState = true;
-
-            // Handle chat streaming based on current state (existing logic)
-            // Case 1: Stream just started
-            if (!this.currentLiveChatId && broadcastInfo) {
-                logger.info("YouTube stream detected, starting chat streaming");
-                this.currentLiveChatId = broadcastInfo.liveChatId;
-                this.currentBroadcastId = broadcastInfo.broadcastId;
-                this.currentChannelId = broadcastInfo.channelId;
-                this.currentBroadcastPrivacyStatus = broadcastInfo.privacyStatus ?? null;
-                await this.startChatStreaming(broadcastInfo.liveChatId, this.currentActiveApplicationId);
-                return;
-            }
-
-            // Case 2: Stream ended
-            if (this.currentLiveChatId && !broadcastInfo) {
-                logger.info("YouTube stream ended, stopping chat streaming");
-                if (this.chatManager) {
-                    await this.chatManager.stopChatStreaming();
-                    this.chatManager = null;
-                }
-                this.currentLiveChatId = null;
-                this.currentBroadcastId = null;
-                this.currentChannelId = null;
-                this.currentBroadcastPrivacyStatus = null;
-                return;
-            }
-
-            // Case 3: Different stream started (liveChatId changed)
-            if (this.currentLiveChatId && broadcastInfo && this.currentLiveChatId !== broadcastInfo.liveChatId) {
-                logger.info("Different YouTube stream detected, switching streams");
-                this.currentLiveChatId = broadcastInfo.liveChatId;
-                this.currentBroadcastId = broadcastInfo.broadcastId;
-                this.currentChannelId = broadcastInfo.channelId;
-                this.currentBroadcastPrivacyStatus = broadcastInfo.privacyStatus ?? null;
-                await this.startChatStreaming(broadcastInfo.liveChatId, this.currentActiveApplicationId);
-                return;
-            }
-
         } catch (error: any) {
             // Check if it's a quota error
             if (this.quotaManager.isQuotaExceededError(error)) {
@@ -510,9 +519,14 @@ export class YouTubeIntegration extends EventEmitter {
                 this.sendCriticalErrorNotification("YouTube API quota exceeded. Please wait until quota resets.");
                 await this.disconnect();
             } else {
-                logger.error(`Stream status check failed: ${error.message}`);
+                logger.error(`Broadcast check failed: ${error.message}`);
             }
         }
+    }
+
+    private getPlatformLibPingPort(): number {
+        const { settings } = firebot.firebot;
+        return settings.getSetting("WebServerPort") as number || 7472;
     }
 
     async disconnect() {
@@ -522,12 +536,8 @@ export class YouTubeIntegration extends EventEmitter {
         // Unregister HTTP operation handlers
         unregisterRoutes();
 
-        // Stop periodic stream checking
-        if (this.streamCheckInterval) {
-            clearInterval(this.streamCheckInterval);
-            this.streamCheckInterval = null;
-            logger.debug("Stream checking stopped");
-        }
+        // Stop offline monitoring
+        this.stopOfflineMonitoring();
 
         // Stop chat streaming
         if (this.chatManager) {
@@ -549,7 +559,6 @@ export class YouTubeIntegration extends EventEmitter {
         this.currentBroadcastPrivacyStatus = null;
         this.currentActiveApplicationId = null;
         this.isStreamLive = false;
-        this.hasCheckedInitialStreamState = false;
         this.connected = false;
 
         // Notify UI of all application status changes

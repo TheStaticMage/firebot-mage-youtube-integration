@@ -57,6 +57,7 @@ const mockIntegration = {
     isChatFeedEnabled: jest.fn(() => true),
     sendCriticalErrorNotification: jest.fn(),
     disconnect: jest.fn(() => Promise.resolve()),
+    handleStreamOffline: jest.fn(),
     getApplicationsStorage: jest.fn(() => ({
         applications: {
             'test-app-id': {
@@ -727,5 +728,78 @@ describe('ChatManager token refresh during polling', () => {
 
         expect(mockMultiAuthManagerSpy.getAccessToken).toHaveBeenCalledWith('test-app-id');
         await chatManagerWithSpy.stopChatStreaming();
+    });
+});
+
+describe('ChatManager offline detection', () => {
+    let chatManager: ChatManager;
+    let mockClient: any;
+
+    beforeEach(() => {
+        jest.useFakeTimers();
+        jest.clearAllMocks();
+
+        mockClient = {
+            chatStreamMessages: jest.fn(async function* () {
+                yield {
+                    items: [],
+                    nextPageToken: undefined,
+                    offlineAt: undefined
+                };
+            })
+        };
+
+        const mockClientFactoryWithClient = jest.fn(() => mockClient);
+
+        chatManager = new ChatManager(
+            mockLogger,
+            mockQuotaManager,
+            mockMultiAuthManager,
+            mockClientFactoryWithClient,
+            mockIntegration,
+            mockUserManager
+        );
+    });
+
+    afterEach(async () => {
+        if (chatManager?.isChatStreaming()) {
+            await chatManager.stopChatStreaming();
+        }
+        jest.clearAllTimers();
+        jest.useRealTimers();
+    });
+
+    it('should call integration.handleStreamOffline() when offlineAt is detected', async () => {
+        // Arrange
+        mockClient.chatStreamMessages = jest.fn(async function* () {
+            yield {
+                items: [],
+                nextPageToken: undefined,
+                offlineAt: '2024-01-01T00:00:00Z'
+            };
+        });
+
+        await chatManager.startChatStreaming('test-live-chat-id');
+
+        // Act
+        const pollOnceMethod = (chatManager as any).pollOnce.bind(chatManager);
+        await pollOnceMethod();
+
+        // Assert
+        expect(mockIntegration.handleStreamOffline).toHaveBeenCalled();
+        expect(chatManager.isChatStreaming()).toBe(false);
+    });
+
+    it('should not call integration.handleStreamOffline() when offlineAt is not present', async () => {
+        // Arrange
+        await chatManager.startChatStreaming('test-live-chat-id');
+
+        // Act
+        const pollOnceMethod = (chatManager as any).pollOnce.bind(chatManager);
+        await pollOnceMethod();
+
+        // Assert
+        expect(mockIntegration.handleStreamOffline).not.toHaveBeenCalled();
+        expect(chatManager.isChatStreaming()).toBe(true);
     });
 });
