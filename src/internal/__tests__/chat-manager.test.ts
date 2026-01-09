@@ -42,7 +42,7 @@ const mockLogger = {
 
 // Mock quota manager
 const mockQuotaManager = {
-    calculateDelay: jest.fn(() => 10), // Return 10 seconds as default delay
+    calculateDelay: jest.fn(() => 10000), // Return 10 seconds as default delay
     isQuotaExceededError: jest.fn(() => false),
     formatDelay: jest.fn(() => "10s")
 } as unknown as QuotaManager;
