@@ -78,7 +78,7 @@ export class YouTubeIntegration extends EventEmitter {
     private applicationManager: ApplicationManager = new ApplicationManager();
     private broadcastManager: BroadcastManager = new BroadcastManager(this, this.errorTracker);
     private chatManager: ChatManager | null = null;
-    private multiAuthManager: MultiAuthManager = new MultiAuthManager(this.errorTracker);
+    private multiAuthManager: MultiAuthManager = new MultiAuthManager(this.errorTracker, this.applicationManager);
     private quotaManager: QuotaManager = new QuotaManager();
     private restApiClient: RestApiClient = new RestApiClient(this, this.errorTracker);
     private chatMessageQueue: ChatMessageQueue = new ChatMessageQueue(message => this.restApiClient.sendChatMessage(message));
@@ -297,21 +297,39 @@ export class YouTubeIntegration extends EventEmitter {
                 }
             }
 
-            // Step 4: Get access token for active application
-            const accessToken = await this.multiAuthManager.getAccessToken(activeApplicationId);
+            // Step 4: Verify active application is still ready, or find another ready application
+            let finalActiveApp = this.applicationManager.getApplication(activeApplicationId);
+            if (!finalActiveApp?.ready) {
+                logger.warn(`Previously selected active application "${activeApp.name}" is no longer ready. Searching for another ready application.`);
+
+                // Find first ready application
+                const readyApp = applications.find(app => app.ready && app.refreshToken);
+
+                if (!readyApp) {
+                    throw new Error("No YouTube applications with valid credentials available. Please re-authorize an application in the YouTube Applications settings.");
+                }
+
+                // Switch to the ready application
+                logger.info(`Switching to ready application: ${readyApp.name} (${readyApp.id})`);
+                await this.applicationManager.setActiveApplication(readyApp.id, ApplicationActivationCause.AUTHORIZED_FIRST_APPLICATION, this.connected);
+                finalActiveApp = readyApp;
+            }
+
+            // Step 5: Get access token for active application
+            const accessToken = await this.multiAuthManager.getAccessToken(finalActiveApp.id);
             if (!accessToken) {
-                throw new Error(`Failed to get access token for active application "${activeApp.name}".`);
+                throw new Error(`Failed to get access token for active application "${finalActiveApp.name}".`);
             }
             logger.info("YouTube OAuth connected successfully");
 
-            // Step 5: Find active live stream
+            // Step 6: Find active live stream
             logger.info("Searching for active YouTube broadcast...");
-            const broadcastInfo = await this.broadcastManager.findLiveBroadcast(accessToken, undefined, activeApplicationId);
+            const broadcastInfo = await this.broadcastManager.findLiveBroadcast(accessToken, undefined, finalActiveApp.id);
 
             if (!broadcastInfo) {
                 logger.warn("No active YouTube broadcast found. Will check periodically.");
                 this.connected = true;
-                this.currentActiveApplicationId = activeApplicationId;
+                this.currentActiveApplicationId = finalActiveApp.id;
 
                 // Notify UI of connection and status changes
                 const { frontendCommunicator } = firebot.modules;
@@ -329,13 +347,13 @@ export class YouTubeIntegration extends EventEmitter {
                 return;
             }
 
-            // Step 6: Start streaming chat
-            this.currentActiveApplicationId = activeApplicationId;
+            // Step 7: Start streaming chat
+            this.currentActiveApplicationId = finalActiveApp.id;
             this.currentLiveChatId = broadcastInfo.liveChatId;
             this.currentBroadcastId = broadcastInfo.broadcastId;
             this.currentChannelId = broadcastInfo.channelId;
             this.currentBroadcastPrivacyStatus = broadcastInfo.privacyStatus ?? null;
-            await this.startChatStreaming(broadcastInfo.liveChatId, activeApplicationId);
+            await this.startChatStreaming(broadcastInfo.liveChatId, finalActiveApp.id);
 
             this.connected = true;
 
@@ -356,8 +374,7 @@ export class YouTubeIntegration extends EventEmitter {
         } catch (error: any) {
             logger.error(`Failed to connect YouTube integration: ${error.message}`);
             this.sendCriticalErrorNotification(`Failed to connect: ${error.message}`);
-
-            throw error;
+            await this.disconnect();
         }
     }
 
@@ -844,24 +861,10 @@ export class YouTubeIntegration extends EventEmitter {
         const applications = Object.values(this.applicationManager.getApplications());
         await this.multiAuthManager.updateApplications(applications);
 
-        // Delegate to multi-auth manager and get the authorized app ID
+        // Delegate to multi-auth manager and get the authorized app ID. Note:
+        // ApplicationAuthManager.setTokens() writes directly to disk via
+        // ApplicationManager, so no manual sync is needed here
         const authorizedAppId = await this.multiAuthManager.handleAuthCallback(req, res);
-
-        // Extract the updated application from MultiAuthManager and sync back to ApplicationManager
-        // This ensures the refresh token received from Google OAuth is persisted to disk
-        const updatedApplications = this.multiAuthManager.getApplications();
-        for (const app of updatedApplications) {
-            try {
-                await this.applicationManager.updateApplication(app.id, {
-                    refreshToken: app.refreshToken,
-                    email: app.email,
-                    ready: app.ready,
-                    tokenExpiresAt: app.tokenExpiresAt
-                });
-            } catch (error: any) {
-                logger.error(`Failed to sync updated application ${app.id} after OAuth callback: ${error.message}`);
-            }
-        }
 
         // Conditionally set the newly authorized application as active if it's the only one
         if (authorizedAppId) {

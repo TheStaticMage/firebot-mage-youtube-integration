@@ -49,10 +49,20 @@ describe("MultiAuthManager", () => {
     let multiAuthManager: MultiAuthManager;
     let mockApplications: YouTubeOAuthApplication[];
     let errorTracker: ErrorTracker;
+    let mockApplicationManager: any;
 
     beforeEach(() => {
         errorTracker = new ErrorTracker();
-        multiAuthManager = new MultiAuthManager(errorTracker);
+
+        // Create mock ApplicationManager
+        mockApplicationManager = {
+            getApplication: jest.fn((id: string) => {
+                return mockApplications.find(app => app.id === id) || null;
+            }),
+            updateApplication: jest.fn().mockResolvedValue(undefined)
+        };
+
+        multiAuthManager = new MultiAuthManager(errorTracker, mockApplicationManager);
         jest.clearAllMocks();
 
         // Reset mockOAuth2Client methods
@@ -573,6 +583,123 @@ describe("MultiAuthManager", () => {
         });
     });
 
+    describe("Refresh Token Rotation and Persistence", () => {
+        beforeEach(async () => {
+            await multiAuthManager.initialize(mockApplications);
+        });
+
+        it("should persist rotated refresh token to ApplicationManager", async () => {
+            const { OAuth2Client } = require("google-auth-library");
+            const mockClient = OAuth2Client();
+
+            // Mock Google returning a NEW refresh token (token rotation)
+            mockClient.refreshAccessToken.mockResolvedValue({
+                credentials: {
+                    access_token: "new-access-token",
+                    refresh_token: "rotated-refresh-token",
+                    expiry_date: Date.now() + 3600000
+                }
+            });
+
+            await multiAuthManager.refreshApplicationToken("app1");
+
+            // Verify new refresh token was written to disk via ApplicationManager
+            expect(mockApplicationManager.updateApplication).toHaveBeenCalledWith("app1", {
+                refreshToken: "rotated-refresh-token",
+                tokenExpiresAt: expect.any(Number)
+            });
+        });
+
+        it("should read refresh token from ApplicationManager on every refresh", async () => {
+            const { OAuth2Client } = require("google-auth-library");
+            const mockClient = OAuth2Client();
+
+            // Change the refresh token in the mock ApplicationManager
+            mockApplicationManager.getApplication.mockReturnValueOnce({
+                id: "app1",
+                name: "Test App 1",
+                clientId: "client1",
+                clientSecret: "secret1",
+                refreshToken: "updated-refresh-token-from-disk"
+            });
+
+            mockClient.refreshAccessToken.mockResolvedValue({
+                credentials: {
+                    access_token: "new-access-token",
+                    expiry_date: Date.now() + 3600000
+                }
+            });
+
+            await multiAuthManager.refreshApplicationToken("app1");
+
+            // Verify refresh token was read from ApplicationManager (disk)
+            expect(mockApplicationManager.getApplication).toHaveBeenCalledWith("app1");
+        });
+
+        it("should persist refresh token when Google does not rotate it", async () => {
+            const { OAuth2Client } = require("google-auth-library");
+            const mockClient = OAuth2Client();
+
+            // Mock Google NOT returning a new refresh token (no rotation)
+            mockClient.refreshAccessToken.mockResolvedValue({
+                credentials: {
+                    access_token: "new-access-token",
+                    // No refresh_token in response
+                    expiry_date: Date.now() + 3600000
+                }
+            });
+
+            await multiAuthManager.refreshApplicationToken("app1");
+
+            // Should still update ApplicationManager with the old refresh token
+            expect(mockApplicationManager.updateApplication).toHaveBeenCalledWith("app1", {
+                refreshToken: "refresh1", // Original token from mockApplications
+                tokenExpiresAt: expect.any(Number)
+            });
+        });
+
+        it("should clear invalid refresh token from ApplicationManager on invalid_grant", async () => {
+            const { OAuth2Client } = require("google-auth-library");
+            const mockClient = OAuth2Client();
+
+            // Mock Google returning invalid_grant error
+            mockClient.refreshAccessToken.mockRejectedValue({
+                message: "invalid_grant: Token has been expired or revoked.",
+                code: 401
+            });
+
+            // refreshApplicationToken catches errors and doesn't re-throw, so just await it
+            await multiAuthManager.refreshApplicationToken("app1");
+
+            // Verify invalid token was cleared from ApplicationManager
+            expect(mockApplicationManager.updateApplication).toHaveBeenCalledWith("app1",
+                expect.objectContaining({
+                    refreshToken: ""
+                })
+            );
+        });
+
+        it("should log when refresh token is rotated", async () => {
+            const { OAuth2Client } = require("google-auth-library");
+            const mockClient = OAuth2Client();
+
+            mockClient.refreshAccessToken.mockResolvedValue({
+                credentials: {
+                    access_token: "new-access-token",
+                    refresh_token: "new-refresh-token",
+                    expiry_date: Date.now() + 3600000
+                }
+            });
+
+            await multiAuthManager.refreshApplicationToken("app1");
+
+            // Should log that token was rotated
+            expect(logger.debug).toHaveBeenCalledWith(
+                expect.stringContaining("refresh token rotated")
+            );
+        });
+    });
+
     describe("Multi-Application State Management", () => {
         beforeEach(async () => {
             await multiAuthManager.initialize(mockApplications);
@@ -626,6 +753,12 @@ describe("MultiAuthManager", () => {
             };
 
             const updatedApps = [...mockApplications, newApp];
+
+            // Update mock to include new app
+            mockApplicationManager.getApplication.mockImplementation((id: string) => {
+                return updatedApps.find(app => app.id === id) || null;
+            });
+
             await multiAuthManager.updateApplications(updatedApps);
 
             const applications = multiAuthManager.getApplications();
@@ -736,6 +869,12 @@ describe("MultiAuthManager", () => {
             };
 
             const updatedApps = [...mockApplications, newApp];
+
+            // Update mock to include new app
+            mockApplicationManager.getApplication.mockImplementation((id: string) => {
+                return updatedApps.find(app => app.id === id) || null;
+            });
+
             await multiAuthManager.updateApplications(updatedApps);
 
             // Existing app1 should still be able to connect
