@@ -3,6 +3,7 @@ import { OAuth2Client } from "google-auth-library";
 import { IntegrationConstants } from "../constants";
 import { firebot, logger } from "../main";
 import { YouTubeOAuthApplication } from "../types";
+import type { ApplicationManager } from "./application-manager";
 import { updateApplicationReadyStatus } from "./application-utils";
 import { ApiCallType } from "./error-constants";
 import { ErrorTracker } from "./error-tracker";
@@ -19,13 +20,15 @@ import { ErrorTracker } from "./error-tracker";
  * - Generate authorization URLs for specific applications
  */
 export class MultiAuthManager {
-    private authManagers = new Map<string, ApplicationAuthManager>();
-    private refreshTimers = new Map<string, NodeJS.Timeout>();
+    private applicationManager: ApplicationManager;
     private applications = new Map<string, YouTubeOAuthApplication>();
+    private authManagers = new Map<string, ApplicationAuthManager>();
     private errorTracker: ErrorTracker;
+    private refreshTimers = new Map<string, NodeJS.Timeout>();
 
-    constructor(errorTracker: ErrorTracker) {
+    constructor(errorTracker: ErrorTracker, applicationManager: ApplicationManager) {
         this.errorTracker = errorTracker;
+        this.applicationManager = applicationManager;
     }
 
     /**
@@ -48,7 +51,7 @@ export class MultiAuthManager {
             this.applications.set(app.id, app);
 
             if (app.refreshToken) {
-                const manager = new ApplicationAuthManager(app);
+                const manager = new ApplicationAuthManager(app, this.applicationManager);
                 this.authManagers.set(app.id, manager);
 
                 // Schedule refresh for this application (automatic background refresh every ~50 minutes)
@@ -159,7 +162,7 @@ export class MultiAuthManager {
             return;
         }
 
-        const app = this.applications.get(applicationId);
+        let app = this.applications.get(applicationId);
         if (!app) {
             logger.error(`Application ${applicationId} not found in OAuth callback`);
             res.status(400).send("Application not found.");
@@ -201,15 +204,16 @@ export class MultiAuthManager {
                 logger.warn(`Failed to retrieve email for application ${applicationId}: ${error.message}`);
             }
 
-            // Update application with new tokens
-            app.refreshToken = tokens.refresh_token;
-            app.email = userEmail;
-            app.ready = true;
-
-            // Create or update auth manager
-            const manager = new ApplicationAuthManager(app);
-            manager.setTokens(tokens);
+            // Create or update auth manager and persist all token data
+            const manager = new ApplicationAuthManager(app, this.applicationManager);
+            await manager.setTokens(tokens, userEmail);
             this.authManagers.set(applicationId, manager);
+
+            // Refresh snapshot to include persisted token updates
+            const refreshedApp = this.refreshApplicationSnapshot(applicationId, true);
+            if (refreshedApp) {
+                app = refreshedApp;
+            }
 
             // Schedule refresh for this application
             this.scheduleRefreshForApplication(app);
@@ -262,7 +266,7 @@ export class MultiAuthManager {
      */
     async refreshApplicationToken(applicationId: string): Promise<void> {
         const manager = this.authManagers.get(applicationId);
-        const app = this.applications.get(applicationId);
+        let app = this.applications.get(applicationId);
 
         if (!manager || !app) {
             logger.error(`Cannot refresh token for application ${applicationId}: manager or app not found`);
@@ -275,6 +279,10 @@ export class MultiAuthManager {
             await manager.refreshAccessToken();
             this.errorTracker.recordSuccess(ApiCallType.REFRESH_TOKEN);
             updateApplicationReadyStatus(app, true);
+            const refreshedApp = this.refreshApplicationSnapshot(applicationId, app.ready);
+            if (refreshedApp) {
+                app = refreshedApp;
+            }
             logger.info(`Token refreshed successfully for application "${app.name}" (${applicationId}). Valid until: ${new Date(Date.now() + 3600000).toISOString()}`);
 
             // Notify UI of status change
@@ -283,6 +291,10 @@ export class MultiAuthManager {
             const errorMetadata = this.errorTracker.recordError(ApiCallType.REFRESH_TOKEN, error);
             logger.error(`Failed to refresh token for application "${app.name}" (${applicationId}): ${error.message}`);
             updateApplicationReadyStatus(app, false);
+            const refreshedApp = this.refreshApplicationSnapshot(applicationId, app.ready);
+            if (refreshedApp) {
+                app = refreshedApp;
+            }
 
             // Log detailed error information for debugging
             if (error.code) {
@@ -318,6 +330,21 @@ export class MultiAuthManager {
      */
     async updateApplications(applications: YouTubeOAuthApplication[]): Promise<void> {
         await this.initialize(applications);
+    }
+
+    private refreshApplicationSnapshot(applicationId: string, readyOverride?: boolean): YouTubeOAuthApplication | null {
+        const persistedApp = this.applicationManager.getApplication(applicationId);
+        if (!persistedApp) {
+            return null;
+        }
+
+        const updatedApp: YouTubeOAuthApplication = {
+            ...persistedApp,
+            ready: readyOverride ?? persistedApp.ready
+        };
+
+        this.applications.set(applicationId, updatedApp);
+        return updatedApp;
     }
 
     /**
@@ -406,31 +433,52 @@ export class MultiAuthManager {
 
 /**
  * ApplicationAuthManager handles OAuth for a single application
+ *
+ * Uses hybrid storage model:
+ * - Access tokens are cached in memory for performance
+ * - Refresh tokens are read from ApplicationManager (disk-backed) on every use
  */
 class ApplicationAuthManager {
-    private application: YouTubeOAuthApplication;
+    private applicationId: string;
+    private applicationManager: ApplicationManager;
     private accessToken = "";
     private tokenExpiresAt = 0;
 
-    constructor(application: YouTubeOAuthApplication) {
-        this.application = application;
+    constructor(application: YouTubeOAuthApplication, applicationManager: ApplicationManager) {
+        this.applicationId = application.id;
+        this.applicationManager = applicationManager;
     }
 
     /**
      * Set tokens from OAuth callback
+     * Writes refresh token directly to disk, caches access token in memory
      */
-    setTokens(tokens: any): void {
+    async setTokens(tokens: any, userEmail?: string): Promise<void> {
+        // Cache access token in memory for performance
         this.accessToken = tokens.access_token || "";
-        this.application.refreshToken = tokens.refresh_token || this.application.refreshToken;
         this.tokenExpiresAt = tokens.expiry_date || Date.now() + 3600000; // Default 1 hour
-        this.application.tokenExpiresAt = this.tokenExpiresAt;
+
+        // Write refresh token and metadata directly to disk
+        const updates: any = {
+            refreshToken: tokens.refresh_token || "",
+            tokenExpiresAt: this.tokenExpiresAt,
+            ready: true
+        };
+
+        if (userEmail !== undefined) {
+            updates.email = userEmail;
+        }
+
+        await this.applicationManager.updateApplication(this.applicationId, updates);
     }
 
     /**
      * Check if we can connect (have a refresh token)
+     * Reads from ApplicationManager to get current state
      */
     canConnect(): boolean {
-        return !!this.application.refreshToken;
+        const application = this.applicationManager.getApplication(this.applicationId);
+        return !!(application && application.refreshToken);
     }
 
     /**
@@ -446,45 +494,80 @@ class ApplicationAuthManager {
 
     /**
      * Refresh the access token
+     * Reads refresh token from disk, writes rotated token back to disk
      */
     async refreshAccessToken(): Promise<void> {
-        if (!this.application.refreshToken) {
+        // Read application from disk to get current refresh token
+        const application = this.applicationManager.getApplication(this.applicationId);
+        if (!application) {
+            throw new Error(`Application ${this.applicationId} not found`);
+        }
+
+        if (!application.refreshToken) {
             throw new Error("No refresh token available");
         }
 
         const oauth2Client = new OAuth2Client(
-            this.application.clientId,
-            this.application.clientSecret
+            application.clientId,
+            application.clientSecret
         );
 
         oauth2Client.setCredentials({
             // eslint-disable-next-line camelcase
-            refresh_token: this.application.refreshToken
+            refresh_token: application.refreshToken
         });
 
         try {
+            const oldRefreshToken = application.refreshToken;
             const { credentials } = await oauth2Client.refreshAccessToken();
 
+            // Log the full refresh response payload (with partial redaction for security)
+            const redactedAccessToken = credentials.access_token
+                ? `${credentials.access_token.substring(0, 4)}...${credentials.access_token.substring(credentials.access_token.length - 4)}`
+                : undefined;
+            const redactedRefreshToken = credentials.refresh_token
+                ? `${credentials.refresh_token.substring(0, 4)}...${credentials.refresh_token.substring(credentials.refresh_token.length - 4)}`
+                : undefined;
+            logger.debug(
+                `Token refresh response for application ${this.applicationId}: ` +
+                `access_token=${redactedAccessToken || 'missing'}, ` +
+                `refresh_token=${redactedRefreshToken || 'not rotated'}, ` +
+                `expiry_date=${credentials.expiry_date ? new Date(credentials.expiry_date).toISOString() : 'not set'}, ` +
+                `token_type=${credentials.token_type || 'not set'}, ` +
+                `scope=${credentials.scope || 'not set'}`
+            );
+
+            // Cache access token in memory for performance
             this.accessToken = credentials.access_token || "";
-
-            // Google may return a new refresh token
-            if (credentials.refresh_token) {
-                this.application.refreshToken = credentials.refresh_token;
-            }
-
             this.tokenExpiresAt = credentials.expiry_date || Date.now() + 3600000; // Default 1 hour
-            this.application.tokenExpiresAt = this.tokenExpiresAt;
 
-            logger.debug(`Access token refreshed for application ${this.application.id}. Valid until: ${new Date(this.tokenExpiresAt).toISOString()}`);
+            // If Google rotated the refresh token, persist the new one to disk
+            const newRefreshToken = credentials.refresh_token || oldRefreshToken;
+            const tokenChanged = newRefreshToken !== oldRefreshToken;
+
+            // Always update token expiration; update refresh token only if it changed
+            await this.applicationManager.updateApplication(this.applicationId, {
+                refreshToken: newRefreshToken,
+                tokenExpiresAt: this.tokenExpiresAt
+            });
+
+            logger.debug(
+                `Access token refreshed for application ${this.applicationId}. ` +
+                `Valid until: ${new Date(this.tokenExpiresAt).toISOString()}${
+                    tokenChanged ? ' (refresh token rotated)' : ''}`
+            );
         } catch (error: any) {
             // Check if refresh token is invalid
             if (error.message?.includes('invalid_grant') || error.code === 401) {
-                this.application.refreshToken = "";
-                logger.error(`Refresh token invalid for application ${this.application.id}`);
+                // Clear the invalid refresh token from disk
+                await this.applicationManager.updateApplication(this.applicationId, {
+                    refreshToken: ""
+                });
+                logger.error(`Refresh token invalid for application ${this.applicationId}`);
                 throw new Error("Refresh token is invalid. Please re-authorize.");
             }
 
-            logger.error(`Error refreshing access token for application ${this.application.id}: ${error.message}`);
+            logger.error(`Error refreshing access token for application ${this.applicationId}: ${error.message}`);
             throw error;
         }
     }
