@@ -120,7 +120,7 @@ describe("RestApiClient", () => {
                 }
             });
             expect(logger.debug).toHaveBeenCalledWith(
-                expect.stringContaining("Sending YouTube chat message to chat test-chat-id: Test message")
+                expect.stringContaining("Sending YouTube chat message chunk 1/1 to chat test-chat-id")
             );
         });
 
@@ -228,7 +228,7 @@ describe("RestApiClient", () => {
 
             expect(result).toBe(false);
             expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining("Failed to send YouTube chat message. Status: 500")
+                expect.stringContaining("Failed to send chunk 1/1. Status: 500")
             );
         });
 
@@ -240,18 +240,9 @@ describe("RestApiClient", () => {
 
             const result = await restApiClient.sendChatMessage("");
 
+            // Empty strings result in no chunks, so no API call is made
             expect(result).toBe(true);
-            expect(mockLiveChatMessages.insert).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    requestBody: expect.objectContaining({
-                        snippet: expect.objectContaining({
-                            textMessageDetails: {
-                                messageText: ""
-                            }
-                        })
-                    })
-                })
-            );
+            expect(mockLiveChatMessages.insert).not.toHaveBeenCalled();
         });
 
         it("should handle message with special characters", async () => {
