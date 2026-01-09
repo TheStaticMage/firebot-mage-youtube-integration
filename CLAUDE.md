@@ -21,6 +21,8 @@ Key features:
 - Conscious of API quotas with per-application quota settings
 - Chat message retrieval targeted to consume no more than 80% of daily API request quota
 - Uses streamList GRPC endpoint to reduce API quota usage
+- Hybrid polling strategy: quota-calculated interval when streaming, 10-second broadcast checks when offline
+- Stream offline detection via offlineAt field in streamList response triggers offline monitoring
 - Chat messages from YouTube show up in Firebot chat feed (dashboard)
 - Chat (YouTube) effect that posts message into YouTube chat
 - Server-initiated chat sends are queued and processed asynchronously to keep HTTP handlers fast
@@ -51,6 +53,9 @@ Learnings:
 - streamList endpoint returns after 10 seconds if no chat messages
 - Each call to streamList endpoint counts as 5 API requests
 - streamList endpoint is relatively new so lack of example usage in open source projects does NOT imply it should be avoided
+- Hybrid polling strategy balances quota savings with responsive stream detection: quota-calculated interval when streaming, 10-second broadcast checks when offline
+- Stream offline detection via offlineAt field in streamList response triggers offline monitoring
+- Offline monitoring uses 10-second broadcast checks to quickly detect when stream comes back online
 - Multi-application architecture improves maintainability by isolating per-app state and operations
 - Automatic background token refresh (every ~50 minutes) prevents authentication failures during operation
 - Ready status calculation requires both refresh token presence AND successful OAuth/refresh

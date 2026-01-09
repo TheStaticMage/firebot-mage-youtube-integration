@@ -1,5 +1,6 @@
 import { ApplicationManager } from "../internal/application-manager";
 import { ApplicationActivationCause } from "../events";
+import { YouTubeIntegration } from "../integration-singleton";
 
 // Mock dependencies
 jest.mock("../main", () => ({
@@ -47,6 +48,13 @@ jest.mock("../internal/application-utils", () => ({
         },
         ready: false,
         status: "Authorization required"
+    }))
+}));
+
+jest.mock("../internal/chat-manager", () => ({
+    ChatManager: jest.fn().mockImplementation(() => ({
+        startChatStreaming: jest.fn(() => Promise.resolve()),
+        stopChatStreaming: jest.fn(() => Promise.resolve())
     }))
 }));
 
@@ -248,6 +256,304 @@ describe("ApplicationManager - Active Application Switching", () => {
             expect(mockLogger.debug).not.toHaveBeenCalledWith(
                 expect.stringContaining("Notifying integration to switch polling")
             );
+        });
+    });
+});
+
+describe("YouTubeIntegration - Offline Monitoring", () => {
+    let integration: YouTubeIntegration;
+    let mockBroadcastManager: any;
+    let mockMultiAuthManager: any;
+    let mockQuotaManager: any;
+    let mockApplicationManager: any;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        jest.useFakeTimers();
+
+        mockBroadcastManager = {
+            findLiveBroadcast: jest.fn()
+        };
+
+        mockMultiAuthManager = {
+            getAccessToken: jest.fn(() => Promise.resolve('mock-access-token'))
+        };
+
+        mockQuotaManager = {
+            isQuotaExceededError: jest.fn(() => false)
+        };
+
+        mockApplicationManager = {
+            getApplication: jest.fn(() => ({
+                id: 'test-app-id',
+                name: 'Test App',
+                ready: true
+            })),
+            getApplications: jest.fn(() => ({
+                'test-app-id': {
+                    id: 'test-app-id',
+                    name: 'Test App',
+                    ready: true
+                }
+            })),
+            getActiveApplication: jest.fn(() => ({
+                id: 'test-app-id',
+                name: 'Test App',
+                ready: true
+            }))
+        };
+
+        // Mock dependencies
+        jest.doMock("../internal/broadcast-manager", () => ({
+            BroadcastManager: jest.fn(() => mockBroadcastManager)
+        }));
+
+        jest.doMock("../internal/multi-auth-manager", () => ({
+            MultiAuthManager: jest.fn(() => mockMultiAuthManager)
+        }));
+
+        jest.doMock("../internal/quota-manager", () => ({
+            QuotaManager: jest.fn(() => mockQuotaManager)
+        }));
+
+        jest.doMock("../internal/application-manager", () => ({
+            ApplicationManager: jest.fn(() => mockApplicationManager)
+        }));
+
+        // Dynamically require YouTubeIntegration after mocking dependencies
+        const { YouTubeIntegration: IntegrationClass } = require("../integration-singleton");
+
+        // Create real integration instance with mocked dependencies
+        integration = new IntegrationClass();
+        integration.connected = true;
+        integration["currentActiveApplicationId"] = 'test-app-id';
+    });
+
+    afterEach(() => {
+        // Clean up any running intervals
+        if (integration["offlineMonitoringInterval"]) {
+            clearInterval(integration["offlineMonitoringInterval"]);
+            integration["offlineMonitoringInterval"] = null;
+        }
+        jest.clearAllTimers();
+        jest.useRealTimers();
+        jest.dontMock("../internal/broadcast-manager");
+        jest.dontMock("../internal/multi-auth-manager");
+        jest.dontMock("../internal/quota-manager");
+        jest.dontMock("../internal/application-manager");
+    });
+
+    describe("startOfflineMonitoring", () => {
+        it("should start a 10-second interval to check for broadcast", () => {
+            // Act
+            integration["startOfflineMonitoring"]();
+
+            // Assert
+            expect(integration["offlineMonitoringInterval"]).not.toBeNull();
+        });
+
+        it("should clear existing interval before starting new one", () => {
+            // Arrange
+            const existingInterval = setInterval(() => {
+                // Empty interval for testing
+            }, 5000);
+            integration["offlineMonitoringInterval"] = existingInterval;
+
+            // Act
+            integration["startOfflineMonitoring"]();
+
+            // Assert
+            expect(integration["offlineMonitoringInterval"]).not.toBe(existingInterval);
+            clearInterval(existingInterval);
+        });
+
+        it("should skip broadcast check if one is already in progress", async () => {
+            // Arrange
+            let callCount = 0;
+            mockBroadcastManager.findLiveBroadcast.mockImplementation(async () => {
+                callCount++;
+                return null;
+            });
+
+            integration["startOfflineMonitoring"]();
+
+            // Simulate a slow broadcast check that doesn't complete before next interval
+            integration["offlineMonitoringInProgress"] = true;
+
+            // Act - trigger the interval callback
+            jest.advanceTimersByTime(10000);
+
+            // Assert - callback should have skipped because check was in progress
+            expect(callCount).toBe(0);
+
+            // Clean up
+            integration["offlineMonitoringInProgress"] = false;
+        });
+
+    });
+
+    describe("stopOfflineMonitoring", () => {
+        it("should clear the offline monitoring interval", () => {
+            // Arrange
+            integration["startOfflineMonitoring"]();
+            const interval = integration["offlineMonitoringInterval"];
+
+            // Act
+            integration["stopOfflineMonitoring"]();
+
+            // Assert
+            expect(integration["offlineMonitoringInterval"]).toBeNull();
+            if (interval) {
+                clearInterval(interval);
+            }
+        });
+
+        it("should do nothing if no interval is set", () => {
+            // Arrange
+            integration["offlineMonitoringInterval"] = null;
+
+            // Act
+            integration["stopOfflineMonitoring"]();
+
+            // Assert
+            expect(integration["offlineMonitoringInterval"]).toBeNull();
+        });
+    });
+
+    describe("checkForBroadcast", () => {
+        it("should call findLiveBroadcast when connected and active application is set", async () => {
+            // Arrange
+            mockBroadcastManager.findLiveBroadcast.mockResolvedValue(null);
+
+            // Act
+            await integration["checkForBroadcast"]();
+
+            // Assert
+            expect(mockBroadcastManager.findLiveBroadcast).toHaveBeenCalledWith(
+                'mock-access-token',
+                undefined,
+                'test-app-id'
+            );
+        });
+
+        it("should return early if not connected", async () => {
+            // Arrange
+            integration.connected = false;
+
+            // Act
+            await integration["checkForBroadcast"]();
+
+            // Assert
+            expect(mockBroadcastManager.findLiveBroadcast).not.toHaveBeenCalled();
+        });
+
+        it("should return early if no active application is set", async () => {
+            // Arrange
+            integration["currentActiveApplicationId"] = null;
+
+            // Act
+            await integration["checkForBroadcast"]();
+
+            // Assert
+            expect(mockBroadcastManager.findLiveBroadcast).not.toHaveBeenCalled();
+        });
+
+        it("should handle broadcast found and call handleStreamOnline", async () => {
+            // Arrange
+            const broadcastInfo = {
+                liveChatId: 'test-live-chat-id',
+                broadcastId: 'test-broadcast-id',
+                channelId: 'test-channel-id',
+                privacyStatus: 'public'
+            };
+            mockBroadcastManager.findLiveBroadcast.mockResolvedValue(broadcastInfo);
+
+            // Act
+            await integration["checkForBroadcast"]();
+
+            // Assert - verify stream state was updated by handleStreamOnline
+            expect(integration["currentLiveChatId"]).toBe('test-live-chat-id');
+            expect(integration["currentBroadcastId"]).toBe('test-broadcast-id');
+            expect(integration["currentChannelId"]).toBe('test-channel-id');
+            expect(integration["currentBroadcastPrivacyStatus"]).toBe('public');
+        });
+
+        it("should not update state when no broadcast found", async () => {
+            // Arrange
+            mockBroadcastManager.findLiveBroadcast.mockResolvedValue(null);
+            const originalState = {
+                liveChatId: integration["currentLiveChatId"],
+                broadcastId: integration["currentBroadcastId"]
+            };
+
+            // Act
+            await integration["checkForBroadcast"]();
+
+            // Assert
+            expect(integration["currentLiveChatId"]).toBe(originalState.liveChatId);
+            expect(integration["currentBroadcastId"]).toBe(originalState.broadcastId);
+        });
+    });
+
+    describe("handleStreamOnline", () => {
+        it("should stop offline monitoring", async () => {
+            // Arrange
+            const broadcastInfo = {
+                liveChatId: 'test-live-chat-id',
+                broadcastId: 'test-broadcast-id',
+                channelId: 'test-channel-id',
+                privacyStatus: 'public'
+            };
+            integration["startOfflineMonitoring"]();
+            const intervalBefore = integration["offlineMonitoringInterval"];
+
+            // Act
+            await integration["handleStreamOnline"](broadcastInfo);
+
+            // Assert
+            expect(integration["offlineMonitoringInterval"]).toBeNull();
+            if (intervalBefore) {
+                clearInterval(intervalBefore);
+            }
+        });
+
+        it("should update stream state", async () => {
+            // Arrange
+            const broadcastInfo = {
+                liveChatId: 'test-live-chat-id',
+                broadcastId: 'test-broadcast-id',
+                channelId: 'test-channel-id',
+                privacyStatus: 'public'
+            };
+
+            // Act
+            await integration["handleStreamOnline"](broadcastInfo);
+
+            // Assert
+            expect(integration["currentLiveChatId"]).toBe('test-live-chat-id');
+            expect(integration["currentBroadcastId"]).toBe('test-broadcast-id');
+            expect(integration["currentChannelId"]).toBe('test-channel-id');
+            expect(integration["currentBroadcastPrivacyStatus"]).toBe('public');
+            expect(integration["isStreamLive"]).toBe(true);
+        });
+
+        it("should not start chat streaming when liveChatId is null", async () => {
+            // Arrange
+            const broadcastInfo = {
+                liveChatId: null,
+                broadcastId: 'test-broadcast-id',
+                channelId: 'test-channel-id',
+                privacyStatus: 'public'
+            };
+
+            // Act
+            await integration["handleStreamOnline"](broadcastInfo);
+
+            // Assert - verify stream state was updated
+            expect(integration["currentBroadcastId"]).toBe('test-broadcast-id');
+            expect(integration["currentChannelId"]).toBe('test-channel-id');
+            // liveChatId should still be null (no chat streaming started)
+            expect(integration["currentLiveChatId"]).toBeNull();
         });
     });
 });
