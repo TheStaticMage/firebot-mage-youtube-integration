@@ -113,8 +113,8 @@ How long will your quota last during a stream? Here are some realistic scenarios
 
 ### Scenario 3: Longer Stream than Expected (10,000 quota)
 
-- Stream duration (configured): 8 hours
-- Stream duration (actual): 4 hours
+- Stream duration (configured): 4 hours
+- Stream duration (actual): 8 hours
 - Chat messages sent: 150 messages during stream
 
 **Quota breakdown:**
