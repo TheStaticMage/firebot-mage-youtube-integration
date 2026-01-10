@@ -1102,6 +1102,17 @@ export class YouTubeIntegration extends EventEmitter {
             }
         });
 
+        // Get chat streaming status
+        frontendCommunicator.on('youTube:getChatStreamingStatus', () => {
+            try {
+                const isStreaming = this.chatManager?.isChatStreaming() ?? false;
+                return { streaming: isStreaming };
+            } catch (error: any) {
+                logger.error(`Error getting chat streaming status: ${error.message}`);
+                return { streaming: false, errorMessage: error.message };
+            }
+        });
+
         // Connect the integration
         frontendCommunicator.onAsync('youTube:connectIntegration', async () => {
             try {
