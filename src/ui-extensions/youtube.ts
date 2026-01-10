@@ -62,6 +62,10 @@ function youTubeApplicationsServiceFunction(backendCommunicator: any): any {
         return backendCommunicator.fireEventSync("youTube:getIntegrationStatus", {});
     };
 
+    service.getChatStreamingStatus = (): any => {
+        return backendCommunicator.fireEventSync("youTube:getChatStreamingStatus", {});
+    };
+
     service.connectIntegration = async (): Promise<any> => {
         return backendCommunicator.fireEventAsync("youTube:connectIntegration", {});
     };
@@ -255,6 +259,8 @@ const youTubePage: AngularJsPage = {
                                 {{app.name}}
                                 <span ng-if="app.id === activeApplicationId && integrationConnected()" style="background: #52c41a; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px; margin-left: 10px;">ACTIVE</span>
                                 <span ng-if="app.id === activeApplicationId && !integrationConnected()" style="background: #faad14; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px; margin-left: 10px;">PENDING ACTIVE</span>
+                                <span ng-if="app.id === activeApplicationId && isChatStreaming()" style="background: #52c41a; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px; margin-left: 10px;">STREAM ONLINE</span>
+                                <span ng-if="app.id === activeApplicationId && !isChatStreaming()" style="background: #ff4d4f; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px; margin-left: 10px;">STREAM OFFLINE</span>
                             </h4>
                             <p class="list-group-item-text muted" style="margin-bottom: 5px;">
                                 <span ng-if="app.ready" style="color: #52c41a;">
@@ -414,6 +420,18 @@ const youTubePage: AngularJsPage = {
                 return;
             }
             return status.connected;
+        };
+
+        $scope.isChatStreaming = (): boolean => {
+            const status = youTubeApplicationsService.getChatStreamingStatus();
+            if (status.errorMessage) {
+                ngToast.create({
+                    className: 'danger',
+                    content: `Error getting chat streaming status: ${status.errorMessage}`
+                });
+                return false;
+            }
+            return status.streaming;
         };
 
         $scope.hasAnyAuthorizedApplication = () => {
