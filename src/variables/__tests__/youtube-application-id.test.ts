@@ -10,7 +10,7 @@ jest.mock("../../integration-singleton", () => ({
 
 import { integration } from "../../integration-singleton";
 
-describe("youtubeApplicationIdVariable.evaluator", () => {
+describe("youtubeApplicationIdVariable.evaluator (parameter-based)", () => {
     const mockGetActiveApplication = jest.fn();
     const mockGetApplicationManager = integration.getApplicationManager as jest.Mock;
 
@@ -29,73 +29,108 @@ describe("youtubeApplicationIdVariable.evaluator", () => {
         }
     } as Trigger);
 
-    it("returns applicationId from eventData when present", () => {
-        const trigger = makeTrigger({
-            applicationId: "test-app-id-123"
+    describe("with 'trigger' parameter", () => {
+        it("returns applicationId from eventData when present", () => {
+            const trigger = makeTrigger({
+                applicationId: "trigger-app-id-123"
+            });
+
+            const result = youtubeApplicationIdVariable.evaluator(trigger, "trigger");
+            expect(result).toBe("trigger-app-id-123");
         });
 
-        const result = youtubeApplicationIdVariable.evaluator(trigger);
-        expect(result).toBe("test-app-id-123");
-        expect(mockGetActiveApplication).not.toHaveBeenCalled();
+        it("returns null when eventData has no applicationId", () => {
+            const trigger = makeTrigger({
+                otherField: "some-value"
+            });
+
+            const result = youtubeApplicationIdVariable.evaluator(trigger, "trigger");
+            expect(result).toBeNull();
+        });
+
+        it("returns null when eventData is missing", () => {
+            const trigger = makeTrigger(undefined);
+
+            const result = youtubeApplicationIdVariable.evaluator(trigger, "trigger");
+            expect(result).toBeNull();
+        });
     });
 
-    it("falls back to active application ID when eventData is missing", () => {
-        const trigger = makeTrigger(undefined);
-        mockGetActiveApplication.mockReturnValue({
-            id: "fallback-app-id-456",
-            name: "Fallback App"
+    describe("with 'current' parameter", () => {
+        it("returns current active application ID", () => {
+            mockGetActiveApplication.mockReturnValue({
+                id: "current-app-id-456",
+                name: "Current App"
+            });
+
+            const trigger = makeTrigger({});
+            const result = youtubeApplicationIdVariable.evaluator(trigger, "current");
+            expect(result).toBe("current-app-id-456");
+            expect(mockGetActiveApplication).toHaveBeenCalledTimes(1);
         });
 
-        const result = youtubeApplicationIdVariable.evaluator(trigger);
-        expect(result).toBe("fallback-app-id-456");
-        expect(mockGetActiveApplication).toHaveBeenCalledTimes(1);
+        it("returns null when no active application exists", () => {
+            mockGetActiveApplication.mockReturnValue(null);
+
+            const trigger = makeTrigger({});
+            const result = youtubeApplicationIdVariable.evaluator(trigger, "current");
+            expect(result).toBeNull();
+        });
+
+        it("returns null when active application has no id", () => {
+            mockGetActiveApplication.mockReturnValue({
+                name: "App Without ID"
+            });
+
+            const trigger = makeTrigger({});
+            const result = youtubeApplicationIdVariable.evaluator(trigger, "current");
+            expect(result).toBeNull();
+        });
     });
 
-    it("falls back to active application ID when eventData.applicationId is missing", () => {
-        const trigger = makeTrigger({
-            applicationName: "Some App"
+    describe("with unknown parameter", () => {
+        it("returns null for any parameter other than trigger or current", () => {
+            const trigger = makeTrigger({});
+            const result = youtubeApplicationIdVariable.evaluator(trigger, "some-uuid-123");
+            expect(result).toBeNull();
         });
-        mockGetActiveApplication.mockReturnValue({
-            id: "fallback-app-id-789",
-            name: "Another App"
-        });
-
-        const result = youtubeApplicationIdVariable.evaluator(trigger);
-        expect(result).toBe("fallback-app-id-789");
-        expect(mockGetActiveApplication).toHaveBeenCalledTimes(1);
     });
 
-    it("returns empty string when no active application exists", () => {
-        const trigger = makeTrigger(undefined);
-        mockGetActiveApplication.mockReturnValue(null);
+    describe("with no parameter (default behavior)", () => {
+        it("returns trigger value when eventData has applicationId", () => {
+            const trigger = makeTrigger({
+                applicationId: "trigger-app-id"
+            });
+            mockGetActiveApplication.mockReturnValue({
+                id: "current-app-id",
+                name: "Current App"
+            });
 
-        const result = youtubeApplicationIdVariable.evaluator(trigger);
-        expect(result).toBe("");
-        expect(mockGetActiveApplication).toHaveBeenCalledTimes(1);
-    });
-
-    it("returns empty string when active application exists but has no id", () => {
-        const trigger = makeTrigger(undefined);
-        mockGetActiveApplication.mockReturnValue({
-            name: "App Without ID"
+            const result = youtubeApplicationIdVariable.evaluator(trigger);
+            expect(result).toBe("trigger-app-id");
+            expect(mockGetActiveApplication).not.toHaveBeenCalled();
         });
 
-        const result = youtubeApplicationIdVariable.evaluator(trigger);
-        expect(result).toBe("");
-        expect(mockGetActiveApplication).toHaveBeenCalledTimes(1);
-    });
+        it("falls back to current when eventData has no applicationId", () => {
+            const trigger = makeTrigger({
+                otherField: "some-value"
+            });
+            mockGetActiveApplication.mockReturnValue({
+                id: "fallback-app-id",
+                name: "Fallback App"
+            });
 
-    it("prefers eventData over active application", () => {
-        const trigger = makeTrigger({
-            applicationId: "event-app-id"
-        });
-        mockGetActiveApplication.mockReturnValue({
-            id: "active-app-id",
-            name: "Active App"
+            const result = youtubeApplicationIdVariable.evaluator(trigger);
+            expect(result).toBe("fallback-app-id");
+            expect(mockGetActiveApplication).toHaveBeenCalledTimes(1);
         });
 
-        const result = youtubeApplicationIdVariable.evaluator(trigger);
-        expect(result).toBe("event-app-id");
-        expect(mockGetActiveApplication).not.toHaveBeenCalled();
+        it("returns null when neither trigger nor current available", () => {
+            const trigger = makeTrigger(undefined);
+            mockGetActiveApplication.mockReturnValue(null);
+
+            const result = youtubeApplicationIdVariable.evaluator(trigger);
+            expect(result).toBeNull();
+        });
     });
 });

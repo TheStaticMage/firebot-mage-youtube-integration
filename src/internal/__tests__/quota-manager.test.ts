@@ -1,14 +1,17 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { DateTime } from "luxon";
-import { logger } from "../../main";
+import { firebot, logger } from "../../main";
 import { QuotaManager } from "../quota-manager";
 
-// Mock the logger
+// Mock the logger and firebot modules
 jest.mock("../../main", () => ({
     firebot: {
         modules: {
             fs: require("fs"),
-            path: require("path")
+            path: require("path"),
+            eventManager: {
+                triggerEvent: jest.fn()
+            }
         }
     },
     logger: {
@@ -22,6 +25,18 @@ jest.mock("../../main", () => ({
 // Mock getDataFilePath
 jest.mock("../../util/datafile", () => ({
     getDataFilePath: jest.fn(() => "/tmp/quota-tracking.json")
+}));
+
+// Mock integration-singleton for application name lookups
+const mockGetApplication = jest.fn();
+const mockIntegration = {
+    getApplicationManager: jest.fn(() => ({
+        getApplication: mockGetApplication
+    }))
+};
+
+jest.mock("../../integration-singleton", () => ({
+    integration: mockIntegration
 }));
 
 describe("QuotaManager", () => {
@@ -440,6 +455,248 @@ describe("QuotaManager", () => {
             const result = quotaManager.initialize();
             expect(result).toBeInstanceOf(Promise);
             await result;
+        });
+    });
+
+    describe("threshold detection", () => {
+        // Helper to capture triggered events from mocked eventManager
+        const getTriggeredEvents = (): {
+            applicationId: string;
+            applicationName: string;
+            quotaConsumed: number;
+            quotaLimit: number;
+            threshold: number;
+        }[] => {
+            const triggerEvent = (firebot.modules.eventManager.triggerEvent as jest.Mock);
+            return triggerEvent.mock.calls
+                .filter((call: [string, string, Record<string, unknown>]) => call[1] === "quota-threshold-crossed")
+                .map((call: [string, string, Record<string, unknown>]) => call[2] as unknown as {
+                    applicationId: string;
+                    applicationName: string;
+                    quotaConsumed: number;
+                    quotaLimit: number;
+                    threshold: number;
+                });
+        };
+
+        // Helper to clear previously recorded events before testing a specific action
+        const clearTriggeredEvents = (): void => {
+            (firebot.modules.eventManager.triggerEvent as jest.Mock).mockClear();
+        };
+
+        beforeEach(() => {
+            jest.useFakeTimers();
+            const mockNow = DateTime.fromISO("2024-06-15T14:00:00", { zone: "America/Los_Angeles" });
+            jest.spyOn(DateTime, "now").mockReturnValue(mockNow as any);
+            jest.spyOn(Date, "now").mockReturnValue(mockNow.toMillis());
+            // Clear firebot eventManager mock calls to prevent event accumulation across tests
+            (firebot.modules.eventManager.triggerEvent as jest.Mock).mockClear();
+            // Set up mockGetApplication to return application names with quota settings
+            mockGetApplication.mockImplementation((appId: string) => ({
+                id: appId,
+                name: "Test App Name",
+                quotaSettings: {
+                    dailyQuota: 10000
+                }
+            }));
+            quotaManager = new QuotaManager(mockIntegration as any);
+        });
+
+        afterEach(() => {
+            jest.clearAllTimers();
+            jest.useRealTimers();
+        });
+
+        it("should emit single threshold event when crossing from 0% to 1%", () => {
+            // Start at 98/10000 = 0% (floor(98 * 100 / 10000) = 0)
+            quotaManager.recordApiCall("app1", "streamList", 98);
+
+            // Add 4 more units: 102/10000 = 1% (floor(102 * 100 / 10000) = 1)
+            quotaManager.recordApiCall("app1", "streamList", 4);
+
+            const events = getTriggeredEvents();
+            expect(events).toHaveLength(1);
+            expect(events[0]).toEqual({
+                applicationId: "app1",
+                applicationName: "Test App Name",
+                quotaConsumed: 102,
+                quotaLimit: 10000,
+                threshold: 1
+            });
+        });
+
+        it("should emit multiple threshold events when crossing multiple levels", () => {
+            // Start at 98/10000 = 0%
+            quotaManager.recordApiCall("app1", "streamList", 98);
+
+            // Add 107 more units: 205/10000 = 2% (floor(205 * 100 / 10000) = 2)
+            quotaManager.recordApiCall("app1", "streamList", 107);
+
+            const events = getTriggeredEvents();
+            expect(events).toHaveLength(2);
+            expect(events[0]).toEqual({
+                applicationId: "app1",
+                applicationName: "Test App Name",
+                quotaConsumed: 205,
+                quotaLimit: 10000,
+                threshold: 1
+            });
+            expect(events[1]).toEqual({
+                applicationId: "app1",
+                applicationName: "Test App Name",
+                quotaConsumed: 205,
+                quotaLimit: 10000,
+                threshold: 2
+            });
+        });
+
+        it("should not emit events when staying within same percentage level", () => {
+            // Start at 50/10000 = 0%
+            quotaManager.recordApiCall("app1", "streamList", 50);
+
+            // Add 49 more units: 99/10000 = 0% (still 0%)
+            quotaManager.recordApiCall("app1", "streamList", 49);
+
+            const events = getTriggeredEvents();
+            expect(events).toHaveLength(0);
+        });
+
+        it("should handle exact boundary at threshold 1", () => {
+            // Start at 99/10000 = 0%
+            quotaManager.recordApiCall("app1", "streamList", 99);
+
+            // Add 1 more unit: 100/10000 = 1% (exactly at boundary)
+            quotaManager.recordApiCall("app1", "streamList", 1);
+
+            const events = getTriggeredEvents();
+            expect(events).toHaveLength(1);
+            expect(events[0]).toEqual({
+                applicationId: "app1",
+                applicationName: "Test App Name",
+                quotaConsumed: 100,
+                quotaLimit: 10000,
+                threshold: 1
+            });
+        });
+
+        it("should emit events in ascending order for multiple thresholds", () => {
+            // Start at 0
+            quotaManager.recordApiCall("app1", "streamList", 0);
+
+            // Jump to 350/10000 = 3%
+            quotaManager.recordApiCall("app1", "streamList", 350);
+
+            const events = getTriggeredEvents();
+            expect(events).toHaveLength(3);
+            expect(events[0].threshold).toBe(1);
+            expect(events[1].threshold).toBe(2);
+            expect(events[2].threshold).toBe(3);
+        });
+
+        it("should not emit events for reverse threshold change (midnight reset)", () => {
+            // Start at 5000/10000 = 50%
+            quotaManager.recordApiCall("app1", "streamList", 5000);
+            clearTriggeredEvents(); // Clear events from setup
+
+            // Simulate midnight reset: back to 0
+            quotaManager.recordApiCall("app1", "streamList", -5000);
+
+            const events = getTriggeredEvents();
+            expect(events).toHaveLength(0);
+        });
+
+        it("should not emit events for small negative change (bug scenario)", () => {
+            // Start at 205/10000 = 2%
+            quotaManager.recordApiCall("app1", "streamList", 205);
+            clearTriggeredEvents(); // Clear events from setup
+
+            // Simulate bug: small decrease to 198/10000 = 1%
+            quotaManager.recordApiCall("app1", "streamList", -7);
+
+            const events = getTriggeredEvents();
+            expect(events).toHaveLength(0);
+        });
+
+        it("should handle threshold 100 correctly", () => {
+            // Start at 9900/10000 = 99%
+            quotaManager.recordApiCall("app1", "streamList", 9900);
+            clearTriggeredEvents(); // Clear events from setup (thresholds 1-99)
+
+            // Add 100 more: 10000/10000 = 100%
+            quotaManager.recordApiCall("app1", "streamList", 100);
+
+            const events = getTriggeredEvents();
+            expect(events).toHaveLength(1);
+            expect(events[0]).toEqual({
+                applicationId: "app1",
+                applicationName: "Test App Name",
+                quotaConsumed: 10000,
+                quotaLimit: 10000,
+                threshold: 100
+            });
+        });
+
+        it("should clamp threshold to 100%", () => {
+            // Start at 9950/10000 = 99%
+            quotaManager.recordApiCall("app1", "streamList", 9950);
+            clearTriggeredEvents(); // Clear events from setup (thresholds 1-99)
+
+            // Add 1000 more: 10950/10000 = 109.5% but should clamp to 100%
+            quotaManager.recordApiCall("app1", "streamList", 1000);
+
+            const events = getTriggeredEvents();
+            expect(events).toHaveLength(1);
+            expect(events[0]).toEqual({
+                applicationId: "app1",
+                applicationName: "Test App Name",
+                quotaConsumed: 10950,
+                quotaLimit: 10000,
+                threshold: 100
+            });
+        });
+
+        it ("should clamp threshold to 100% and not emit when at 100%", () => {
+            // Start at 10000/10000 = 100%
+            quotaManager.recordApiCall("app1", "streamList", 10000);
+            clearTriggeredEvents(); // Clear events from setup (thresholds 1-100)
+
+            // Add 1000 more: 11000/10000 = 110% but should clamp to 100%
+            quotaManager.recordApiCall("app1", "streamList", 1000);
+
+            const events = getTriggeredEvents();
+            expect(events).toHaveLength(0);
+        });
+
+        it ("should ignore negative quota usage", () => {
+            // Start at 500/10000 = 5%
+            quotaManager.recordApiCall("app1", "streamList", 500);
+            clearTriggeredEvents(); // Clear events from setup (thresholds 1-5)
+
+            // Simulate negative usage bug
+            quotaManager.recordApiCall("app1", "streamList", -600);
+
+            const events = getTriggeredEvents();
+            expect(events).toHaveLength(0);
+        });
+
+        it ("should not have divide by zero error with zero daily quota", () => {
+            // Override mock to return zero daily quota
+            mockGetApplication.mockImplementation((appId: string) => ({
+                id: appId,
+                name: "Test App Name",
+                quotaSettings: {
+                    dailyQuota: 0
+                }
+            }));
+
+            // Start at 0/0 daily quota
+            quotaManager.recordApiCall("app1", "streamList", 0);
+
+            // Add some usage
+            quotaManager.recordApiCall("app1", "streamList", 100);
+
+            const events = getTriggeredEvents();
+            expect(events).toHaveLength(0);
         });
     });
 });

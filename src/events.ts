@@ -212,6 +212,19 @@ export const YouTubeEventSource: EventSource = {
                 icon: "fad fa-stop-circle",
                 getMessage: () => "YouTube stream ended"
             }
+        },
+        {
+            id: "quota-threshold-crossed",
+            name: "Quota Threshold Crossed (YouTube)",
+            description: "When quota usage crosses a percentage threshold (1-100%)",
+            cached: false,
+            manualMetadata: {
+                applicationId: "12345678-1234-1234-1234-123456789012",
+                applicationName: "Example Application",
+                quotaConsumed: 102,
+                quotaLimit: 10000,
+                threshold: 1
+            }
         }
     ]
 };

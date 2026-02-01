@@ -19,8 +19,18 @@ jest.mock("../../main", () => ({
 
 jest.mock("../error-tracker");
 
+const mockApplicationManager = {
+    getApplication: jest.fn(() => ({
+        id: "app-id",
+        quotaSettings: {
+            dailyQuota: 10000
+        }
+    }))
+};
+
 const mockIntegration = {
-    getQuotaManager: jest.fn()
+    getQuotaManager: jest.fn(),
+    getApplicationManager: jest.fn(() => mockApplicationManager)
 };
 
 describe("BroadcastManager.findLiveBroadcast", () => {
