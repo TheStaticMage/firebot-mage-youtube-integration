@@ -402,47 +402,6 @@ describe("ApplicationManager", () => {
         });
     });
 
-    // TODO: Implement reorderApplications feature
-    describe.skip("reorderApplications", () => {
-        beforeEach(async () => {
-            await applicationManager.initialize();
-            await applicationManager.addApplication("App 1", "client1", "secret1");
-            await applicationManager.addApplication("App 2", "client2", "secret2");
-            await applicationManager.addApplication("App 3", "client3", "secret3");
-        });
-
-        it("should reorder applications successfully", async () => {
-            const appsMap = applicationManager.getApplications();
-            const apps = Object.values(appsMap);
-            const originalOrder = apps.map(app => app.name);
-
-            // await applicationManager.reorderApplications([apps[2].id, apps[0].id, apps[1].id]);
-
-            const reorderedAppsMap = applicationManager.getApplications();
-            const reorderedApps = Object.values(reorderedAppsMap);
-            const newOrder = reorderedApps.map(app => app.name);
-
-            expect(newOrder).toEqual(["App 3", "App 1", "App 2"]);
-            expect(newOrder).not.toEqual(originalOrder);
-        });
-
-        it("should throw error for non-existent application", async () => {
-            // await expect(applicationManager.reorderApplications(["nonexistent", "app1"]))
-            //     .rejects.toThrow('Application with ID "nonexistent" not found');
-        });
-
-        it("should preserve applications not in reorder list", async () => {
-            const appsMap = applicationManager.getApplications();
-            const apps = Object.values(appsMap);
-            // await applicationManager.reorderApplications([apps[0].id]); // Only reorder first app
-
-            const reorderedAppsMap = applicationManager.getApplications();
-            const reorderedApps = Object.values(reorderedAppsMap);
-            expect(reorderedApps).toHaveLength(3); // All 3 apps should still be there
-            expect(reorderedApps[0].id).toBe(apps[0].id);
-        });
-    });
-
     describe("updateApplicationReadyStatus", () => {
         beforeEach(async () => {
             await applicationManager.initialize();
