@@ -14,9 +14,11 @@
 
 import { DateTime } from "luxon";
 import { firebot, logger } from "../main";
+import type { YouTubeIntegration } from "../integration-singleton";
 import { QuotaSettings } from "../types";
 import { QuotaTrackingStorage, QuotaUsage, QUOTA_COSTS, QUOTA_PROPERTIES } from "../types/quota-tracking";
 import { getDataFilePath } from "../util/datafile";
+import { triggerQuotaThresholdCrossed } from "../events/quota-threshold";
 
 export class QuotaManager {
     /**
@@ -41,8 +43,14 @@ export class QuotaManager {
      */
     private saveTimer?: NodeJS.Timeout;
 
-    constructor() {
+    /**
+     * Reference to the YouTube integration for looking up application data
+     */
+    private integration?: YouTubeIntegration;
+
+    constructor(integration?: YouTubeIntegration) {
         this.quotaData = new Map();
+        this.integration = integration;
     }
 
     /**
@@ -188,12 +196,50 @@ export class QuotaManager {
             this.quotaData.set(applicationId, usage);
         }
 
+        const oldUsage = usage.quotaUnitsUsed;
         usage.quotaUnitsUsed += cost;
         usage.lastUpdated = Date.now();
 
         logger.debug(`Quota recorded for application ${applicationId}: ${endpoint} (${cost} units), total: ${usage.quotaUnitsUsed}`);
 
+        // Check for threshold crossings by looking up daily quota from application
+        if (this.integration) {
+            const application = this.integration.getApplicationManager().getApplication(applicationId);
+            const dailyQuota = application?.quotaSettings?.dailyQuota;
+            if (dailyQuota && dailyQuota > 0) {
+                this.checkThresholdCrossings(applicationId, oldUsage, usage.quotaUnitsUsed, dailyQuota);
+            }
+        }
+
         this.scheduleSave();
+    }
+
+    /**
+     * Check for threshold crossings and emit events
+     */
+    private checkThresholdCrossings(applicationId: string, oldUsage: number, newUsage: number, dailyQuota: number): void {
+        const oldLevel = Math.floor((oldUsage * 100) / dailyQuota);
+        const newLevel = Math.floor((newUsage * 100) / dailyQuota);
+
+        if (newLevel > oldLevel) {
+            // Look up application name from integration
+            const application = this.integration?.getApplicationManager().getApplication(applicationId);
+            const applicationName = application?.name ?? applicationId;
+
+            // Clamp thresholds to maximum of 100
+            const startThreshold = Math.max(1, oldLevel + 1);
+            const endThreshold = Math.min(100, newLevel);
+
+            for (let threshold = startThreshold; threshold <= endThreshold; threshold++) {
+                triggerQuotaThresholdCrossed({
+                    applicationId,
+                    applicationName,
+                    quotaConsumed: newUsage,
+                    quotaLimit: dailyQuota,
+                    threshold
+                });
+            }
+        }
     }
 
     /**

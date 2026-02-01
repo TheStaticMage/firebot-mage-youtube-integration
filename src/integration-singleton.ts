@@ -37,6 +37,9 @@ import { youtubeErrorConsecutiveFailuresVariable } from "./variables/youtube-err
 import { youtubeErrorMessageVariable } from "./variables/youtube-error-message";
 import { youtubeIntegrationConnectedVariable } from "./variables/youtube-integration-connected";
 import { youtubeLiveChatIdVariable } from "./variables/youtube-live-chat-id";
+import { youtubeQuotaConsumedVariable } from "./variables/youtube-quota-consumed";
+import { youtubeQuotaLimitVariable } from "./variables/youtube-quota-limit";
+import { youtubeQuotaThresholdVariable } from "./variables/youtube-quota-threshold";
 import { youtubeVideoIdVariable } from "./variables/youtube-video-id";
 import { youtubePrivacyStatusVariable } from "./variables/youtube-privacy-status";
 
@@ -79,7 +82,7 @@ export class YouTubeIntegration extends EventEmitter {
     private broadcastManager: BroadcastManager = new BroadcastManager(this, this.errorTracker);
     private chatManager: ChatManager | null = null;
     private multiAuthManager: MultiAuthManager = new MultiAuthManager(this.errorTracker, this.applicationManager);
-    private quotaManager: QuotaManager = new QuotaManager();
+    private quotaManager: QuotaManager = new QuotaManager(this);
     private restApiClient: RestApiClient = new RestApiClient(this, this.errorTracker);
     private chatMessageQueue: ChatMessageQueue = new ChatMessageQueue(message => this.restApiClient.sendChatMessage(message));
     private youtubeUserManager: YouTubeUserManager = new YouTubeUserManager();
@@ -142,12 +145,14 @@ export class YouTubeIntegration extends EventEmitter {
         replaceVariableManager.registerReplaceVariable(youtubeLiveChatIdVariable);
         replaceVariableManager.registerReplaceVariable(youtubePrivacyStatusVariable);
         replaceVariableManager.registerReplaceVariable(youtubeVideoIdVariable);
+        replaceVariableManager.registerReplaceVariable(youtubeQuotaConsumedVariable);
+        replaceVariableManager.registerReplaceVariable(youtubeQuotaLimitVariable);
+        replaceVariableManager.registerReplaceVariable(youtubeQuotaThresholdVariable);
         logger.debug("YouTube variables registered");
 
         // Additional events for variables
         replaceVariableManager.addEventToVariable("chatMessage", IntegrationConstants.INTEGRATION_ID, "chat-message");
         replaceVariableManager.addEventToVariable("chatMessage", IntegrationConstants.INTEGRATION_ID, "viewer-arrived");
-        logger.debug("YouTube variable events registered");
 
         // Register filters
         const { eventFilterManager } = firebot.modules;
