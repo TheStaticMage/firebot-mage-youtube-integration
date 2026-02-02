@@ -3,7 +3,7 @@
 echo "Checking for files that do not end in a newline..."
 
 exitcode=0
-git ls-files --cached --others --exclude-standard | while IFS= read -r file; do
+while IFS= read -r file; do
     if ! file "$file" | grep -q "text"; then
         continue
     fi
@@ -13,7 +13,7 @@ git ls-files --cached --others --exclude-standard | while IFS= read -r file; do
         echo "::error file=$file::File does not end with a newline character."
         exitcode=1
     fi
-done
+done < <(git ls-files --cached --others --exclude-standard)
 
 echo "Finished: exitcode=${exitcode}"
 

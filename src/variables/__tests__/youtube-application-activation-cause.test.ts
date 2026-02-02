@@ -27,9 +27,13 @@ describe("youtubeApplicationActivationCauseVariable.evaluator", () => {
         const trigger2 = makeTrigger({
             cause: ApplicationActivationCause.CHANGED_BY_EFFECT
         });
+        const trigger3 = makeTrigger({
+            cause: ApplicationActivationCause.AUTOMATIC_QUOTA_FAILOVER
+        });
 
         expect(youtubeApplicationActivationCauseVariable.evaluator(trigger1)).toBe(ApplicationActivationCause.AUTHORIZED_FIRST_APPLICATION);
         expect(youtubeApplicationActivationCauseVariable.evaluator(trigger2)).toBe(ApplicationActivationCause.CHANGED_BY_EFFECT);
+        expect(youtubeApplicationActivationCauseVariable.evaluator(trigger3)).toBe(ApplicationActivationCause.AUTOMATIC_QUOTA_FAILOVER);
     });
 
     it("returns empty string when eventData is missing", () => {

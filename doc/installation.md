@@ -29,3 +29,5 @@
 ## Next Steps
 
 You will need to [configure your Google OAuth credentials](/doc/configuration.md) to use this integration.
+
+For advanced quota management features including automatic failover, see [Quota Management](/doc/quota.md#automatic-quota-failover).

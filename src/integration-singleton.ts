@@ -13,13 +13,14 @@ import { errorTypeFilter } from "./filters/error-type";
 import { streamerFilter } from "./filters/streamer";
 import { ApplicationManager } from "./internal/application-manager";
 import { getApplicationStatusMessage } from "./internal/application-utils";
-import { BroadcastManager } from "./internal/broadcast-manager";
 import type { BroadcastPrivacyStatus } from "./internal/broadcast-manager";
+import { BroadcastManager } from "./internal/broadcast-manager";
 import { ChatManager } from "./internal/chat-manager";
 import { ChatMessageQueue } from "./internal/chat-message-queue";
 import { ChatStreamClient } from "./internal/chatstream-client";
 import { ErrorTracker } from "./internal/error-tracker";
 import { MultiAuthManager } from "./internal/multi-auth-manager";
+import { FAILOVER_THRESHOLD_DEFAULT, QuotaFailoverManager } from "./internal/quota-failover-manager";
 import { QuotaManager } from "./internal/quota-manager";
 import { RestApiClient } from "./internal/rest-api-client";
 import { YouTubeUserManager } from "./internal/youtube-user-manager";
@@ -37,11 +38,12 @@ import { youtubeErrorConsecutiveFailuresVariable } from "./variables/youtube-err
 import { youtubeErrorMessageVariable } from "./variables/youtube-error-message";
 import { youtubeIntegrationConnectedVariable } from "./variables/youtube-integration-connected";
 import { youtubeLiveChatIdVariable } from "./variables/youtube-live-chat-id";
+import { youtubePreviousApplicationIdVariable } from "./variables/youtube-previous-application-id";
+import { youtubePrivacyStatusVariable } from "./variables/youtube-privacy-status";
 import { youtubeQuotaConsumedVariable } from "./variables/youtube-quota-consumed";
 import { youtubeQuotaLimitVariable } from "./variables/youtube-quota-limit";
 import { youtubeQuotaThresholdVariable } from "./variables/youtube-quota-threshold";
 import { youtubeVideoIdVariable } from "./variables/youtube-video-id";
-import { youtubePrivacyStatusVariable } from "./variables/youtube-privacy-status";
 
 type IntegrationParameters = {
     chat: {
@@ -57,6 +59,8 @@ type IntegrationParameters = {
     };
     advanced: {
         suppressChatFeedNotifications: boolean;
+        enableAutomaticFailover: boolean;
+        automaticFailoverThreshold: number;
     };
 };
 
@@ -83,6 +87,7 @@ export class YouTubeIntegration extends EventEmitter {
     private chatManager: ChatManager | null = null;
     private multiAuthManager: MultiAuthManager = new MultiAuthManager(this.errorTracker, this.applicationManager);
     private quotaManager: QuotaManager = new QuotaManager(this);
+    private quotaFailoverManager: QuotaFailoverManager = new QuotaFailoverManager(this, this.quotaManager);
     private restApiClient: RestApiClient = new RestApiClient(this, this.errorTracker);
     private chatMessageQueue: ChatMessageQueue = new ChatMessageQueue(message => this.restApiClient.sendChatMessage(message));
     private youtubeUserManager: YouTubeUserManager = new YouTubeUserManager();
@@ -113,7 +118,9 @@ export class YouTubeIntegration extends EventEmitter {
             logApiResponses: false
         },
         advanced: {
-            suppressChatFeedNotifications: false
+            suppressChatFeedNotifications: false,
+            enableAutomaticFailover: false,
+            automaticFailoverThreshold: FAILOVER_THRESHOLD_DEFAULT
         }
     };
 
@@ -143,6 +150,7 @@ export class YouTubeIntegration extends EventEmitter {
         replaceVariableManager.registerReplaceVariable(youtubeErrorMessageVariable);
         replaceVariableManager.registerReplaceVariable(youtubeIntegrationConnectedVariable);
         replaceVariableManager.registerReplaceVariable(youtubeLiveChatIdVariable);
+        replaceVariableManager.registerReplaceVariable(youtubePreviousApplicationIdVariable);
         replaceVariableManager.registerReplaceVariable(youtubePrivacyStatusVariable);
         replaceVariableManager.registerReplaceVariable(youtubeVideoIdVariable);
         replaceVariableManager.registerReplaceVariable(youtubeQuotaConsumedVariable);
@@ -593,6 +601,14 @@ export class YouTubeIntegration extends EventEmitter {
         return this.settings;
     }
 
+    /**
+     * Attempt automatic quota failover to another application
+     * @param currentApplicationId The application whose quota threshold was crossed
+     */
+    public async attemptQuotaFailover(currentApplicationId: string): Promise<void> {
+        await this.quotaFailoverManager.attemptQuotaFailover(currentApplicationId);
+    }
+
     private async handleChatMessageTypedInChatFeed(payload: InboundSendChatMessage): Promise<boolean> {
         if (!this.settings.chat.chatSend) {
             logger.debug("handleChatMessageTypedInChatFeed: Not sending message typed in chat feed: This option is disabled in the settings.");
@@ -656,6 +672,18 @@ export class YouTubeIntegration extends EventEmitter {
 
     getMultiAuthManager(): MultiAuthManager {
         return this.multiAuthManager;
+    }
+
+    getBroadcastManager(): BroadcastManager {
+        return this.broadcastManager;
+    }
+
+    getCurrentActiveApplicationId(): string | null {
+        return this.currentActiveApplicationId;
+    }
+
+    isConnected(): boolean {
+        return this.connected;
     }
 
     getQuotaManager(): QuotaManager {

@@ -4,7 +4,8 @@ import { IntegrationConstants } from "../constants";
 
 const triggers: TriggersObject = {};
 triggers["event"] = [
-    `${IntegrationConstants.INTEGRATION_ID}:quota-threshold-crossed`
+    `${IntegrationConstants.INTEGRATION_ID}:quota-threshold-crossed`,
+    `${IntegrationConstants.INTEGRATION_ID}:quota-failover`
 ];
 triggers["manual"] = true;
 
