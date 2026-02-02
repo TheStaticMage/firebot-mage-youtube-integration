@@ -19,6 +19,7 @@ import { QuotaSettings } from "../types";
 import { QuotaTrackingStorage, QuotaUsage, QUOTA_COSTS, QUOTA_PROPERTIES } from "../types/quota-tracking";
 import { getDataFilePath } from "../util/datafile";
 import { triggerQuotaThresholdCrossed } from "../events/quota-threshold";
+import { FAILOVER_THRESHOLD_DEFAULT } from "./quota-failover-manager";
 
 export class QuotaManager {
     /**
@@ -230,6 +231,13 @@ export class QuotaManager {
             const startThreshold = Math.max(1, oldLevel + 1);
             const endThreshold = Math.min(100, newLevel);
 
+            // Check if automatic failover should be triggered
+            const failoverEnabled = this.getSettings()?.advanced?.enableAutomaticFailover;
+            const rawFailoverThreshold = this.getSettings()?.advanced?.automaticFailoverThreshold ?? FAILOVER_THRESHOLD_DEFAULT;
+            const failoverThreshold = rawFailoverThreshold >= 0.5 && rawFailoverThreshold <= 100
+                ? Math.round(rawFailoverThreshold)
+                : rawFailoverThreshold;
+
             for (let threshold = startThreshold; threshold <= endThreshold; threshold++) {
                 triggerQuotaThresholdCrossed({
                     applicationId,
@@ -238,6 +246,14 @@ export class QuotaManager {
                     quotaLimit: dailyQuota,
                     threshold
                 });
+
+                if (failoverEnabled && threshold === failoverThreshold) {
+                    logger.info(`Failover threshold ${failoverThreshold}% reached for application ${applicationId}, attempting automatic failover`);
+                    // Trigger failover (fire-and-forget - don't await, critical path continues)
+                    this.integration?.attemptQuotaFailover(applicationId).catch((error: any) => {
+                        logger.warn(`Automatic quota failover failed: ${error.message}`);
+                    });
+                }
             }
         }
     }
@@ -396,5 +412,13 @@ export class QuotaManager {
         } catch (error) {
             logger.error(`Failed to save quota tracking data: ${error instanceof Error ? error.message : String(error)}`);
         }
+    }
+
+    /**
+     * Get the integration settings
+     * @returns Integration settings or undefined
+     */
+    getSettings(): any {
+        return this.integration?.getSettings();
     }
 }

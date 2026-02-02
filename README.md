@@ -33,6 +33,8 @@ _Effects are calls to the YouTube API made by Firebot as a result of event handl
 | ----- | --------- | ----- |
 | Chat message (incoming) | :white_check_mark: | |
 | Application Activated | :white_check_mark: | Triggered when a YouTube application becomes active. Provides cause, applicationId, applicationName, and connected status. |
+| Automatic Failover | :white_check_mark: | Triggered when the integration automatically fails over to another application due to quota threshold. Provides complete metadata about both applications. |
+| Quota Threshold Crossed | :white_check_mark: | Triggered when quota usage crosses any percentage threshold (1-100%). |
 
 ### Variables
 
@@ -46,6 +48,10 @@ _Variables can be used in Firebot to access integration data dynamically._
 | `$youtubeChannelId` | Broadcaster's YouTube channel ID when a stream is live | `$youtubeChannelId` |
 | `$youtubeIntegrationConnected` | Whether the YouTube integration is currently connected | `$youtubeIntegrationConnected` |
 | `$youtubeLiveChatId` | Current YouTube live chat ID when a stream is live | `$youtubeLiveChatId` |
+| `$youtubePreviousApplicationId` | The ID of the previous active YouTube application (from Automatic Failover event) | `$youtubePreviousApplicationId` |
+| `$youtubeQuotaConsumed` | Current quota units consumed by the active application | `$youtubeQuotaConsumed` |
+| `$youtubeQuotaLimit` | Daily quota limit for the active application | `$youtubeQuotaLimit` |
+| `$youtubeQuotaThreshold` | The threshold percentage that was crossed (from Quota Threshold Crossed and Automatic Failover events) | `$youtubeQuotaThreshold` |
 | `$youtubeVideoId` | Current YouTube video/broadcast ID when a stream is live | `http://www.youtube.com/live/$youtubeVideoId` |
 
 ### Firebot features
@@ -69,10 +75,12 @@ _Variables can be used in Firebot to access integration data dynamically._
 
 | Feature | Support Status | Notes |
 | ------- | -------------- | ----- |
+| Automatic quota failover | :white_check_mark: | Automatically switches to another application when quota threshold is reached |
 | Chat message: incoming | :white_check_mark: | |
 | Chat message: outgoing | :white_check_mark: | |
 | Monetization: ads | ? | Need to evaluate |
 | Monetization: super chat / stickers | ? | Need to evaluate |
+| Quota management | :white_check_mark: | Tracks API usage and provides threshold alerts |
 | Stream: change stream title / metadata | ? | Need to evaluate |
 | Stream: start streaming | ? | Need to evaluate |
 

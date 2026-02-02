@@ -29,10 +29,14 @@ jest.mock("../../util/datafile", () => ({
 
 // Mock integration-singleton for application name lookups
 const mockGetApplication = jest.fn();
+const mockAttemptQuotaFailover = jest.fn(() => Promise.resolve());
+const mockGetSettings = jest.fn();
 const mockIntegration = {
     getApplicationManager: jest.fn(() => ({
         getApplication: mockGetApplication
-    }))
+    })),
+    attemptQuotaFailover: mockAttemptQuotaFailover,
+    getSettings: mockGetSettings
 };
 
 jest.mock("../../integration-singleton", () => ({
@@ -697,6 +701,109 @@ describe("QuotaManager", () => {
 
             const events = getTriggeredEvents();
             expect(events).toHaveLength(0);
+        });
+
+        describe("failover triggering", () => {
+            beforeEach(() => {
+                jest.clearAllMocks();
+                // Create quotaManager with mock integration for failover tests
+                quotaManager = new QuotaManager(mockIntegration as any);
+                // Mock settings to return failover enabled
+                mockGetSettings.mockReturnValue({
+                    advanced: {
+                        enableAutomaticFailover: true,
+                        automaticFailoverThreshold: 95
+                    }
+                });
+            });
+
+            it("should trigger failover when crossing exact failover threshold", () => {
+                // Set up application with 1000 quota
+                mockGetApplication.mockImplementation((appId: string) => ({
+                    id: appId,
+                    name: "Test App",
+                    quotaSettings: { dailyQuota: 1000 }
+                }));
+
+                // Cross from 94% to 95% (950/1000)
+                quotaManager.recordApiCall("app1", "streamList", 950);
+
+                expect(mockAttemptQuotaFailover).toHaveBeenCalledWith("app1");
+                expect(logger.info).toHaveBeenCalledWith("Failover threshold 95% reached for application app1, attempting automatic failover");
+            });
+
+            it("should not trigger failover when threshold is disabled", () => {
+                mockIntegration.getSettings = jest.fn(() => ({
+                    advanced: {
+                        enableAutomaticFailover: false,
+                        automaticFailoverThreshold: 95
+                    }
+                }));
+
+                mockGetApplication.mockImplementation((appId: string) => ({
+                    id: appId,
+                    name: "Test App",
+                    quotaSettings: { dailyQuota: 1000 }
+                }));
+
+                quotaManager.recordApiCall("app1", "streamList", 950);
+
+                expect(mockAttemptQuotaFailover).not.toHaveBeenCalled();
+            });
+
+            it("should not trigger failover when crossing different threshold", () => {
+                mockGetSettings.mockReturnValue({
+                    advanced: {
+                        enableAutomaticFailover: true,
+                        automaticFailoverThreshold: 99 // Set to 99%, which won't be crossed
+                    }
+                });
+
+                mockGetApplication.mockImplementation((appId: string) => ({
+                    id: appId,
+                    name: "Test App",
+                    quotaSettings: { dailyQuota: 1000 }
+                }));
+
+                // Cross from 94% to 95%, failover threshold is 99%
+                quotaManager.recordApiCall("app1", "streamList", 950);
+
+                expect(mockAttemptQuotaFailover).not.toHaveBeenCalled();
+            });
+
+            it("should handle undefined settings gracefully", () => {
+                mockIntegration.getSettings = jest.fn(() => undefined);
+
+                mockGetApplication.mockImplementation((appId: string) => ({
+                    id: appId,
+                    name: "Test App",
+                    quotaSettings: { dailyQuota: 1000 }
+                }));
+
+                quotaManager.recordApiCall("app1", "streamList", 950);
+
+                expect(mockAttemptQuotaFailover).not.toHaveBeenCalled();
+            });
+        });
+    });
+
+    describe("getSettings", () => {
+        it("should return settings from integration", () => {
+            const expectedSettings = { some: "settings" };
+            mockIntegration.getSettings.mockReturnValue(expectedSettings);
+            const quotaManagerWithIntegration = new QuotaManager(mockIntegration as any);
+
+            const result = quotaManagerWithIntegration.getSettings();
+
+            expect(result).toBe(expectedSettings);
+        });
+
+        it("should return undefined when integration is not set", () => {
+            const quotaManagerWithoutIntegration = new QuotaManager();
+
+            const result = quotaManagerWithoutIntegration.getSettings();
+
+            expect(result).toBeUndefined();
         });
     });
 });

@@ -1,6 +1,6 @@
-import { ApplicationManager } from "../internal/application-manager";
 import { ApplicationActivationCause } from "../events";
 import { YouTubeIntegration } from "../integration-singleton";
+import { ApplicationManager } from "../internal/application-manager";
 
 // Mock dependencies
 jest.mock("../main", () => ({
@@ -266,6 +266,7 @@ describe("YouTubeIntegration - Offline Monitoring", () => {
     let mockMultiAuthManager: any;
     let mockQuotaManager: any;
     let mockApplicationManager: any;
+    let mockQuotaFailoverManager: any;
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -280,7 +281,12 @@ describe("YouTubeIntegration - Offline Monitoring", () => {
         };
 
         mockQuotaManager = {
-            isQuotaExceededError: jest.fn(() => false)
+            isQuotaExceededError: jest.fn(() => false),
+            getQuotaUsage: jest.fn()
+        };
+
+        mockQuotaFailoverManager = {
+            attemptQuotaFailover: jest.fn()
         };
 
         mockApplicationManager = {
@@ -300,7 +306,8 @@ describe("YouTubeIntegration - Offline Monitoring", () => {
                 id: 'test-app-id',
                 name: 'Test App',
                 ready: true
-            }))
+            })),
+            setActiveApplication: jest.fn()
         };
 
         // Mock dependencies
@@ -316,6 +323,10 @@ describe("YouTubeIntegration - Offline Monitoring", () => {
             QuotaManager: jest.fn(() => mockQuotaManager)
         }));
 
+        jest.doMock("../internal/quota-failover-manager", () => ({
+            QuotaFailoverManager: jest.fn(() => mockQuotaFailoverManager)
+        }));
+
         jest.doMock("../internal/application-manager", () => ({
             ApplicationManager: jest.fn(() => mockApplicationManager)
         }));
@@ -327,6 +338,9 @@ describe("YouTubeIntegration - Offline Monitoring", () => {
         integration = new IntegrationClass();
         integration.connected = true;
         integration["currentActiveApplicationId"] = 'test-app-id';
+
+        // Spy on methods that are called by the failover manager
+        jest.spyOn(integration, "switchActiveApplication" as any);
     });
 
     afterEach(() => {
@@ -340,6 +354,7 @@ describe("YouTubeIntegration - Offline Monitoring", () => {
         jest.dontMock("../internal/broadcast-manager");
         jest.dontMock("../internal/multi-auth-manager");
         jest.dontMock("../internal/quota-manager");
+        jest.dontMock("../internal/quota-failover-manager");
         jest.dontMock("../internal/application-manager");
     });
 

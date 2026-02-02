@@ -1,5 +1,6 @@
 import { IntegrationDefinition } from "@crowbartools/firebot-custom-scripts-types";
 import { IntegrationConstants } from "./constants";
+import { FAILOVER_THRESHOLD_DEFAULT } from "./internal/quota-failover-manager";
 
 export { integration } from './integration-singleton';
 
@@ -73,6 +74,20 @@ export const definition: IntegrationDefinition = {
                     type: "boolean",
                     default: false,
                     sortRank: 1
+                },
+                enableAutomaticFailover: {
+                    title: "Enable Automatic Failover",
+                    tip: "Automatically switch to another YouTube application when the current application's quota reaches the threshold.",
+                    type: "boolean",
+                    default: false,
+                    sortRank: 2
+                },
+                automaticFailoverThreshold: {
+                    title: "Automatic Failover Threshold (%)",
+                    tip: "The percentage of quota usage at which to trigger automatic failover (1-100).",
+                    type: "number",
+                    default: FAILOVER_THRESHOLD_DEFAULT,
+                    sortRank: 3
                 }
             }
         }

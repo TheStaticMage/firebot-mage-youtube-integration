@@ -232,6 +232,57 @@ While Google does not expose your actual quota usage via an API, it is possible 
 
 3. Review the "Queries per day" value.
 
+## Automatic Quota Failover
+
+The automatic quota failover feature allows the integration to seamlessly switch to another YouTube OAuth application when the current application's quota reaches a configured threshold. This helps ensure continuous operation without manual intervention.
+
+### How It Works
+
+1. When an application's quota usage crosses the configured threshold (e.g., from 94% to 95%), the failover is automatically triggered.
+2. The integration searches for eligible applications:
+   - Applications with 0 daily quota are excluded
+   - Applications at or above the threshold are excluded
+   - Remaining applications are sorted by a deterministic tie-breaker:
+     1. Lowest percentage of quota used
+     2. Largest daily quota total
+     3. Case-insensitive application name (alphabetical)
+     4. Application UUID
+3. The integration tests each candidate application by polling YouTube API for broadcast status.
+4. First application that successfully responds to poll is activated as the new active application.
+5. An "Automatic Failover" event is triggered with complete metadata about both applications.
+
+### Configuration
+
+1. Go to **Integrations** > **YouTube**.
+2. Click **Manage Settings**.
+3. Under **Advanced Settings**, check **Enable Automatic Failover**.
+4. Set **Automatic Failover Threshold (%)** to your desired threshold (default: 95, range: 1-100).
+5. Click **Save**.
+
+### Important Notes
+
+- The failover will only trigger when the quota crosses from below to above the threshold (e.g., 94% to 95%).
+- The integration will select the application with the lowest quota usage among eligible applications.
+- Applications with 0 daily quota are excluded from eligibility.
+- Each candidate application is tested by polling the YouTube API for broadcast status before activation.
+- If no eligible application can be activated, the current application remains active.
+- Failover runs asynchronously and does not block API calls.
+- Concurrent failover attempts are prevented; only the first attempt will execute.
+- When failover occurs, an "Automatic Failover" event is triggered with metadata about both applications, which you can use to create custom notifications.
+
+### Manual Control Alternative
+
+If the automatic failover method is too general for your needs, you can achieve finer-grained control by wiring up two Firebot events/effects:
+
+1. **Quota Threshold Crossed (YouTube)** event - Triggers when quota crosses any percentage threshold
+2. **Select Active YouTube Application** effect - Allows you to programmatically select which application to activate
+
+This combination lets you:
+
+- Fail over to specific applications based on which threshold was crossed
+- Implement more complex logic than simple automatic failover
+- Add delays, confirmations, or other effects between threshold detection and application switch
+
 ## Best Practices
 
 To make the most of your daily quota:

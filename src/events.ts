@@ -15,7 +15,8 @@ import { ApiCallType, ErrorCategory } from "./internal/error-constants";
 export enum ApplicationActivationCause {
     USER_CLICKED = "User clicked",
     AUTHORIZED_FIRST_APPLICATION = "Authorized first application",
-    CHANGED_BY_EFFECT = "Changed by effect"
+    CHANGED_BY_EFFECT = "Changed by effect",
+    AUTOMATIC_QUOTA_FAILOVER = "Automatic quota failover"
 }
 
 /**
@@ -224,6 +225,20 @@ export const YouTubeEventSource: EventSource = {
                 quotaConsumed: 102,
                 quotaLimit: 10000,
                 threshold: 1
+            }
+        },
+        {
+            id: "quota-failover",
+            name: "Automatic Failover (YouTube)",
+            description: "When the integration automatically fails over to another application",
+            cached: false,
+            manualMetadata: {
+                previousApplicationId: "12345678-1234-1234-1234-123456789012",
+                applicationId: "87654321-4321-4321-4321-210987654321",
+                applicationName: "New App",
+                quotaConsumed: 2500,
+                quotaLimit: 10000,
+                threshold: 95
             }
         }
     ]
