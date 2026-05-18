@@ -1,16 +1,13 @@
 import { ApplicationActivationCause } from "../events";
-import { YouTubeIntegration } from "../integration-singleton";
+import type { YouTubeIntegration } from "../integration-singleton";
 import { ApplicationManager } from "../internal/application-manager";
+
+jest.mock("fs");
 
 // Mock dependencies
 jest.mock("../main", () => ({
     firebot: {
         modules: {
-            fs: {
-                existsSync: jest.fn(),
-                readFileSync: jest.fn(),
-                writeFileSync: jest.fn()
-            },
             eventManager: {
                 registerEventSource: jest.fn(),
                 triggerEvent: jest.fn()
@@ -32,8 +29,12 @@ jest.mock("../util/datafile", () => ({
 jest.mock("../internal/application-utils", () => ({
     isApplicationReady: jest.fn(app => app.ready),
     updateApplicationReadyStatus: jest.fn(),
-    getApplicationStatusMessage: jest.fn(app => (app.ready ? "Ready" : "Awaiting connection")),
-    validateApplication: jest.fn(app => !!(app.id && app.name && app.clientId && app.clientSecret)),
+    getApplicationStatusMessage: jest.fn(app =>
+        (app.ready ? "Ready" : "Awaiting connection")
+    ),
+    validateApplication: jest.fn(
+        app => !!(app.id && app.name && app.clientId && app.clientSecret)
+    ),
     createApplication: jest.fn((id, name) => ({
         id,
         name,
@@ -68,7 +69,7 @@ describe("ApplicationManager - Active Application Switching", () => {
 
         const mockedMain = jest.requireMock("../main");
         mockLogger = mockedMain.logger;
-        mockFs = mockedMain.firebot.modules.fs;
+        mockFs = require("fs");
 
         applicationManager = new ApplicationManager();
         applicationManager.initPath();
@@ -113,8 +114,16 @@ describe("ApplicationManager - Active Application Switching", () => {
             };
 
             // Add applications
-            await applicationManager.addApplication(app1.name, app1.clientId, app1.clientSecret);
-            await applicationManager.addApplication(app2.name, app2.clientId, app2.clientSecret);
+            await applicationManager.addApplication(
+                app1.name,
+                app1.clientId,
+                app1.clientSecret
+            );
+            await applicationManager.addApplication(
+                app2.name,
+                app2.clientId,
+                app2.clientSecret
+            );
 
             // Get the app IDs
             const apps = Object.entries(applicationManager.getApplications());
@@ -129,7 +138,11 @@ describe("ApplicationManager - Active Application Switching", () => {
             }
 
             // Set app1 as active
-            await applicationManager.setActiveApplication(id1, ApplicationActivationCause.USER_CLICKED, false);
+            await applicationManager.setActiveApplication(
+                id1,
+                ApplicationActivationCause.USER_CLICKED,
+                false
+            );
 
             // Mock the integration module
             const mockIntegration = {
@@ -141,7 +154,11 @@ describe("ApplicationManager - Active Application Switching", () => {
             }));
 
             // Now switch to app2 while connected
-            await applicationManager.setActiveApplication(id2, ApplicationActivationCause.USER_CLICKED, true);
+            await applicationManager.setActiveApplication(
+                id2,
+                ApplicationActivationCause.USER_CLICKED,
+                true
+            );
 
             // Verify logger was called about switching
             expect(mockLogger.debug).toHaveBeenCalledWith(
@@ -170,7 +187,11 @@ describe("ApplicationManager - Active Application Switching", () => {
             };
 
             // Add application
-            await applicationManager.addApplication(app.name, app.clientId, app.clientSecret);
+            await applicationManager.addApplication(
+                app.name,
+                app.clientId,
+                app.clientSecret
+            );
 
             const apps = Object.entries(applicationManager.getApplications());
             const [appId] = apps[0];
@@ -183,11 +204,19 @@ describe("ApplicationManager - Active Application Switching", () => {
             }
 
             // Set as active
-            await applicationManager.setActiveApplication(appId, ApplicationActivationCause.USER_CLICKED, true);
+            await applicationManager.setActiveApplication(
+                appId,
+                ApplicationActivationCause.USER_CLICKED,
+                true
+            );
             mockLogger.debug.mockClear();
 
             // Set the same app as active again
-            await applicationManager.setActiveApplication(appId, ApplicationActivationCause.USER_CLICKED, true);
+            await applicationManager.setActiveApplication(
+                appId,
+                ApplicationActivationCause.USER_CLICKED,
+                true
+            );
 
             // Verify logger was NOT called about switching (no change)
             expect(mockLogger.debug).not.toHaveBeenCalledWith(
@@ -230,8 +259,16 @@ describe("ApplicationManager - Active Application Switching", () => {
             };
 
             // Add applications
-            await applicationManager.addApplication(app1.name, app1.clientId, app1.clientSecret);
-            await applicationManager.addApplication(app2.name, app2.clientId, app2.clientSecret);
+            await applicationManager.addApplication(
+                app1.name,
+                app1.clientId,
+                app1.clientSecret
+            );
+            await applicationManager.addApplication(
+                app2.name,
+                app2.clientId,
+                app2.clientSecret
+            );
 
             // Get the app IDs
             const apps = Object.entries(applicationManager.getApplications());
@@ -246,11 +283,19 @@ describe("ApplicationManager - Active Application Switching", () => {
             }
 
             // Set app1 as active
-            await applicationManager.setActiveApplication(id1, ApplicationActivationCause.USER_CLICKED, false);
+            await applicationManager.setActiveApplication(
+                id1,
+                ApplicationActivationCause.USER_CLICKED,
+                false
+            );
             mockLogger.debug.mockClear();
 
             // Switch to app2 while DISCONNECTED (connected=false)
-            await applicationManager.setActiveApplication(id2, ApplicationActivationCause.USER_CLICKED, false);
+            await applicationManager.setActiveApplication(
+                id2,
+                ApplicationActivationCause.USER_CLICKED,
+                false
+            );
 
             // Verify logger was NOT called about switching (disconnected)
             expect(mockLogger.debug).not.toHaveBeenCalledWith(
@@ -277,7 +322,7 @@ describe("YouTubeIntegration - Offline Monitoring", () => {
         };
 
         mockMultiAuthManager = {
-            getAccessToken: jest.fn(() => Promise.resolve('mock-access-token'))
+            getAccessToken: jest.fn(() => Promise.resolve("mock-access-token"))
         };
 
         mockQuotaManager = {
@@ -291,20 +336,20 @@ describe("YouTubeIntegration - Offline Monitoring", () => {
 
         mockApplicationManager = {
             getApplication: jest.fn(() => ({
-                id: 'test-app-id',
-                name: 'Test App',
+                id: "test-app-id",
+                name: "Test App",
                 ready: true
             })),
             getApplications: jest.fn(() => ({
-                'test-app-id': {
-                    id: 'test-app-id',
-                    name: 'Test App',
+                "test-app-id": {
+                    id: "test-app-id",
+                    name: "Test App",
                     ready: true
                 }
             })),
             getActiveApplication: jest.fn(() => ({
-                id: 'test-app-id',
-                name: 'Test App',
+                id: "test-app-id",
+                name: "Test App",
                 ready: true
             })),
             setActiveApplication: jest.fn()
@@ -332,12 +377,14 @@ describe("YouTubeIntegration - Offline Monitoring", () => {
         }));
 
         // Dynamically require YouTubeIntegration after mocking dependencies
-        const { YouTubeIntegration: IntegrationClass } = require("../integration-singleton");
+        const {
+            YouTubeIntegration: IntegrationClass
+        } = require("../integration-singleton");
 
         // Create real integration instance with mocked dependencies
         integration = new IntegrationClass();
         integration.connected = true;
-        integration["currentActiveApplicationId"] = 'test-app-id';
+        integration["currentActiveApplicationId"] = "test-app-id";
 
         // Spy on methods that are called by the failover manager
         jest.spyOn(integration, "switchActiveApplication" as any);
@@ -378,7 +425,9 @@ describe("YouTubeIntegration - Offline Monitoring", () => {
             integration["startOfflineMonitoring"]();
 
             // Assert
-            expect(integration["offlineMonitoringInterval"]).not.toBe(existingInterval);
+            expect(integration["offlineMonitoringInterval"]).not.toBe(
+                existingInterval
+            );
             clearInterval(existingInterval);
         });
 
@@ -404,7 +453,6 @@ describe("YouTubeIntegration - Offline Monitoring", () => {
             // Clean up
             integration["offlineMonitoringInProgress"] = false;
         });
-
     });
 
     describe("stopOfflineMonitoring", () => {
@@ -445,9 +493,9 @@ describe("YouTubeIntegration - Offline Monitoring", () => {
 
             // Assert
             expect(mockBroadcastManager.findLiveBroadcast).toHaveBeenCalledWith(
-                'mock-access-token',
+                "mock-access-token",
                 undefined,
-                'test-app-id'
+                "test-app-id"
             );
         });
 
@@ -476,10 +524,10 @@ describe("YouTubeIntegration - Offline Monitoring", () => {
         it("should handle broadcast found and call handleStreamOnline", async () => {
             // Arrange
             const broadcastInfo = {
-                liveChatId: 'test-live-chat-id',
-                broadcastId: 'test-broadcast-id',
-                channelId: 'test-channel-id',
-                privacyStatus: 'public'
+                liveChatId: "test-live-chat-id",
+                broadcastId: "test-broadcast-id",
+                channelId: "test-channel-id",
+                privacyStatus: "public"
             };
             mockBroadcastManager.findLiveBroadcast.mockResolvedValue(broadcastInfo);
 
@@ -487,10 +535,10 @@ describe("YouTubeIntegration - Offline Monitoring", () => {
             await integration["checkForBroadcast"]();
 
             // Assert - verify stream state was updated by handleStreamOnline
-            expect(integration["currentLiveChatId"]).toBe('test-live-chat-id');
-            expect(integration["currentBroadcastId"]).toBe('test-broadcast-id');
-            expect(integration["currentChannelId"]).toBe('test-channel-id');
-            expect(integration["currentBroadcastPrivacyStatus"]).toBe('public');
+            expect(integration["currentLiveChatId"]).toBe("test-live-chat-id");
+            expect(integration["currentBroadcastId"]).toBe("test-broadcast-id");
+            expect(integration["currentChannelId"]).toBe("test-channel-id");
+            expect(integration["currentBroadcastPrivacyStatus"]).toBe("public");
         });
 
         it("should not update state when no broadcast found", async () => {
@@ -514,10 +562,10 @@ describe("YouTubeIntegration - Offline Monitoring", () => {
         it("should stop offline monitoring", async () => {
             // Arrange
             const broadcastInfo = {
-                liveChatId: 'test-live-chat-id',
-                broadcastId: 'test-broadcast-id',
-                channelId: 'test-channel-id',
-                privacyStatus: 'public'
+                liveChatId: "test-live-chat-id",
+                broadcastId: "test-broadcast-id",
+                channelId: "test-channel-id",
+                privacyStatus: "public"
             };
             integration["startOfflineMonitoring"]();
             const intervalBefore = integration["offlineMonitoringInterval"];
@@ -535,20 +583,20 @@ describe("YouTubeIntegration - Offline Monitoring", () => {
         it("should update stream state", async () => {
             // Arrange
             const broadcastInfo = {
-                liveChatId: 'test-live-chat-id',
-                broadcastId: 'test-broadcast-id',
-                channelId: 'test-channel-id',
-                privacyStatus: 'public'
+                liveChatId: "test-live-chat-id",
+                broadcastId: "test-broadcast-id",
+                channelId: "test-channel-id",
+                privacyStatus: "public"
             };
 
             // Act
             await integration["handleStreamOnline"](broadcastInfo);
 
             // Assert
-            expect(integration["currentLiveChatId"]).toBe('test-live-chat-id');
-            expect(integration["currentBroadcastId"]).toBe('test-broadcast-id');
-            expect(integration["currentChannelId"]).toBe('test-channel-id');
-            expect(integration["currentBroadcastPrivacyStatus"]).toBe('public');
+            expect(integration["currentLiveChatId"]).toBe("test-live-chat-id");
+            expect(integration["currentBroadcastId"]).toBe("test-broadcast-id");
+            expect(integration["currentChannelId"]).toBe("test-channel-id");
+            expect(integration["currentBroadcastPrivacyStatus"]).toBe("public");
             expect(integration["isStreamLive"]).toBe(true);
         });
 
@@ -556,17 +604,17 @@ describe("YouTubeIntegration - Offline Monitoring", () => {
             // Arrange
             const broadcastInfo = {
                 liveChatId: null,
-                broadcastId: 'test-broadcast-id',
-                channelId: 'test-channel-id',
-                privacyStatus: 'public'
+                broadcastId: "test-broadcast-id",
+                channelId: "test-channel-id",
+                privacyStatus: "public"
             };
 
             // Act
             await integration["handleStreamOnline"](broadcastInfo);
 
             // Assert - verify stream state was updated
-            expect(integration["currentBroadcastId"]).toBe('test-broadcast-id');
-            expect(integration["currentChannelId"]).toBe('test-channel-id');
+            expect(integration["currentBroadcastId"]).toBe("test-broadcast-id");
+            expect(integration["currentChannelId"]).toBe("test-channel-id");
             // liveChatId should still be null (no chat streaming started)
             expect(integration["currentLiveChatId"]).toBeNull();
         });

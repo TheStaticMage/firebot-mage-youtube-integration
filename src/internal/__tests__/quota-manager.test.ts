@@ -3,12 +3,12 @@ import { DateTime } from "luxon";
 import { firebot, logger } from "../../main";
 import { QuotaManager } from "../quota-manager";
 
+jest.mock("fs");
+
 // Mock the logger and firebot modules
 jest.mock("../../main", () => ({
     firebot: {
         modules: {
-            fs: require("fs"),
-            path: require("path"),
             eventManager: {
                 triggerEvent: jest.fn()
             }
@@ -48,6 +48,14 @@ describe("QuotaManager", () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+
+        // Default mock fs behavior: file does not exist, no real I/O
+        const mockFs = require("fs");
+        mockFs.existsSync.mockReturnValue(false);
+        mockFs.readFileSync.mockReturnValue("{}");
+        mockFs.writeFileSync.mockReturnValue(undefined);
+        mockFs.mkdirSync.mockReturnValue(undefined);
+
         // Reset DateTime.now mock to use real implementation by default
         const realNow = DateTime.now();
         jest.spyOn(DateTime, "now").mockReturnValue(realNow);
@@ -61,78 +69,104 @@ describe("QuotaManager", () => {
     describe("calculateNextMidnightPT", () => {
         it("should calculate next midnight PT when called during daytime (non-DST)", () => {
             // Set to January 15, 2024 at 2:00 PM PST (UTC-8, no DST)
-            const mockNow = DateTime.fromISO("2024-01-15T14:00:00", { zone: "America/Los_Angeles" });
+            const mockNow = DateTime.fromISO("2024-01-15T14:00:00", {
+                zone: "America/Los_Angeles"
+            });
             jest.spyOn(DateTime, "now").mockReturnValue(mockNow as any);
 
             const result = quotaManager["calculateNextMidnightPT"]();
 
             // Should return next midnight (January 16, 2024 00:00 PST)
-            const expected = DateTime.fromISO("2024-01-16T00:00:00", { zone: "America/Los_Angeles" }).toMillis();
+            const expected = DateTime.fromISO("2024-01-16T00:00:00", {
+                zone: "America/Los_Angeles"
+            }).toMillis();
             expect(result).toBe(expected);
         });
 
         it("should calculate next midnight PT when called after midnight (non-DST)", () => {
             // Set to January 15, 2024 at 1:30 AM PST (UTC-8, no DST)
-            const mockNow = DateTime.fromISO("2024-01-15T01:30:00", { zone: "America/Los_Angeles" });
+            const mockNow = DateTime.fromISO("2024-01-15T01:30:00", {
+                zone: "America/Los_Angeles"
+            });
             jest.spyOn(DateTime, "now").mockReturnValue(mockNow as any);
 
             const result = quotaManager["calculateNextMidnightPT"]();
 
             // Should return next midnight (January 16, 2024 00:00 PST)
-            const expected = DateTime.fromISO("2024-01-16T00:00:00", { zone: "America/Los_Angeles" }).toMillis();
+            const expected = DateTime.fromISO("2024-01-16T00:00:00", {
+                zone: "America/Los_Angeles"
+            }).toMillis();
             expect(result).toBe(expected);
         });
 
         it("should calculate next midnight PT during DST (daylight saving time)", () => {
             // Set to June 15, 2024 at 2:00 PM PDT (UTC-7, DST active)
-            const mockNow = DateTime.fromISO("2024-06-15T14:00:00", { zone: "America/Los_Angeles" });
+            const mockNow = DateTime.fromISO("2024-06-15T14:00:00", {
+                zone: "America/Los_Angeles"
+            });
             jest.spyOn(DateTime, "now").mockReturnValue(mockNow as any);
 
             const result = quotaManager["calculateNextMidnightPT"]();
 
             // Should return next midnight (June 16, 2024 00:00 PDT)
-            const expected = DateTime.fromISO("2024-06-16T00:00:00", { zone: "America/Los_Angeles" }).toMillis();
+            const expected = DateTime.fromISO("2024-06-16T00:00:00", {
+                zone: "America/Los_Angeles"
+            }).toMillis();
             expect(result).toBe(expected);
         });
 
         it("should calculate next midnight PT during DST at 11:59 PM", () => {
             // Set to June 15, 2024 at 11:59 PM PDT (UTC-7, DST active)
-            const mockNow = DateTime.fromISO("2024-06-15T23:59:00", { zone: "America/Los_Angeles" });
+            const mockNow = DateTime.fromISO("2024-06-15T23:59:00", {
+                zone: "America/Los_Angeles"
+            });
             jest.spyOn(DateTime, "now").mockReturnValue(mockNow as any);
 
             const result = quotaManager["calculateNextMidnightPT"]();
 
             // Should return next midnight (June 16, 2024 00:00 PDT)
-            const expected = DateTime.fromISO("2024-06-16T00:00:00", { zone: "America/Los_Angeles" }).toMillis();
+            const expected = DateTime.fromISO("2024-06-16T00:00:00", {
+                zone: "America/Los_Angeles"
+            }).toMillis();
             expect(result).toBe(expected);
         });
 
         it("should calculate correctly at DST transition (spring forward)", () => {
             // Set to March 10, 2024 at 2:30 AM PST (before DST transition at 2:00 AM -> 3:00 AM)
-            const mockNow = DateTime.fromISO("2024-03-10T02:30:00", { zone: "America/Los_Angeles" });
+            const mockNow = DateTime.fromISO("2024-03-10T02:30:00", {
+                zone: "America/Los_Angeles"
+            });
             jest.spyOn(DateTime, "now").mockReturnValue(mockNow as any);
 
             const result = quotaManager["calculateNextMidnightPT"]();
 
             // Should return next midnight (March 11, 2024 00:00 PDT, which is UTC-7 after spring forward)
-            const expected = DateTime.fromISO("2024-03-11T00:00:00", { zone: "America/Los_Angeles" }).toMillis();
+            const expected = DateTime.fromISO("2024-03-11T00:00:00", {
+                zone: "America/Los_Angeles"
+            }).toMillis();
             expect(result).toBe(expected);
         });
 
         it("should calculate correctly at DST transition (fall back)", () => {
             // Set to November 3, 2024 at 1:30 AM PDT (before DST transition at 2:00 AM -> 1:00 AM)
-            const mockNow = DateTime.fromISO("2024-11-03T01:30:00", { zone: "America/Los_Angeles" });
+            const mockNow = DateTime.fromISO("2024-11-03T01:30:00", {
+                zone: "America/Los_Angeles"
+            });
             jest.spyOn(DateTime, "now").mockReturnValue(mockNow as any);
 
             const result = quotaManager["calculateNextMidnightPT"]();
 
             // Should return next midnight (November 4, 2024 00:00 PST, which is UTC-8 after fall back)
-            const expected = DateTime.fromISO("2024-11-04T00:00:00", { zone: "America/Los_Angeles" }).toMillis();
+            const expected = DateTime.fromISO("2024-11-04T00:00:00", {
+                zone: "America/Los_Angeles"
+            }).toMillis();
             expect(result).toBe(expected);
         });
 
         it("should return milliseconds in the future", () => {
-            const mockNow = DateTime.fromISO("2024-06-15T14:00:00", { zone: "America/Los_Angeles" });
+            const mockNow = DateTime.fromISO("2024-06-15T14:00:00", {
+                zone: "America/Los_Angeles"
+            });
             jest.spyOn(DateTime, "now").mockReturnValue(mockNow as any);
 
             const result = quotaManager["calculateNextMidnightPT"]();
@@ -142,7 +176,9 @@ describe("QuotaManager", () => {
         });
 
         it("should return a timestamp approximately 24 hours in the future", () => {
-            const mockNow = DateTime.fromISO("2024-06-15T14:00:00", { zone: "America/Los_Angeles" });
+            const mockNow = DateTime.fromISO("2024-06-15T14:00:00", {
+                zone: "America/Los_Angeles"
+            });
             jest.spyOn(DateTime, "now").mockReturnValue(mockNow as any);
 
             const result = quotaManager["calculateNextMidnightPT"]();
@@ -161,7 +197,9 @@ describe("QuotaManager", () => {
             // Create a new quotaManager AFTER mocking DateTime and Date.now to a fixed time
             // This ensures calculateNextMidnightPT is called with the mocked time
             // and Date.now() used in checkAndResetIfNeeded is also consistent
-            const mockNow = DateTime.fromISO("2024-06-15T14:00:00", { zone: "America/Los_Angeles" });
+            const mockNow = DateTime.fromISO("2024-06-15T14:00:00", {
+                zone: "America/Los_Angeles"
+            });
             jest.spyOn(DateTime, "now").mockReturnValue(mockNow as any);
             jest.spyOn(Date, "now").mockReturnValue(mockNow.toMillis());
             quotaManager = new QuotaManager();
@@ -312,7 +350,9 @@ describe("QuotaManager", () => {
             // Create a new quotaManager AFTER mocking DateTime and Date.now to a fixed time
             // This ensures calculateNextMidnightPT is called with the mocked time
             // and Date.now() used in checkAndResetIfNeeded is also consistent
-            const mockNow = DateTime.fromISO("2024-06-15T14:00:00", { zone: "America/Los_Angeles" });
+            const mockNow = DateTime.fromISO("2024-06-15T14:00:00", {
+                zone: "America/Los_Angeles"
+            });
             jest.spyOn(DateTime, "now").mockReturnValue(mockNow as any);
             jest.spyOn(Date, "now").mockReturnValue(mockNow.toMillis());
             quotaManager = new QuotaManager();
@@ -349,7 +389,9 @@ describe("QuotaManager", () => {
             // Create a new quotaManager AFTER mocking DateTime and Date.now to a fixed time
             // This ensures calculateNextMidnightPT is called with the mocked time
             // and Date.now() used in checkAndResetIfNeeded is also consistent
-            const mockNow = DateTime.fromISO("2024-06-15T14:00:00", { zone: "America/Los_Angeles" });
+            const mockNow = DateTime.fromISO("2024-06-15T14:00:00", {
+                zone: "America/Los_Angeles"
+            });
             jest.spyOn(DateTime, "now").mockReturnValue(mockNow as any);
             jest.spyOn(Date, "now").mockReturnValue(mockNow.toMillis());
             quotaManager = new QuotaManager();
@@ -403,7 +445,9 @@ describe("QuotaManager", () => {
 
         it("should reset quota when midnight PT has passed", () => {
             // Start with a fixed time in the middle of the day
-            const mockNow = DateTime.fromISO("2024-06-15T14:00:00", { zone: "America/Los_Angeles" });
+            const mockNow = DateTime.fromISO("2024-06-15T14:00:00", {
+                zone: "America/Los_Angeles"
+            });
             jest.spyOn(DateTime, "now").mockReturnValue(mockNow as any);
             jest.spyOn(Date, "now").mockReturnValue(mockNow.toMillis());
             quotaManager = new QuotaManager();
@@ -428,7 +472,9 @@ describe("QuotaManager", () => {
 
         it("should not reset quota when midnight PT has not passed", () => {
             // Start with a fixed time in the middle of the day
-            const mockNow = DateTime.fromISO("2024-06-15T14:00:00", { zone: "America/Los_Angeles" });
+            const mockNow = DateTime.fromISO("2024-06-15T14:00:00", {
+                zone: "America/Los_Angeles"
+            });
             jest.spyOn(DateTime, "now").mockReturnValue(mockNow as any);
             jest.spyOn(Date, "now").mockReturnValue(mockNow.toMillis());
             quotaManager = new QuotaManager();
@@ -471,16 +517,23 @@ describe("QuotaManager", () => {
             quotaLimit: number;
             threshold: number;
         }[] => {
-            const triggerEvent = (firebot.modules.eventManager.triggerEvent as jest.Mock);
+            const triggerEvent = firebot.modules.eventManager
+                .triggerEvent as jest.Mock;
             return triggerEvent.mock.calls
-                .filter((call: [string, string, Record<string, unknown>]) => call[1] === "quota-threshold-crossed")
-                .map((call: [string, string, Record<string, unknown>]) => call[2] as unknown as {
-                    applicationId: string;
-                    applicationName: string;
-                    quotaConsumed: number;
-                    quotaLimit: number;
-                    threshold: number;
-                });
+                .filter(
+                    (call: [string, string, Record<string, unknown>]) =>
+                        call[1] === "quota-threshold-crossed"
+                )
+                .map(
+                    (call: [string, string, Record<string, unknown>]) =>
+                        call[2] as unknown as {
+                            applicationId: string;
+                            applicationName: string;
+                            quotaConsumed: number;
+                            quotaLimit: number;
+                            threshold: number;
+                        }
+                );
         };
 
         // Helper to clear previously recorded events before testing a specific action
@@ -490,7 +543,9 @@ describe("QuotaManager", () => {
 
         beforeEach(() => {
             jest.useFakeTimers();
-            const mockNow = DateTime.fromISO("2024-06-15T14:00:00", { zone: "America/Los_Angeles" });
+            const mockNow = DateTime.fromISO("2024-06-15T14:00:00", {
+                zone: "America/Los_Angeles"
+            });
             jest.spyOn(DateTime, "now").mockReturnValue(mockNow as any);
             jest.spyOn(Date, "now").mockReturnValue(mockNow.toMillis());
             // Clear firebot eventManager mock calls to prevent event accumulation across tests
@@ -659,7 +714,7 @@ describe("QuotaManager", () => {
             });
         });
 
-        it ("should clamp threshold to 100% and not emit when at 100%", () => {
+        it("should clamp threshold to 100% and not emit when at 100%", () => {
             // Start at 10000/10000 = 100%
             quotaManager.recordApiCall("app1", "streamList", 10000);
             clearTriggeredEvents(); // Clear events from setup (thresholds 1-100)
@@ -671,7 +726,7 @@ describe("QuotaManager", () => {
             expect(events).toHaveLength(0);
         });
 
-        it ("should ignore negative quota usage", () => {
+        it("should ignore negative quota usage", () => {
             // Start at 500/10000 = 5%
             quotaManager.recordApiCall("app1", "streamList", 500);
             clearTriggeredEvents(); // Clear events from setup (thresholds 1-5)
@@ -683,7 +738,7 @@ describe("QuotaManager", () => {
             expect(events).toHaveLength(0);
         });
 
-        it ("should not have divide by zero error with zero daily quota", () => {
+        it("should not have divide by zero error with zero daily quota", () => {
             // Override mock to return zero daily quota
             mockGetApplication.mockImplementation((appId: string) => ({
                 id: appId,
@@ -729,7 +784,9 @@ describe("QuotaManager", () => {
                 quotaManager.recordApiCall("app1", "streamList", 950);
 
                 expect(mockAttemptQuotaFailover).toHaveBeenCalledWith("app1");
-                expect(logger.info).toHaveBeenCalledWith("Failover threshold 95% reached for application app1, attempting automatic failover");
+                expect(logger.info).toHaveBeenCalledWith(
+                    "Failover threshold 95% reached for application app1, attempting automatic failover"
+                );
             });
 
             it("should not trigger failover when threshold is disabled", () => {
@@ -791,7 +848,9 @@ describe("QuotaManager", () => {
         it("should return settings from integration", () => {
             const expectedSettings = { some: "settings" };
             mockIntegration.getSettings.mockReturnValue(expectedSettings);
-            const quotaManagerWithIntegration = new QuotaManager(mockIntegration as any);
+            const quotaManagerWithIntegration = new QuotaManager(
+                mockIntegration as any
+            );
 
             const result = quotaManagerWithIntegration.getSettings();
 

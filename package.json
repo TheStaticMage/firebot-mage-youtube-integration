@@ -1,7 +1,7 @@
 {
     "name": "firebot-mage-youtube-integration",
     "scriptOutputName": "firebot-mage-youtube-integration",
-    "version": "0.0.4",
+    "version": "0.0.5",
     "description": "A YouTube integration for Firebot",
     "main": "",
     "scripts": {
