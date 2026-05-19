@@ -45,9 +45,5 @@ export function triggerQuotaThresholdCrossed(eventData: YouTubeQuotaThresholdCro
 
     logger.debug(`Triggering quota-threshold-crossed event for application ${eventData.applicationId}, threshold ${eventData.threshold}`);
 
-    eventManager.triggerEvent(
-        IntegrationConstants.INTEGRATION_ID,
-        "quota-threshold-crossed",
-        eventData as unknown as Record<string, unknown>
-    );
+    eventManager.triggerEvent(IntegrationConstants.INTEGRATION_ID, "quota-threshold-crossed", eventData as unknown as Record<string, unknown>);
 }

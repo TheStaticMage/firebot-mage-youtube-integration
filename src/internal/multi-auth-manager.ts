@@ -109,17 +109,13 @@ export class MultiAuthManager {
 
         const redirectUri = this.getRedirectUri();
 
-        const oauth2Client = new OAuth2Client(
-            app.clientId,
-            app.clientSecret,
-            redirectUri
-        );
+        const oauth2Client = new OAuth2Client(app.clientId, app.clientSecret, redirectUri);
 
         const authUrl = oauth2Client.generateAuthUrl({
             // eslint-disable-next-line camelcase
-            access_type: 'offline',
+            access_type: "offline",
             scope: this.getYouTubeScopes(),
-            prompt: 'consent', // Force consent to get refresh token
+            prompt: "consent", // Force consent to get refresh token
             state // Include state parameter for CSRF protection
         });
 
@@ -173,11 +169,7 @@ export class MultiAuthManager {
 
         const redirectUri = this.getRedirectUri();
 
-        const oauth2Client = new OAuth2Client(
-            app.clientId,
-            app.clientSecret,
-            redirectUri
-        );
+        const oauth2Client = new OAuth2Client(app.clientId, app.clientSecret, redirectUri);
 
         try {
             // Exchange code for tokens
@@ -220,13 +212,10 @@ export class MultiAuthManager {
 
             logger.info(`Application ${applicationId} authorized successfully`);
 
-            res.status(200).send(
-                `<p>YouTube application "${app.name}" authorized! You can close this tab.</p>`
-            );
+            res.status(200).send(`<p>YouTube application "${app.name}" authorized! You can close this tab.</p>`);
 
             // Return the authorized application ID so the caller can set it as active if needed
             return applicationId;
-
         } catch (error: any) {
             logger.error(`Failed to exchange code for tokens for application ${applicationId}: ${error.message}`);
             updateApplicationReadyStatus(app, false);
@@ -305,11 +294,7 @@ export class MultiAuthManager {
             }
 
             const { eventManager } = firebot.modules;
-            eventManager.triggerEvent(
-                IntegrationConstants.INTEGRATION_ID,
-                "api-error",
-                errorMetadata as unknown as Record<string, unknown>
-            );
+            eventManager.triggerEvent(IntegrationConstants.INTEGRATION_ID, "api-error", errorMetadata as unknown as Record<string, unknown>);
 
             // Notify UI of status change
             this.notifyApplicationStatusChange(applicationId, app);
@@ -370,11 +355,7 @@ export class MultiAuthManager {
      * Get YouTube OAuth scopes
      */
     private getYouTubeScopes(): string[] {
-        return [
-            'https://www.googleapis.com/auth/youtube',
-            'https://www.googleapis.com/auth/youtube.force-ssl',
-            'https://www.googleapis.com/auth/userinfo.email'
-        ];
+        return ["https://www.googleapis.com/auth/youtube", "https://www.googleapis.com/auth/youtube.force-ssl", "https://www.googleapis.com/auth/userinfo.email"];
     }
 
     /**
@@ -411,6 +392,7 @@ export class MultiAuthManager {
      */
     private notifyApplicationStatusChange(applicationId: string, app: YouTubeOAuthApplication): void {
         try {
+            // biome-ignore lint/style/noCommonJs: Circular dependency
             const { integration } = require("../integration-singleton");
             if (integration && integration.notifyApplicationStatusChange) {
                 integration.notifyApplicationStatusChange(applicationId, app);
@@ -507,10 +489,7 @@ class ApplicationAuthManager {
             throw new Error("No refresh token available");
         }
 
-        const oauth2Client = new OAuth2Client(
-            application.clientId,
-            application.clientSecret
-        );
+        const oauth2Client = new OAuth2Client(application.clientId, application.clientSecret);
 
         oauth2Client.setCredentials({
             // eslint-disable-next-line camelcase
@@ -522,19 +501,15 @@ class ApplicationAuthManager {
             const { credentials } = await oauth2Client.refreshAccessToken();
 
             // Log the full refresh response payload (with partial redaction for security)
-            const redactedAccessToken = credentials.access_token
-                ? `${credentials.access_token.substring(0, 4)}...${credentials.access_token.substring(credentials.access_token.length - 4)}`
-                : undefined;
-            const redactedRefreshToken = credentials.refresh_token
-                ? `${credentials.refresh_token.substring(0, 4)}...${credentials.refresh_token.substring(credentials.refresh_token.length - 4)}`
-                : undefined;
+            const redactedAccessToken = credentials.access_token ? `${credentials.access_token.substring(0, 4)}...${credentials.access_token.substring(credentials.access_token.length - 4)}` : undefined;
+            const redactedRefreshToken = credentials.refresh_token ? `${credentials.refresh_token.substring(0, 4)}...${credentials.refresh_token.substring(credentials.refresh_token.length - 4)}` : undefined;
             logger.debug(
                 `Token refresh response for application ${this.applicationId}: ` +
-                `access_token=${redactedAccessToken || 'missing'}, ` +
-                `refresh_token=${redactedRefreshToken || 'not rotated'}, ` +
-                `expiry_date=${credentials.expiry_date ? new Date(credentials.expiry_date).toISOString() : 'not set'}, ` +
-                `token_type=${credentials.token_type || 'not set'}, ` +
-                `scope=${credentials.scope || 'not set'}`
+                    `access_token=${redactedAccessToken || "missing"}, ` +
+                    `refresh_token=${redactedRefreshToken || "not rotated"}, ` +
+                    `expiry_date=${credentials.expiry_date ? new Date(credentials.expiry_date).toISOString() : "not set"}, ` +
+                    `token_type=${credentials.token_type || "not set"}, ` +
+                    `scope=${credentials.scope || "not set"}`
             );
 
             // Cache access token in memory for performance
@@ -551,14 +526,10 @@ class ApplicationAuthManager {
                 tokenExpiresAt: this.tokenExpiresAt
             });
 
-            logger.debug(
-                `Access token refreshed for application ${this.applicationId}. ` +
-                `Valid until: ${new Date(this.tokenExpiresAt).toISOString()}${
-                    tokenChanged ? ' (refresh token rotated)' : ''}`
-            );
+            logger.debug(`Access token refreshed for application ${this.applicationId}. ` + `Valid until: ${new Date(this.tokenExpiresAt).toISOString()}${tokenChanged ? " (refresh token rotated)" : ""}`);
         } catch (error: any) {
             // Check if refresh token is invalid
-            if (error.message?.includes('invalid_grant') || error.code === 401) {
+            if (error.message?.includes("invalid_grant") || error.code === 401) {
                 // Clear the invalid refresh token from disk
                 await this.applicationManager.updateApplication(this.applicationId, {
                     refreshToken: ""

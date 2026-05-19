@@ -15,11 +15,7 @@ export function triggerStreamOnline(): void {
 
     logger.debug("Triggering stream-online event");
 
-    eventManager.triggerEvent(
-        IntegrationConstants.INTEGRATION_ID,
-        "stream-online",
-        {} as unknown as Record<string, unknown>
-    );
+    eventManager.triggerEvent(IntegrationConstants.INTEGRATION_ID, "stream-online", {} as unknown as Record<string, unknown>);
 }
 
 /**
@@ -30,9 +26,5 @@ export function triggerStreamOffline(): void {
 
     logger.debug("Triggering stream-offline event");
 
-    eventManager.triggerEvent(
-        IntegrationConstants.INTEGRATION_ID,
-        "stream-offline",
-        {} as unknown as Record<string, unknown>
-    );
+    eventManager.triggerEvent(IntegrationConstants.INTEGRATION_ID, "stream-offline", {} as unknown as Record<string, unknown>);
 }

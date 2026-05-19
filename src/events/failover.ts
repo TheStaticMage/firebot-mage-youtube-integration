@@ -15,9 +15,5 @@ export function triggerQuotaFailover(eventData: YouTubeFailoverEvent): void {
 
     logger.debug(`Triggering quota-failover event`);
 
-    eventManager.triggerEvent(
-        IntegrationConstants.INTEGRATION_ID,
-        "quota-failover",
-        eventData as unknown as Record<string, unknown>
-    );
+    eventManager.triggerEvent(IntegrationConstants.INTEGRATION_ID, "quota-failover", eventData as unknown as Record<string, unknown>);
 }

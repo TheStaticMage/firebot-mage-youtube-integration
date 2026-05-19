@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { YouTubeMessageTypes } from '../../constants';
-import { LiveChatMessage } from '../../generated/proto/stream_list';
-import { firebot } from '../../main';
-import { SAMPLE_YOUTUBE_TEXT_MESSAGE } from '../../types/sample-payloads';
-import { ChatManager } from '../chat-manager';
-import { QuotaManager } from '../quota-manager';
+import { YouTubeMessageTypes } from "../../constants";
+import { LiveChatMessage } from "../../generated/proto/stream_list";
+import { firebot } from "../../main";
+import { SAMPLE_YOUTUBE_TEXT_MESSAGE } from "../../types/sample-payloads";
+import { ChatManager } from "../chat-manager";
+import { QuotaManager } from "../quota-manager";
 
 // Mock the firebot modules
-jest.mock('../../main', () => ({
+jest.mock("../../main", () => ({
     firebot: {
         modules: {
             eventManager: {
@@ -21,14 +21,14 @@ jest.mock('../../main', () => ({
 }));
 
 // Mock command handler
-jest.mock('../command', () => ({
+jest.mock("../command", () => ({
     commandHandler: {
         handleChatMessage: jest.fn(() => Promise.resolve(false)) // Mock returns false (not a command)
     }
 }));
 
 // Mock viewer-arrived event trigger
-jest.mock('../../events/viewer-arrived', () => ({
+jest.mock("../../events/viewer-arrived", () => ({
     triggerViewerArrived: jest.fn()
 }));
 
@@ -49,7 +49,7 @@ const mockQuotaManager = {
 
 // Mock multi-auth manager
 const mockMultiAuthManager = {
-    getAccessToken: jest.fn(() => Promise.resolve('mock-access-token'))
+    getAccessToken: jest.fn(() => Promise.resolve("mock-access-token"))
 } as any;
 
 // Mock integration
@@ -60,12 +60,12 @@ const mockIntegration = {
     handleStreamOffline: jest.fn(),
     getApplicationsStorage: jest.fn(() => ({
         applications: {
-            'test-app-id': {
-                id: 'test-app-id',
-                name: 'Test App',
-                clientId: 'test-client-id',
-                clientSecret: 'test-client-secret',
-                refreshToken: 'test-refresh-token',
+            "test-app-id": {
+                id: "test-app-id",
+                name: "Test App",
+                clientId: "test-client-id",
+                clientSecret: "test-client-secret",
+                refreshToken: "test-refresh-token",
                 quotaSettings: {
                     dailyQuota: 10000,
                     maxStreamHours: 8,
@@ -73,10 +73,10 @@ const mockIntegration = {
                     customPollingDelaySeconds: -1
                 },
                 ready: true,
-                status: 'Ready'
+                status: "Ready"
             }
         },
-        activeApplicationId: 'test-app-id'
+        activeApplicationId: "test-app-id"
     }))
 } as any;
 
@@ -90,23 +90,16 @@ const mockUserManager = {
     setViewerRoles: jest.fn(() => Promise.resolve(true))
 } as any;
 
-describe('ChatManager handleMessage', () => {
+describe("ChatManager handleMessage", () => {
     let chatManager: ChatManager;
 
     beforeEach(() => {
         jest.clearAllMocks();
 
-        chatManager = new ChatManager(
-            mockLogger,
-            mockQuotaManager,
-            mockMultiAuthManager,
-            mockClientFactory,
-            mockIntegration,
-            mockUserManager
-        );
+        chatManager = new ChatManager(mockLogger, mockQuotaManager, mockMultiAuthManager, mockClientFactory, mockIntegration, mockUserManager);
     });
 
-    it('should process a text message and trigger event with correct metadata', async () => {
+    it("should process a text message and trigger event with correct metadata", async () => {
         // Arrange
         const sampleMessage = {
             ...SAMPLE_YOUTUBE_TEXT_MESSAGE,
@@ -118,16 +111,16 @@ describe('ChatManager handleMessage', () => {
 
         const expectedMetadata = {
             eventSource: {
-                id: 'mage-youtube-integration'
+                id: "mage-youtube-integration"
             },
-            platform: 'youtube',
-            username: 'John Viewer@youtube',
-            userId: 'yUCrDkAvwXgOFDjlW9wqyYeIQ',
-            userDisplayName: 'John Viewer',
+            platform: "youtube",
+            username: "John Viewer@youtube",
+            userId: "yUCrDkAvwXgOFDjlW9wqyYeIQ",
+            userDisplayName: "John Viewer",
             twitchUserRoles: [],
-            messageText: 'Great stream!',
-            messageId: 'MTU0ODEyMzQ1NjczODk2NzUzNDQ.CtHSEg',
-            profilePicUrl: 'https://yt3.ggpht.com/-v0sQRFezryc/AAAAAAAAAAI/AAAAAAAAAAA/OixOH_nQN3s/s28-c-k-no-mo-rj-c0xffffff/photo.jpg',
+            messageText: "Great stream!",
+            messageId: "MTU0ODEyMzQ1NjczODk2NzUzNDQ.CtHSEg",
+            profilePicUrl: "https://yt3.ggpht.com/-v0sQRFezryc/AAAAAAAAAAI/AAAAAAAAAAA/OixOH_nQN3s/s28-c-k-no-mo-rj-c0xffffff/photo.jpg",
             chatMessage: expect.any(Object)
         };
 
@@ -135,28 +128,17 @@ describe('ChatManager handleMessage', () => {
         await (chatManager as any).handleMessage(sampleMessage);
 
         // Assert
-        expect(firebot.modules.eventManager.triggerEvent).toHaveBeenCalledWith(
-            'mage-youtube-integration',
-            'chat-message',
-            expectedMetadata as unknown as Record<string, unknown>
-        );
+        expect(firebot.modules.eventManager.triggerEvent).toHaveBeenCalledWith("mage-youtube-integration", "chat-message", expectedMetadata as unknown as Record<string, unknown>);
 
         // Verify chat feed message was sent
-        expect(firebot.modules.frontendCommunicator.send).toHaveBeenCalledWith(
-            'twitch:chat:message',
-            expect.any(Object)
-        );
+        expect(firebot.modules.frontendCommunicator.send).toHaveBeenCalledWith("twitch:chat:message", expect.any(Object));
 
         // Verify logging
-        expect(mockLogger.info).toHaveBeenCalledWith(
-            expect.stringContaining('[YouTube Chat] John Viewer@youtube: Great stream!')
-        );
-        expect(mockLogger.debug).toHaveBeenCalledWith(
-            expect.stringContaining('User roles:')
-        );
+        expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining("[YouTube Chat] John Viewer@youtube: Great stream!"));
+        expect(mockLogger.debug).toHaveBeenCalledWith(expect.stringContaining("User roles:"));
     });
 
-    it('should update user statistics when processing a message', async () => {
+    it("should update user statistics when processing a message", async () => {
         // Arrange
         jest.clearAllMocks();
         const sampleMessage = {
@@ -171,12 +153,12 @@ describe('ChatManager handleMessage', () => {
         await (chatManager as any).handleMessage(sampleMessage);
 
         // Assert
-        expect(mockUserManager.updateLastSeenTime).toHaveBeenCalledWith('UCrDkAvwXgOFDjlW9wqyYeIQ');
-        expect(mockUserManager.incrementChatMessageCount).toHaveBeenCalledWith('UCrDkAvwXgOFDjlW9wqyYeIQ');
-        expect(mockUserManager.setViewerRoles).toHaveBeenCalledWith('UCrDkAvwXgOFDjlW9wqyYeIQ', []);
+        expect(mockUserManager.updateLastSeenTime).toHaveBeenCalledWith("UCrDkAvwXgOFDjlW9wqyYeIQ");
+        expect(mockUserManager.incrementChatMessageCount).toHaveBeenCalledWith("UCrDkAvwXgOFDjlW9wqyYeIQ");
+        expect(mockUserManager.setViewerRoles).toHaveBeenCalledWith("UCrDkAvwXgOFDjlW9wqyYeIQ", []);
     });
 
-    it('should not process non-text messages', async () => {
+    it("should not process non-text messages", async () => {
         // Arrange
         const nonTextMessage = {
             ...SAMPLE_YOUTUBE_TEXT_MESSAGE,
@@ -194,16 +176,16 @@ describe('ChatManager handleMessage', () => {
         expect(firebot.modules.frontendCommunicator.send).not.toHaveBeenCalled();
     });
 
-    it('should not process messages with empty text', async () => {
+    it("should not process messages with empty text", async () => {
         // Arrange
         const emptyMessage = {
             ...SAMPLE_YOUTUBE_TEXT_MESSAGE,
             snippet: {
                 ...SAMPLE_YOUTUBE_TEXT_MESSAGE.snippet,
                 type: YouTubeMessageTypes.TEXT_MESSAGE_EVENT,
-                displayMessage: '',
+                displayMessage: "",
                 textMessageDetails: {
-                    messageText: ''
+                    messageText: ""
                 }
             }
         } as unknown as LiveChatMessage;
@@ -216,7 +198,7 @@ describe('ChatManager handleMessage', () => {
         expect(firebot.modules.frontendCommunicator.send).not.toHaveBeenCalled();
     });
 
-    it('should handle moderator role correctly', async () => {
+    it("should handle moderator role correctly", async () => {
         // Arrange
         const moderatorMessage = {
             ...SAMPLE_YOUTUBE_TEXT_MESSAGE,
@@ -230,22 +212,22 @@ describe('ChatManager handleMessage', () => {
             }
         } as unknown as LiveChatMessage;
 
-        const expectedRoles = ['mod'];
+        const expectedRoles = ["mod"];
 
         // Act
         await (chatManager as any).handleMessage(moderatorMessage);
 
         // Assert
         expect(firebot.modules.eventManager.triggerEvent).toHaveBeenCalledWith(
-            'mage-youtube-integration',
-            'chat-message',
+            "mage-youtube-integration",
+            "chat-message",
             expect.objectContaining({
                 twitchUserRoles: expectedRoles
             }) as unknown as Record<string, unknown>
         );
     });
 
-    it('should handle sponsor role correctly', async () => {
+    it("should handle sponsor role correctly", async () => {
         // Arrange
         const sponsorMessage = {
             ...SAMPLE_YOUTUBE_TEXT_MESSAGE,
@@ -259,22 +241,22 @@ describe('ChatManager handleMessage', () => {
             }
         } as unknown as LiveChatMessage;
 
-        const expectedRoles = ['sub', 'tier1'];
+        const expectedRoles = ["sub", "tier1"];
 
         // Act
         await (chatManager as any).handleMessage(sponsorMessage);
 
         // Assert
         expect(firebot.modules.eventManager.triggerEvent).toHaveBeenCalledWith(
-            'mage-youtube-integration',
-            'chat-message',
+            "mage-youtube-integration",
+            "chat-message",
             expect.objectContaining({
                 twitchUserRoles: expectedRoles
             }) as unknown as Record<string, unknown>
         );
     });
 
-    it('should handle broadcaster role correctly', async () => {
+    it("should handle broadcaster role correctly", async () => {
         // Arrange
         const broadcasterMessage = {
             ...SAMPLE_YOUTUBE_TEXT_MESSAGE,
@@ -288,22 +270,22 @@ describe('ChatManager handleMessage', () => {
             }
         } as unknown as LiveChatMessage;
 
-        const expectedRoles = ['broadcaster'];
+        const expectedRoles = ["broadcaster"];
 
         // Act
         await (chatManager as any).handleMessage(broadcasterMessage);
 
         // Assert
         expect(firebot.modules.eventManager.triggerEvent).toHaveBeenCalledWith(
-            'mage-youtube-integration',
-            'chat-message',
+            "mage-youtube-integration",
+            "chat-message",
             expect.objectContaining({
                 twitchUserRoles: expectedRoles
             }) as unknown as Record<string, unknown>
         );
     });
 
-    it('should handle multiple roles correctly', async () => {
+    it("should handle multiple roles correctly", async () => {
         // Arrange
         const multiRoleMessage = {
             ...SAMPLE_YOUTUBE_TEXT_MESSAGE,
@@ -319,22 +301,22 @@ describe('ChatManager handleMessage', () => {
             }
         } as unknown as LiveChatMessage;
 
-        const expectedRoles = ['broadcaster', 'mod', 'sub', 'tier1'];
+        const expectedRoles = ["broadcaster", "mod", "sub", "tier1"];
 
         // Act
         await (chatManager as any).handleMessage(multiRoleMessage);
 
         // Assert
         expect(firebot.modules.eventManager.triggerEvent).toHaveBeenCalledWith(
-            'mage-youtube-integration',
-            'chat-message',
+            "mage-youtube-integration",
+            "chat-message",
             expect.objectContaining({
                 twitchUserRoles: expect.arrayContaining(expectedRoles)
             }) as unknown as Record<string, unknown>
         );
     });
 
-    it('should not send to chat feed when chat feed is disabled', async () => {
+    it("should not send to chat feed when chat feed is disabled", async () => {
         // Arrange
         mockIntegration.isChatFeedEnabled.mockReturnValue(false);
         const sampleMessage = {
@@ -356,7 +338,7 @@ describe('ChatManager handleMessage', () => {
         expect(firebot.modules.frontendCommunicator.send).not.toHaveBeenCalled();
     });
 
-    it('should handle errors gracefully', async () => {
+    it("should handle errors gracefully", async () => {
         // Arrange
         const sampleMessage = {
             ...SAMPLE_YOUTUBE_TEXT_MESSAGE,
@@ -371,27 +353,25 @@ describe('ChatManager handleMessage', () => {
 
         // Mock eventManager to throw an error
         (firebot.modules.eventManager.triggerEvent as jest.Mock).mockImplementationOnce(() => {
-            throw new Error('Test error');
+            throw new Error("Test error");
         });
 
         // Act
         await (chatManager as any).handleMessage(sampleMessage);
 
         // Assert
-        expect(mockLogger.error).toHaveBeenCalledWith(
-            expect.stringContaining('Error handling message:')
-        );
+        expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining("Error handling message:"));
     });
 
-    it('should use displayMessage when available', async () => {
+    it("should use displayMessage when available", async () => {
         // Arrange
         const messageWithDisplay = {
             ...SAMPLE_YOUTUBE_TEXT_MESSAGE,
             snippet: {
                 ...SAMPLE_YOUTUBE_TEXT_MESSAGE.snippet,
-                displayMessage: 'Display message content',
+                displayMessage: "Display message content",
                 textMessageDetails: {
-                    messageText: 'Different text content'
+                    messageText: "Different text content"
                 },
                 type: YouTubeMessageTypes.TEXT_MESSAGE_EVENT
             },
@@ -405,16 +385,16 @@ describe('ChatManager handleMessage', () => {
 
         // Assert
         expect(firebot.modules.eventManager.triggerEvent).toHaveBeenCalledWith(
-            'mage-youtube-integration',
-            'chat-message',
+            "mage-youtube-integration",
+            "chat-message",
             expect.objectContaining({
-                messageText: 'Display message content',
-                chatMessage: expect.objectContaining({ rawText: 'Display message content' })
+                messageText: "Display message content",
+                chatMessage: expect.objectContaining({ rawText: "Display message content" })
             }) as unknown as Record<string, unknown>
         );
     });
 
-    it('should fallback to textMessageDetails when displayMessage is not available', async () => {
+    it("should fallback to textMessageDetails when displayMessage is not available", async () => {
         // Arrange
         const messageWithoutDisplay = {
             ...SAMPLE_YOUTUBE_TEXT_MESSAGE,
@@ -422,7 +402,7 @@ describe('ChatManager handleMessage', () => {
                 ...SAMPLE_YOUTUBE_TEXT_MESSAGE.snippet,
                 displayMessage: undefined,
                 textMessageDetails: {
-                    messageText: 'Fallback message content'
+                    messageText: "Fallback message content"
                 },
                 type: YouTubeMessageTypes.TEXT_MESSAGE_EVENT
             },
@@ -436,16 +416,16 @@ describe('ChatManager handleMessage', () => {
 
         // Assert
         expect(firebot.modules.eventManager.triggerEvent).toHaveBeenCalledWith(
-            'mage-youtube-integration',
-            'chat-message',
+            "mage-youtube-integration",
+            "chat-message",
             expect.objectContaining({
-                messageText: 'Fallback message content',
-                chatMessage: expect.objectContaining({ rawText: 'Fallback message content' })
+                messageText: "Fallback message content",
+                chatMessage: expect.objectContaining({ rawText: "Fallback message content" })
             }) as unknown as Record<string, unknown>
         );
     });
 
-    it('should filter out messages posted before the connection timestamp', async () => {
+    it("should filter out messages posted before the connection timestamp", async () => {
         // Arrange
         const now = new Date();
         const messageBeforeConnection = {
@@ -466,12 +446,10 @@ describe('ChatManager handleMessage', () => {
         // Assert
         expect(firebot.modules.eventManager.triggerEvent).not.toHaveBeenCalled();
         expect(firebot.modules.frontendCommunicator.send).not.toHaveBeenCalled();
-        expect(mockLogger.debug).toHaveBeenCalledWith(
-            expect.stringContaining('Filtered message posted before connection')
-        );
+        expect(mockLogger.debug).toHaveBeenCalledWith(expect.stringContaining("Filtered message posted before connection"));
     });
 
-    it('should process messages posted after the connection timestamp', async () => {
+    it("should process messages posted after the connection timestamp", async () => {
         // Arrange
         jest.clearAllMocks();
         mockIntegration.isChatFeedEnabled.mockReturnValue(true);
@@ -496,7 +474,7 @@ describe('ChatManager handleMessage', () => {
         expect(firebot.modules.frontendCommunicator.send).toHaveBeenCalled();
     });
 
-    it('should process messages when connection timestamp is not set', async () => {
+    it("should process messages when connection timestamp is not set", async () => {
         // Arrange
         jest.clearAllMocks();
         mockIntegration.isChatFeedEnabled.mockReturnValue(true);
@@ -520,7 +498,7 @@ describe('ChatManager handleMessage', () => {
         expect(firebot.modules.frontendCommunicator.send).toHaveBeenCalled();
     });
 
-    it('should process messages without publishedAt timestamp', async () => {
+    it("should process messages without publishedAt timestamp", async () => {
         // Arrange
         jest.clearAllMocks();
         mockIntegration.isChatFeedEnabled.mockReturnValue(true);
@@ -545,29 +523,22 @@ describe('ChatManager handleMessage', () => {
     });
 });
 
-describe('ChatManager viewer arrival tracking', () => {
+describe("ChatManager viewer arrival tracking", () => {
     let chatManager: ChatManager;
 
     beforeEach(() => {
         jest.clearAllMocks();
 
-        chatManager = new ChatManager(
-            mockLogger,
-            mockQuotaManager,
-            mockMultiAuthManager,
-            mockClientFactory,
-            mockIntegration,
-            mockUserManager
-        );
+        chatManager = new ChatManager(mockLogger, mockQuotaManager, mockMultiAuthManager, mockClientFactory, mockIntegration, mockUserManager);
     });
 
-    it('should track viewer arrival on first chat', () => {
-        expect(chatManager.checkViewerArrived('user1')).toBe(true);
-        expect(chatManager.checkViewerArrived('user1')).toBe(false);
+    it("should track viewer arrival on first chat", () => {
+        expect(chatManager.checkViewerArrived("user1")).toBe(true);
+        expect(chatManager.checkViewerArrived("user1")).toBe(false);
     });
 
-    it('should trigger viewer-arrived event for first-time chatters', async () => {
-        const { triggerViewerArrived } = require('../../events/viewer-arrived');
+    it("should trigger viewer-arrived event for first-time chatters", async () => {
+        const { triggerViewerArrived } = require("../../events/viewer-arrived");
         jest.clearAllMocks();
         mockIntegration.isChatFeedEnabled.mockReturnValue(true);
 
@@ -581,18 +552,11 @@ describe('ChatManager viewer arrival tracking', () => {
 
         await (chatManager as any).handleMessage(sampleMessage);
 
-        expect(triggerViewerArrived).toHaveBeenCalledWith(
-            'John Viewer@youtube',
-            'yUCrDkAvwXgOFDjlW9wqyYeIQ',
-            'John Viewer',
-            'Great stream!',
-            expect.any(Object),
-            expect.any(Array)
-        );
+        expect(triggerViewerArrived).toHaveBeenCalledWith("John Viewer@youtube", "yUCrDkAvwXgOFDjlW9wqyYeIQ", "John Viewer", "Great stream!", expect.any(Object), expect.any(Array));
     });
 
-    it('should not trigger viewer-arrived event for returning chatters', async () => {
-        const { triggerViewerArrived } = require('../../events/viewer-arrived');
+    it("should not trigger viewer-arrived event for returning chatters", async () => {
+        const { triggerViewerArrived } = require("../../events/viewer-arrived");
         jest.clearAllMocks();
         mockIntegration.isChatFeedEnabled.mockReturnValue(true);
 
@@ -612,7 +576,7 @@ describe('ChatManager viewer arrival tracking', () => {
     });
 });
 
-describe('ChatManager token refresh during polling', () => {
+describe("ChatManager token refresh during polling", () => {
     let chatManager: ChatManager;
     let mockClient: any;
     let tokenCallCount: number;
@@ -641,14 +605,7 @@ describe('ChatManager token refresh during polling', () => {
 
         const mockClientFactoryWithClient = jest.fn(() => mockClient);
 
-        chatManager = new ChatManager(
-            mockLogger,
-            mockQuotaManager,
-            mockMultiAuthManagerWithCounter,
-            mockClientFactoryWithClient,
-            mockIntegration,
-            mockUserManager
-        );
+        chatManager = new ChatManager(mockLogger, mockQuotaManager, mockMultiAuthManagerWithCounter, mockClientFactoryWithClient, mockIntegration, mockUserManager);
     });
 
     afterEach(async () => {
@@ -659,8 +616,8 @@ describe('ChatManager token refresh during polling', () => {
         jest.useRealTimers();
     });
 
-    it('should retrieve fresh token before each poll', async () => {
-        await chatManager.startChatStreaming('test-live-chat-id');
+    it("should retrieve fresh token before each poll", async () => {
+        await chatManager.startChatStreaming("test-live-chat-id");
 
         jest.advanceTimersByTime(100);
         await Promise.resolve();
@@ -672,9 +629,9 @@ describe('ChatManager token refresh during polling', () => {
         expect(tokenCallCount).toBeGreaterThanOrEqual(2);
     });
 
-    it('should handle token refresh failures gracefully', async () => {
+    it("should handle token refresh failures gracefully", async () => {
         const mockMultiAuthManagerWithError = {
-            getAccessToken: jest.fn(() => Promise.resolve(''))
+            getAccessToken: jest.fn(() => Promise.resolve(""))
         } as any;
 
         const mockIntegrationWithDisconnect = {
@@ -685,16 +642,9 @@ describe('ChatManager token refresh during polling', () => {
 
         const mockClientFactoryWithClient = jest.fn(() => mockClient);
 
-        const chatManagerWithFailingToken = new ChatManager(
-            mockLogger,
-            mockQuotaManager,
-            mockMultiAuthManagerWithError,
-            mockClientFactoryWithClient,
-            mockIntegrationWithDisconnect,
-            mockUserManager
-        );
+        const chatManagerWithFailingToken = new ChatManager(mockLogger, mockQuotaManager, mockMultiAuthManagerWithError, mockClientFactoryWithClient, mockIntegrationWithDisconnect, mockUserManager);
 
-        await chatManagerWithFailingToken.startChatStreaming('test-live-chat-id');
+        await chatManagerWithFailingToken.startChatStreaming("test-live-chat-id");
 
         const pollOnceMethod = (chatManagerWithFailingToken as any).pollOnce.bind(chatManagerWithFailingToken);
         await pollOnceMethod();
@@ -705,33 +655,26 @@ describe('ChatManager token refresh during polling', () => {
         await chatManagerWithFailingToken.stopChatStreaming();
     });
 
-    it('should pass correct applicationId to getAccessToken', async () => {
+    it("should pass correct applicationId to getAccessToken", async () => {
         const mockMultiAuthManagerSpy = {
-            getAccessToken: jest.fn(() => Promise.resolve('mock-access-token'))
+            getAccessToken: jest.fn(() => Promise.resolve("mock-access-token"))
         } as any;
 
         const mockClientFactoryWithClient = jest.fn(() => mockClient);
 
-        const chatManagerWithSpy = new ChatManager(
-            mockLogger,
-            mockQuotaManager,
-            mockMultiAuthManagerSpy,
-            mockClientFactoryWithClient,
-            mockIntegration,
-            mockUserManager
-        );
+        const chatManagerWithSpy = new ChatManager(mockLogger, mockQuotaManager, mockMultiAuthManagerSpy, mockClientFactoryWithClient, mockIntegration, mockUserManager);
 
-        await chatManagerWithSpy.startChatStreaming('test-live-chat-id');
+        await chatManagerWithSpy.startChatStreaming("test-live-chat-id");
 
         const pollOnceMethod = (chatManagerWithSpy as any).pollOnce.bind(chatManagerWithSpy);
         await pollOnceMethod();
 
-        expect(mockMultiAuthManagerSpy.getAccessToken).toHaveBeenCalledWith('test-app-id');
+        expect(mockMultiAuthManagerSpy.getAccessToken).toHaveBeenCalledWith("test-app-id");
         await chatManagerWithSpy.stopChatStreaming();
     });
 });
 
-describe('ChatManager offline detection', () => {
+describe("ChatManager offline detection", () => {
     let chatManager: ChatManager;
     let mockClient: any;
 
@@ -751,14 +694,7 @@ describe('ChatManager offline detection', () => {
 
         const mockClientFactoryWithClient = jest.fn(() => mockClient);
 
-        chatManager = new ChatManager(
-            mockLogger,
-            mockQuotaManager,
-            mockMultiAuthManager,
-            mockClientFactoryWithClient,
-            mockIntegration,
-            mockUserManager
-        );
+        chatManager = new ChatManager(mockLogger, mockQuotaManager, mockMultiAuthManager, mockClientFactoryWithClient, mockIntegration, mockUserManager);
     });
 
     afterEach(async () => {
@@ -769,17 +705,17 @@ describe('ChatManager offline detection', () => {
         jest.useRealTimers();
     });
 
-    it('should call integration.handleStreamOffline() when offlineAt is detected', async () => {
+    it("should call integration.handleStreamOffline() when offlineAt is detected", async () => {
         // Arrange
         mockClient.chatStreamMessages = jest.fn(async function* () {
             yield {
                 items: [],
                 nextPageToken: undefined,
-                offlineAt: '2024-01-01T00:00:00Z'
+                offlineAt: "2024-01-01T00:00:00Z"
             };
         });
 
-        await chatManager.startChatStreaming('test-live-chat-id');
+        await chatManager.startChatStreaming("test-live-chat-id");
 
         // Act
         const pollOnceMethod = (chatManager as any).pollOnce.bind(chatManager);
@@ -790,9 +726,9 @@ describe('ChatManager offline detection', () => {
         expect(chatManager.isChatStreaming()).toBe(false);
     });
 
-    it('should not call integration.handleStreamOffline() when offlineAt is not present', async () => {
+    it("should not call integration.handleStreamOffline() when offlineAt is not present", async () => {
         // Arrange
-        await chatManager.startChatStreaming('test-live-chat-id');
+        await chatManager.startChatStreaming("test-live-chat-id");
 
         // Act
         const pollOnceMethod = (chatManager as any).pollOnce.bind(chatManager);

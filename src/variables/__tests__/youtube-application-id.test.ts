@@ -21,13 +21,14 @@ describe("youtubeApplicationIdVariable.evaluator (parameter-based)", () => {
         });
     });
 
-    const makeTrigger = (eventData?: any): Trigger => ({
-        type: "event",
-        metadata: {
-            username: "testuser",
-            eventData
-        }
-    } as Trigger);
+    const makeTrigger = (eventData?: any): Trigger =>
+        ({
+            type: "event",
+            metadata: {
+                username: "testuser",
+                eventData
+            }
+        }) as Trigger;
 
     describe("with 'trigger' parameter", () => {
         it("returns applicationId from eventData when present", () => {

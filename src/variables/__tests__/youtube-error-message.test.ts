@@ -68,7 +68,7 @@ describe("youtubeErrorMessageVariable", () => {
         });
 
         it("should preserve special characters in error message", () => {
-            const errorMsg = "Error: \"Invalid\" token (code: 401) [auth_failed]";
+            const errorMsg = 'Error: "Invalid" token (code: 401) [auth_failed]';
             const trigger = {
                 metadata: {
                     eventData: {

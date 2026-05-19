@@ -2,9 +2,9 @@
 import { ApplicationActivationCause } from "../../events";
 import { integration } from "../../integration";
 import { ApplicationManager } from "../../internal/application-manager";
-import { selectApplicationEffect } from "../select-application";
 import { logger } from "../../main";
 import { YouTubeOAuthApplication } from "../../types";
+import { selectApplicationEffect } from "../select-application";
 
 // Mock the integration module
 jest.mock("../../integration", () => ({

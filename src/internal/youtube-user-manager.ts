@@ -1,12 +1,4 @@
-import {
-    getOrCreateUser,
-    getUserById,
-    getUserByUsername,
-    incrementChatMessages,
-    setUserRoles,
-    updateLastSeen,
-    type PlatformUser
-} from "@thestaticmage/mage-platform-lib-client";
+import { getOrCreateUser, getUserById, getUserByUsername, incrementChatMessages, type PlatformUser, setUserRoles, updateLastSeen } from "@thestaticmage/mage-platform-lib-client";
 import { logger } from "../main";
 import { YouTubeUser } from "../types";
 import { youTubeifyUserId, youTubeifyUsername } from "../util/user";
@@ -63,12 +55,7 @@ export class YouTubeUserManager {
     /**
      * Get or create a viewer
      */
-    async getOrCreateViewer(
-        channelId: string,
-        username: string,
-        displayName?: string,
-        profilePicUrl?: string
-    ): Promise<YouTubeUser | undefined> {
+    async getOrCreateViewer(channelId: string, username: string, displayName?: string, profilePicUrl?: string): Promise<YouTubeUser | undefined> {
         try {
             const userId = youTubeifyUserId(channelId);
             const platformUsername = youTubeifyUsername(username);
