@@ -12,17 +12,16 @@
  * - ChatStreamClient: Real-time streaming via ChatStream gRPC API
  */
 
-import { IntegrationConstants } from '../constants';
-import { YouTubeMessageTypeStrings } from '../constants';
-import { FirebotChatHelpers, mapYouTubeChatMessageToChat } from '../events/chat-message-sent';
-import { triggerViewerArrived } from '../events/viewer-arrived';
-import { LiveChatMessage } from '../generated/proto/stream_list';
-import { firebot } from '../main';
-import { YouTubeUser } from '../types';
-import { QuotaManager } from './quota-manager';
-import { commandHandler } from './command';
-import { YouTubeUserManager } from './youtube-user-manager';
-import type { YouTubeIntegration } from '../integration-singleton';
+import { IntegrationConstants, YouTubeMessageTypeStrings } from "../constants";
+import { FirebotChatHelpers, mapYouTubeChatMessageToChat } from "../events/chat-message-sent";
+import { triggerViewerArrived } from "../events/viewer-arrived";
+import { LiveChatMessage } from "../generated/proto/stream_list";
+import type { YouTubeIntegration } from "../integration-singleton";
+import { firebot } from "../main";
+import { YouTubeUser } from "../types";
+import { commandHandler } from "./command";
+import { QuotaManager } from "./quota-manager";
+import { YouTubeUserManager } from "./youtube-user-manager";
 
 export class ChatManager {
     private client: any = null;
@@ -36,7 +35,7 @@ export class ChatManager {
     private pageToken: string | undefined;
     private clientFactory: () => any;
     private integration: YouTubeIntegration;
-    private activeApplicationId = '';
+    private activeApplicationId = "";
     private dailyQuota = 10000;
     private connectionTimestamp: Date | null = null;
     private viewerArrivedCache = new Set<string>();
@@ -145,13 +144,7 @@ export class ChatManager {
         }
 
         // Each call is a new chat API request with fresh token
-        for await (const response of this.client.chatStreamMessages(
-            this.activeApplicationId,
-            this.liveChatId,
-            accessToken,
-            this.dailyQuota,
-            { pageToken: this.pageToken }
-        )) {
+        for await (const response of this.client.chatStreamMessages(this.activeApplicationId, this.liveChatId, accessToken, this.dailyQuota, { pageToken: this.pageToken })) {
             if (!this.isStreaming) {
                 return;
             }
@@ -193,9 +186,7 @@ export class ChatManager {
      */
     async handleMessage(message: LiveChatMessage): Promise<void> {
         try {
-            const messageText = message.snippet?.displayMessage ||
-                        message.snippet?.textMessageDetails?.messageText ||
-                        "";
+            const messageText = message.snippet?.displayMessage || message.snippet?.textMessageDetails?.messageText || "";
             const messageType = this.getMessageType(message.snippet?.type);
 
             // Only process text messages for now
@@ -249,14 +240,7 @@ export class ChatManager {
 
             // Check if this is the first time we've seen this user (viewer arrived)
             if (this.checkViewerArrived(firebotChatMessage.userId)) {
-                triggerViewerArrived(
-                    firebotChatMessage.username,
-                    firebotChatMessage.userId,
-                    firebotChatMessage.userDisplayName || firebotChatMessage.username,
-                    firebotChatMessage.rawText,
-                    firebotChatMessage,
-                    firebotChatMessage.roles
-                );
+                triggerViewerArrived(firebotChatMessage.username, firebotChatMessage.userId, firebotChatMessage.userDisplayName || firebotChatMessage.username, firebotChatMessage.rawText, firebotChatMessage, firebotChatMessage.roles);
             }
 
             // Emit Firebot event with full chat message
@@ -276,18 +260,13 @@ export class ChatManager {
                 profilePicUrl: chatMessage.sender.profilePicture
             };
 
-            eventManager.triggerEvent(
-                IntegrationConstants.INTEGRATION_ID,
-                "chat-message",
-                metadata as unknown as Record<string, unknown>
-            );
+            eventManager.triggerEvent(IntegrationConstants.INTEGRATION_ID, "chat-message", metadata as unknown as Record<string, unknown>);
 
             // Send to the chat feed
             if (this.integration.isChatFeedEnabled()) {
                 const { frontendCommunicator } = firebot.modules;
                 frontendCommunicator.send("twitch:chat:message", firebotChatMessage);
             }
-
         } catch (error: any) {
             this.logger.error(`Error handling message: ${error.message}`);
         }
@@ -297,7 +276,7 @@ export class ChatManager {
      * Get human-readable message type
      */
     private getMessageType(type?: number): string {
-        return type ? (YouTubeMessageTypeStrings[type as keyof typeof YouTubeMessageTypeStrings] || "other") : "unknown";
+        return type ? YouTubeMessageTypeStrings[type as keyof typeof YouTubeMessageTypeStrings] || "other" : "unknown";
     }
 
     /**

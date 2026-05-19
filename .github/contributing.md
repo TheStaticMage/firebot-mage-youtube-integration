@@ -16,10 +16,10 @@ For this project in particular:
 
 ## Development Guide
 
-- Any code that you submit needs to pass the linter (ESLint).
+- Any code that you submit needs to pass the linter (Biome).
 - Please update any documentation (see the [doc](/doc) directory) as necessary.
 - Please write tests for anything you add, where it makes sense to do so.
-- You are welcome to use AI coding agents to help you (I've even provided `CLAUDE.md` for Claude Code users). However, any PRs consisting of AI slop will be closed without comment, and repeated PRs consisting of AI slop will result in a ban.
+- You are welcome to use AI coding agents to help you. However, any PRs consisting of AI slop will be closed without comment, and repeated PRs consisting of AI slop will result in a ban.
 
 ## Branches
 

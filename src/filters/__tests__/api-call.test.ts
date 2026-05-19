@@ -1,5 +1,5 @@
-import { apiCallFilter, ComparisonType } from "../api-call";
 import { ApiCallType } from "../../internal/error-constants";
+import { apiCallFilter, ComparisonType } from "../api-call";
 
 describe("apiCallFilter", () => {
     const createEventData = (apiCall: ApiCallType) => ({

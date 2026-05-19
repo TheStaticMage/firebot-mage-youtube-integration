@@ -27,14 +27,10 @@ jest.mock("../util/datafile", () => ({
 }));
 
 jest.mock("../internal/application-utils", () => ({
-    isApplicationReady: jest.fn(app => app.ready),
+    isApplicationReady: jest.fn((app) => app.ready),
     updateApplicationReadyStatus: jest.fn(),
-    getApplicationStatusMessage: jest.fn(app =>
-        (app.ready ? "Ready" : "Awaiting connection")
-    ),
-    validateApplication: jest.fn(
-        app => !!(app.id && app.name && app.clientId && app.clientSecret)
-    ),
+    getApplicationStatusMessage: jest.fn((app) => (app.ready ? "Ready" : "Awaiting connection")),
+    validateApplication: jest.fn((app) => !!(app.id && app.name && app.clientId && app.clientSecret)),
     createApplication: jest.fn((id, name) => ({
         id,
         name,
@@ -114,16 +110,8 @@ describe("ApplicationManager - Active Application Switching", () => {
             };
 
             // Add applications
-            await applicationManager.addApplication(
-                app1.name,
-                app1.clientId,
-                app1.clientSecret
-            );
-            await applicationManager.addApplication(
-                app2.name,
-                app2.clientId,
-                app2.clientSecret
-            );
+            await applicationManager.addApplication(app1.name, app1.clientId, app1.clientSecret);
+            await applicationManager.addApplication(app2.name, app2.clientId, app2.clientSecret);
 
             // Get the app IDs
             const apps = Object.entries(applicationManager.getApplications());
@@ -138,11 +126,7 @@ describe("ApplicationManager - Active Application Switching", () => {
             }
 
             // Set app1 as active
-            await applicationManager.setActiveApplication(
-                id1,
-                ApplicationActivationCause.USER_CLICKED,
-                false
-            );
+            await applicationManager.setActiveApplication(id1, ApplicationActivationCause.USER_CLICKED, false);
 
             // Mock the integration module
             const mockIntegration = {
@@ -154,16 +138,10 @@ describe("ApplicationManager - Active Application Switching", () => {
             }));
 
             // Now switch to app2 while connected
-            await applicationManager.setActiveApplication(
-                id2,
-                ApplicationActivationCause.USER_CLICKED,
-                true
-            );
+            await applicationManager.setActiveApplication(id2, ApplicationActivationCause.USER_CLICKED, true);
 
             // Verify logger was called about switching
-            expect(mockLogger.debug).toHaveBeenCalledWith(
-                expect.stringContaining("Notifying integration to switch polling")
-            );
+            expect(mockLogger.debug).toHaveBeenCalledWith(expect.stringContaining("Notifying integration to switch polling"));
 
             jest.dontMock("../integration-singleton");
         });
@@ -187,11 +165,7 @@ describe("ApplicationManager - Active Application Switching", () => {
             };
 
             // Add application
-            await applicationManager.addApplication(
-                app.name,
-                app.clientId,
-                app.clientSecret
-            );
+            await applicationManager.addApplication(app.name, app.clientId, app.clientSecret);
 
             const apps = Object.entries(applicationManager.getApplications());
             const [appId] = apps[0];
@@ -204,24 +178,14 @@ describe("ApplicationManager - Active Application Switching", () => {
             }
 
             // Set as active
-            await applicationManager.setActiveApplication(
-                appId,
-                ApplicationActivationCause.USER_CLICKED,
-                true
-            );
+            await applicationManager.setActiveApplication(appId, ApplicationActivationCause.USER_CLICKED, true);
             mockLogger.debug.mockClear();
 
             // Set the same app as active again
-            await applicationManager.setActiveApplication(
-                appId,
-                ApplicationActivationCause.USER_CLICKED,
-                true
-            );
+            await applicationManager.setActiveApplication(appId, ApplicationActivationCause.USER_CLICKED, true);
 
             // Verify logger was NOT called about switching (no change)
-            expect(mockLogger.debug).not.toHaveBeenCalledWith(
-                expect.stringContaining("Notifying integration to switch polling")
-            );
+            expect(mockLogger.debug).not.toHaveBeenCalledWith(expect.stringContaining("Notifying integration to switch polling"));
         });
 
         it("should not notify integration if integration is disconnected", async () => {
@@ -259,16 +223,8 @@ describe("ApplicationManager - Active Application Switching", () => {
             };
 
             // Add applications
-            await applicationManager.addApplication(
-                app1.name,
-                app1.clientId,
-                app1.clientSecret
-            );
-            await applicationManager.addApplication(
-                app2.name,
-                app2.clientId,
-                app2.clientSecret
-            );
+            await applicationManager.addApplication(app1.name, app1.clientId, app1.clientSecret);
+            await applicationManager.addApplication(app2.name, app2.clientId, app2.clientSecret);
 
             // Get the app IDs
             const apps = Object.entries(applicationManager.getApplications());
@@ -283,24 +239,14 @@ describe("ApplicationManager - Active Application Switching", () => {
             }
 
             // Set app1 as active
-            await applicationManager.setActiveApplication(
-                id1,
-                ApplicationActivationCause.USER_CLICKED,
-                false
-            );
+            await applicationManager.setActiveApplication(id1, ApplicationActivationCause.USER_CLICKED, false);
             mockLogger.debug.mockClear();
 
             // Switch to app2 while DISCONNECTED (connected=false)
-            await applicationManager.setActiveApplication(
-                id2,
-                ApplicationActivationCause.USER_CLICKED,
-                false
-            );
+            await applicationManager.setActiveApplication(id2, ApplicationActivationCause.USER_CLICKED, false);
 
             // Verify logger was NOT called about switching (disconnected)
-            expect(mockLogger.debug).not.toHaveBeenCalledWith(
-                expect.stringContaining("Notifying integration to switch polling")
-            );
+            expect(mockLogger.debug).not.toHaveBeenCalledWith(expect.stringContaining("Notifying integration to switch polling"));
         });
     });
 });
@@ -377,9 +323,7 @@ describe("YouTubeIntegration - Offline Monitoring", () => {
         }));
 
         // Dynamically require YouTubeIntegration after mocking dependencies
-        const {
-            YouTubeIntegration: IntegrationClass
-        } = require("../integration-singleton");
+        const { YouTubeIntegration: IntegrationClass } = require("../integration-singleton");
 
         // Create real integration instance with mocked dependencies
         integration = new IntegrationClass();
@@ -425,9 +369,7 @@ describe("YouTubeIntegration - Offline Monitoring", () => {
             integration["startOfflineMonitoring"]();
 
             // Assert
-            expect(integration["offlineMonitoringInterval"]).not.toBe(
-                existingInterval
-            );
+            expect(integration["offlineMonitoringInterval"]).not.toBe(existingInterval);
             clearInterval(existingInterval);
         });
 
@@ -492,11 +434,7 @@ describe("YouTubeIntegration - Offline Monitoring", () => {
             await integration["checkForBroadcast"]();
 
             // Assert
-            expect(mockBroadcastManager.findLiveBroadcast).toHaveBeenCalledWith(
-                "mock-access-token",
-                undefined,
-                "test-app-id"
-            );
+            expect(mockBroadcastManager.findLiveBroadcast).toHaveBeenCalledWith("mock-access-token", undefined, "test-app-id");
         });
 
         it("should return early if not connected", async () => {

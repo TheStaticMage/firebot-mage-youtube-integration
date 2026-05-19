@@ -23,13 +23,14 @@ describe("youtubeQuotaLimitVariable.evaluator (parameter-based)", () => {
         });
     });
 
-    const makeTrigger = (eventData?: any): Trigger => ({
-        type: "event",
-        metadata: {
-            username: "testuser",
-            eventData
-        }
-    } as Trigger);
+    const makeTrigger = (eventData?: any): Trigger =>
+        ({
+            type: "event",
+            metadata: {
+                username: "testuser",
+                eventData
+            }
+        }) as Trigger;
 
     describe("with 'trigger' parameter", () => {
         it("returns quotaLimit from eventData when present", () => {

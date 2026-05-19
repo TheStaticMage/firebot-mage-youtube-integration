@@ -1,6 +1,6 @@
-import { YouTubeFailoverEvent, triggerQuotaFailover } from "../failover";
 import { IntegrationConstants } from "../../constants";
 import { firebot } from "../../main";
+import { triggerQuotaFailover, YouTubeFailoverEvent } from "../failover";
 
 // Mock the logger and firebot modules
 jest.mock("../../main", () => ({
@@ -33,11 +33,7 @@ describe("triggerQuotaFailover", () => {
 
         triggerQuotaFailover(eventData);
 
-        expect(firebot.modules.eventManager.triggerEvent).toHaveBeenCalledWith(
-            IntegrationConstants.INTEGRATION_ID,
-            "quota-failover",
-            eventData as unknown as Record<string, unknown>
-        );
+        expect(firebot.modules.eventManager.triggerEvent).toHaveBeenCalledWith(IntegrationConstants.INTEGRATION_ID, "quota-failover", eventData as unknown as Record<string, unknown>);
     });
 
     it("should handle event data with missing optional fields", () => {
@@ -52,10 +48,6 @@ describe("triggerQuotaFailover", () => {
 
         triggerQuotaFailover(eventData);
 
-        expect(firebot.modules.eventManager.triggerEvent).toHaveBeenCalledWith(
-            IntegrationConstants.INTEGRATION_ID,
-            "quota-failover",
-            eventData as unknown as Record<string, unknown>
-        );
+        expect(firebot.modules.eventManager.triggerEvent).toHaveBeenCalledWith(IntegrationConstants.INTEGRATION_ID, "quota-failover", eventData as unknown as Record<string, unknown>);
     });
 });

@@ -3,8 +3,8 @@
  */
 
 import { IntegrationConstants } from "../../constants";
-import { triggerStreamOffline, triggerStreamOnline } from "../stream";
 import { firebot } from "../../main";
+import { triggerStreamOffline, triggerStreamOnline } from "../stream";
 
 jest.mock("../../main", () => ({
     firebot: {
@@ -29,11 +29,7 @@ describe("Stream event triggers", () => {
             triggerStreamOnline();
 
             const mockEventManager = firebot.modules.eventManager;
-            expect(mockEventManager.triggerEvent).toHaveBeenCalledWith(
-                IntegrationConstants.INTEGRATION_ID,
-                "stream-online",
-                {}
-            );
+            expect(mockEventManager.triggerEvent).toHaveBeenCalledWith(IntegrationConstants.INTEGRATION_ID, "stream-online", {});
         });
     });
 
@@ -42,11 +38,7 @@ describe("Stream event triggers", () => {
             triggerStreamOffline();
 
             const mockEventManager = firebot.modules.eventManager;
-            expect(mockEventManager.triggerEvent).toHaveBeenCalledWith(
-                IntegrationConstants.INTEGRATION_ID,
-                "stream-offline",
-                {}
-            );
+            expect(mockEventManager.triggerEvent).toHaveBeenCalledWith(IntegrationConstants.INTEGRATION_ID, "stream-offline", {});
         });
     });
 });

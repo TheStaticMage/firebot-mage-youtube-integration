@@ -1,10 +1,11 @@
 /* eslint-disable camelcase */
 /* eslint-disable new-cap */
 /* eslint-disable @typescript-eslint/unbound-method */
-import { MultiAuthManager } from "../multi-auth-manager";
-import { YouTubeOAuthApplication } from "../../types";
+
 import { logger } from "../../main";
+import { YouTubeOAuthApplication } from "../../types";
 import { ErrorTracker } from "../error-tracker";
+import { MultiAuthManager } from "../multi-auth-manager";
 
 // Mock logger and firebot
 jest.mock("../../main", () => ({
@@ -57,7 +58,7 @@ describe("MultiAuthManager", () => {
         // Create mock ApplicationManager
         mockApplicationManager = {
             getApplication: jest.fn((id: string) => {
-                return mockApplications.find(app => app.id === id) || null;
+                return mockApplications.find((app) => app.id === id) || null;
             }),
             updateApplication: jest.fn().mockResolvedValue(undefined)
         };
@@ -123,9 +124,7 @@ describe("MultiAuthManager", () => {
             await multiAuthManager.initialize(mockApplications);
 
             // Should not create duplicate timers
-            expect(logger.info).toHaveBeenCalledWith(
-                expect.stringContaining("Token refresh scheduled for application")
-            );
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("Token refresh scheduled for application"));
         });
 
         it("should handle empty applications array", async () => {
@@ -159,9 +158,7 @@ describe("MultiAuthManager", () => {
         it("should return empty string for non-existent application", async () => {
             const token = await multiAuthManager.getAccessToken("nonexistent");
             expect(token).toBe("");
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining("No auth manager found for application nonexistent")
-            );
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("No auth manager found for application nonexistent"));
         });
 
         it("should handle token refresh failures", async () => {
@@ -174,10 +171,7 @@ describe("MultiAuthManager", () => {
 
             const token = await multiAuthManager.getAccessToken("app1");
             expect(token).toBe("");
-            expect(updateApplicationReadyStatus).toHaveBeenCalledWith(
-                expect.anything(),
-                false
-            );
+            expect(updateApplicationReadyStatus).toHaveBeenCalledWith(expect.anything(), false);
         });
     });
 
@@ -195,11 +189,7 @@ describe("MultiAuthManager", () => {
             const url = multiAuthManager.generateAuthorizationUrl("app1", state);
 
             expect(url).toBe("https://accounts.google.com/oauth/authorize?custom=true");
-            expect(OAuth2Client).toHaveBeenCalledWith(
-                "client1",
-                "secret1",
-                "http://localhost:7472/integrations/mage-youtube-integration/auth/callback"
-            );
+            expect(OAuth2Client).toHaveBeenCalledWith("client1", "secret1", "http://localhost:7472/integrations/mage-youtube-integration/auth/callback");
         });
 
         it("should throw error for non-existent application", () => {
@@ -257,9 +247,7 @@ describe("MultiAuthManager", () => {
             await multiAuthManager.handleAuthCallback(mockReq, mockRes);
 
             expect(mockRes.status).toHaveBeenCalledWith(200);
-            expect(mockRes.send).toHaveBeenCalledWith(
-                expect.stringContaining("YouTube application \"Test App 1\" authorized")
-            );
+            expect(mockRes.send).toHaveBeenCalledWith(expect.stringContaining('YouTube application "Test App 1" authorized'));
         });
 
         it("should handle missing code parameter", async () => {
@@ -344,9 +332,7 @@ describe("MultiAuthManager", () => {
             await multiAuthManager.handleAuthCallback(mockReq, mockRes);
 
             expect(mockRes.status).toHaveBeenCalledWith(400);
-            expect(mockRes.send).toHaveBeenCalledWith(
-                expect.stringContaining("No refresh token received")
-            );
+            expect(mockRes.send).toHaveBeenCalledWith(expect.stringContaining("No refresh token received"));
         });
     });
 
@@ -420,10 +406,7 @@ describe("MultiAuthManager", () => {
 
             await multiAuthManager.refreshApplicationToken("app1");
 
-            expect(updateApplicationReadyStatus).toHaveBeenCalledWith(
-                expect.anything(),
-                true
-            );
+            expect(updateApplicationReadyStatus).toHaveBeenCalledWith(expect.anything(), true);
         });
 
         it("should handle refresh failures", async () => {
@@ -435,10 +418,7 @@ describe("MultiAuthManager", () => {
 
             await multiAuthManager.refreshApplicationToken("app1");
 
-            expect(updateApplicationReadyStatus).toHaveBeenCalledWith(
-                expect.anything(),
-                false
-            );
+            expect(updateApplicationReadyStatus).toHaveBeenCalledWith(expect.anything(), false);
         });
     });
 
@@ -471,17 +451,13 @@ describe("MultiAuthManager", () => {
             // Manually trigger refresh
             await multiAuthManager.refreshApplicationToken("app1");
 
-            expect(logger.info).toHaveBeenCalledWith(
-                expect.stringContaining("Token refresh scheduled")
-            );
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("Token refresh scheduled"));
         });
 
         it("should not schedule refresh for applications without refresh tokens", async () => {
             await multiAuthManager.refreshApplicationToken("app2");
 
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining("Cannot refresh token for application app2")
-            );
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Cannot refresh token for application app2"));
         });
 
         it("should handle refresh failures for one app without affecting others", async () => {
@@ -489,23 +465,18 @@ describe("MultiAuthManager", () => {
             const mockClient = OAuth2Client();
 
             // First call fails, second succeeds
-            mockClient.refreshAccessToken
-                .mockRejectedValueOnce(new Error("Network error"))
-                .mockResolvedValueOnce({
-                    credentials: {
-                        access_token: "refreshed-token-2",
-                        expiry_date: Date.now() + 3600000
-                    }
-                });
+            mockClient.refreshAccessToken.mockRejectedValueOnce(new Error("Network error")).mockResolvedValueOnce({
+                credentials: {
+                    access_token: "refreshed-token-2",
+                    expiry_date: Date.now() + 3600000
+                }
+            });
 
             const { updateApplicationReadyStatus } = require("../application-utils");
 
             // First refresh fails
             await multiAuthManager.refreshApplicationToken("app1");
-            expect(updateApplicationReadyStatus).toHaveBeenCalledWith(
-                expect.anything(),
-                false
-            );
+            expect(updateApplicationReadyStatus).toHaveBeenCalledWith(expect.anything(), false);
         });
 
         it("should update ready status to true on successful refresh", async () => {
@@ -522,10 +493,7 @@ describe("MultiAuthManager", () => {
 
             await multiAuthManager.refreshApplicationToken("app1");
 
-            expect(updateApplicationReadyStatus).toHaveBeenCalledWith(
-                expect.anything(),
-                true
-            );
+            expect(updateApplicationReadyStatus).toHaveBeenCalledWith(expect.anything(), true);
         });
 
         it("should update ready status to false on failed refresh", async () => {
@@ -537,10 +505,7 @@ describe("MultiAuthManager", () => {
 
             await multiAuthManager.refreshApplicationToken("app1");
 
-            expect(updateApplicationReadyStatus).toHaveBeenCalledWith(
-                expect.anything(),
-                false
-            );
+            expect(updateApplicationReadyStatus).toHaveBeenCalledWith(expect.anything(), false);
         });
 
         it("should handle concurrent refresh for multiple applications", async () => {
@@ -576,10 +541,7 @@ describe("MultiAuthManager", () => {
 
             await multiAuthManager.refreshApplicationToken("app1");
 
-            expect(updateApplicationReadyStatus).toHaveBeenCalledWith(
-                expect.anything(),
-                false
-            );
+            expect(updateApplicationReadyStatus).toHaveBeenCalledWith(expect.anything(), false);
         });
     });
 
@@ -672,7 +634,8 @@ describe("MultiAuthManager", () => {
             await multiAuthManager.refreshApplicationToken("app1");
 
             // Verify invalid token was cleared from ApplicationManager
-            expect(mockApplicationManager.updateApplication).toHaveBeenCalledWith("app1",
+            expect(mockApplicationManager.updateApplication).toHaveBeenCalledWith(
+                "app1",
                 expect.objectContaining({
                     refreshToken: ""
                 })
@@ -694,9 +657,7 @@ describe("MultiAuthManager", () => {
             await multiAuthManager.refreshApplicationToken("app1");
 
             // Should log that token was rotated
-            expect(logger.debug).toHaveBeenCalledWith(
-                expect.stringContaining("refresh token rotated")
-            );
+            expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining("refresh token rotated"));
         });
     });
 
@@ -756,7 +717,7 @@ describe("MultiAuthManager", () => {
 
             // Update mock to include new app
             mockApplicationManager.getApplication.mockImplementation((id: string) => {
-                return updatedApps.find(app => app.id === id) || null;
+                return updatedApps.find((app) => app.id === id) || null;
             });
 
             await multiAuthManager.updateApplications(updatedApps);
@@ -810,9 +771,7 @@ describe("MultiAuthManager", () => {
             await multiAuthManager.handleAuthCallback(mockReq, mockRes);
 
             expect(mockRes.status).toHaveBeenCalledWith(200);
-            expect(mockRes.send).toHaveBeenCalledWith(
-                expect.stringContaining("authorized")
-            );
+            expect(mockRes.send).toHaveBeenCalledWith(expect.stringContaining("authorized"));
         });
 
         it("should handle simultaneous OAuth callbacks for different applications", async () => {
@@ -872,7 +831,7 @@ describe("MultiAuthManager", () => {
 
             // Update mock to include new app
             mockApplicationManager.getApplication.mockImplementation((id: string) => {
-                return updatedApps.find(app => app.id === id) || null;
+                return updatedApps.find((app) => app.id === id) || null;
             });
 
             await multiAuthManager.updateApplications(updatedApps);
@@ -921,7 +880,7 @@ describe("MultiAuthManager", () => {
             await multiAuthManager.refreshApplicationToken("app1");
 
             const apps = multiAuthManager.getApplications();
-            const app1 = apps.find(a => a.id === "app1");
+            const app1 = apps.find((a) => a.id === "app1");
 
             // App should have updated token expiration info
             expect(app1).toBeDefined();

@@ -5,7 +5,7 @@
  * to provide detailed error information for events and filtering.
  */
 
-import { ErrorCategory, ApiCallType } from "./error-constants";
+import { ApiCallType, ErrorCategory } from "./error-constants";
 
 /**
  * Metadata about a tracked error
@@ -117,69 +117,32 @@ export class ErrorTracker {
         const message = errorMessage.toLowerCase();
 
         // Check for UNAUTHENTICATED
-        if (
-            message.includes("unauthenticated") ||
-            message.includes("invalid authentication") ||
-            message.includes("access token") ||
-            error?.code === 16 ||
-            error?.status === 401 ||
-            error?.response?.status === 401
-        ) {
+        if (message.includes("unauthenticated") || message.includes("invalid authentication") || message.includes("access token") || error?.code === 16 || error?.status === 401 || error?.response?.status === 401) {
             return ErrorCategory.UNAUTHENTICATED;
         }
 
         // Check for QUOTA_EXCEEDED
-        if (
-            message.includes("quota") ||
-            message.includes("rate limit") ||
-            error?.code === 8 ||
-            error?.status === 429 ||
-            error?.response?.status === 429
-        ) {
+        if (message.includes("quota") || message.includes("rate limit") || error?.code === 8 || error?.status === 429 || error?.response?.status === 429) {
             return ErrorCategory.QUOTA_EXCEEDED;
         }
 
         // Check for PERMISSION_DENIED
-        if (
-            message.includes("permission") ||
-            message.includes("forbidden") ||
-            error?.code === 7 ||
-            error?.status === 403 ||
-            error?.response?.status === 403
-        ) {
+        if (message.includes("permission") || message.includes("forbidden") || error?.code === 7 || error?.status === 403 || error?.response?.status === 403) {
             return ErrorCategory.PERMISSION_DENIED;
         }
 
         // Check for NOT_FOUND
-        if (
-            message.includes("not found") ||
-            message.includes("does not exist") ||
-            error?.code === 5 ||
-            error?.status === 404 ||
-            error?.response?.status === 404
-        ) {
+        if (message.includes("not found") || message.includes("does not exist") || error?.code === 5 || error?.status === 404 || error?.response?.status === 404) {
             return ErrorCategory.NOT_FOUND;
         }
 
         // Check for INVALID_REQUEST
-        if (
-            message.includes("invalid") ||
-            message.includes("malformed") ||
-            error?.code === 3 ||
-            error?.status === 400 ||
-            error?.response?.status === 400
-        ) {
+        if (message.includes("invalid") || message.includes("malformed") || error?.code === 3 || error?.status === 400 || error?.response?.status === 400) {
             return ErrorCategory.INVALID_REQUEST;
         }
 
         // Check for NETWORK_ERROR
-        if (
-            message.includes("timeout") ||
-            message.includes("econnrefused") ||
-            message.includes("enotfound") ||
-            message.includes("network") ||
-            error?.code === 14
-        ) {
+        if (message.includes("timeout") || message.includes("econnrefused") || message.includes("enotfound") || message.includes("network") || error?.code === 14) {
             return ErrorCategory.NETWORK_ERROR;
         }
 

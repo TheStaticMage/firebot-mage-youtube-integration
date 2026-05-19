@@ -14,18 +14,15 @@ export const YouTubeMessageTypeStrings = {
     [YouTubeMessageTypes.MEMBER_MILESTONE_EVENT]: "memberMilestone"
 } as const;
 
-export type YouTubeMessageType = typeof YouTubeMessageTypes[keyof typeof YouTubeMessageTypes];
-export type YouTubeMessageTypeString = typeof YouTubeMessageTypeStrings[keyof typeof YouTubeMessageTypeStrings];
+export type YouTubeMessageType = (typeof YouTubeMessageTypes)[keyof typeof YouTubeMessageTypes];
+export type YouTubeMessageTypeString = (typeof YouTubeMessageTypeStrings)[keyof typeof YouTubeMessageTypeStrings];
 export const IntegrationConstants = {
     INTEGRATION_ID: "mage-youtube-integration",
     INTEGRATION_NAME: "MageYouTubeIntegration",
     INTEGRATION_DESCRIPTION: "A preliminary, experimental, and generally not-recommended YouTube integration for Firebot.",
     INTEGRATION_URI: "mage-youtube-integration",
     PLATFORM_LIB_VERSION_CONSTRAINT: ">=0.0.4",
-    YOUTUBE_SCOPES: [
-        "https://www.googleapis.com/auth/youtube",
-        "https://www.googleapis.com/auth/youtube.force-ssl"
-    ],
+    YOUTUBE_SCOPES: ["https://www.googleapis.com/auth/youtube", "https://www.googleapis.com/auth/youtube.force-ssl"],
     YOUTUBE_CHAT_MESSAGE_CHARACTER_LIMIT: 200, // Hard limit, determined by testing
     STREAM_STATUS_CHECK_INTERVAL_MS: 10000 // Check stream status every 10 seconds
 } as const;

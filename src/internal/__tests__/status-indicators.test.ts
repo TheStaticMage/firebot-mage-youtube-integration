@@ -61,7 +61,6 @@ describe("Status Indicator Accuracy", () => {
         });
     });
 
-
     describe("Token Expiration Display", () => {
         it("should display token expiration in correct date format", () => {
             const expirationTime = new Date(2025, 0, 15, 14, 30, 45).getTime();
@@ -164,7 +163,5 @@ describe("Status Indicator Accuracy", () => {
             expect(status2).toBe("Awaiting connection");
             expect(status3).toMatch(/Ready - Token expires/);
         });
-
     });
-
 });

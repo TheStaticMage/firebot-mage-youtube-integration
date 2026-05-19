@@ -5,14 +5,14 @@
  * YouTube live chat message streaming.
  */
 
-import * as grpc from '@grpc/grpc-js';
-import { IntegrationConstants, YouTubeMessageTypes, YouTubeMessageTypeStrings } from '../constants';
-import { LiveChatMessage, LiveChatMessageListRequest, LiveChatMessageListResponse, V3DataLiveChatMessageServiceClient } from '../generated/proto/stream_list';
-import type { YouTubeIntegration } from '../integration-singleton';
-import { firebot, logger } from '../main';
-import { QUOTA_COSTS } from '../types/quota-tracking';
-import { ApiCallType } from './error-constants';
-import { ErrorTracker } from './error-tracker';
+import * as grpc from "@grpc/grpc-js";
+import { IntegrationConstants, YouTubeMessageTypeStrings, YouTubeMessageTypes } from "../constants";
+import { LiveChatMessage, LiveChatMessageListRequest, LiveChatMessageListResponse, V3DataLiveChatMessageServiceClient } from "../generated/proto/stream_list";
+import type { YouTubeIntegration } from "../integration-singleton";
+import { firebot, logger } from "../main";
+import { QUOTA_COSTS } from "../types/quota-tracking";
+import { ApiCallType } from "./error-constants";
+import { ErrorTracker } from "./error-tracker";
 
 export class ChatStreamClient {
     private client: V3DataLiveChatMessageServiceClient;
@@ -22,13 +22,10 @@ export class ChatStreamClient {
     constructor(integration: YouTubeIntegration, errorTracker: ErrorTracker) {
         // Create SSL credentials for secure connection
         const credentials = grpc.credentials.createSsl();
-        this.client = new V3DataLiveChatMessageServiceClient(
-            'youtube.googleapis.com:443',
-            credentials
-        );
+        this.client = new V3DataLiveChatMessageServiceClient("youtube.googleapis.com:443", credentials);
         this.integration = integration;
         this.errorTracker = errorTracker;
-        logger.info('ChatStreamClient initialized successfully');
+        logger.info("ChatStreamClient initialized successfully");
     }
 
     /**
@@ -55,7 +52,7 @@ export class ChatStreamClient {
         // Build the request using generated types
         const request: LiveChatMessageListRequest = {
             liveChatId,
-            part: ['id', 'snippet', 'authorDetails'],
+            part: ["id", "snippet", "authorDetails"],
             maxResults: options.maxResults || 20,
             pageToken: options.pageToken,
             profileImageSize: options.profileImageSize,
@@ -64,7 +61,7 @@ export class ChatStreamClient {
 
         // Create metadata with authorization
         const metadata = new grpc.Metadata();
-        metadata.add('authorization', `Bearer ${accessToken}`);
+        metadata.add("authorization", `Bearer ${accessToken}`);
 
         logger.debug(`[chatStreamMessages] Starting StreamList request... Live Chat ID: ${liveChatId}`);
 
@@ -73,26 +70,22 @@ export class ChatStreamClient {
 
         // Record quota consumption for tracking purposes
         const quotaManager = this.integration.getQuotaManager();
-        quotaManager.recordApiCall(applicationId, 'streamList', QUOTA_COSTS.STREAM_LIST);
+        quotaManager.recordApiCall(applicationId, "streamList", QUOTA_COSTS.STREAM_LIST);
 
         // Track whether an error occurred to prevent recording success after error
         let errorOccurred = false;
 
         // Handle stream events
-        stream.on('error', async (error: Error) => {
+        stream.on("error", async (error: Error) => {
             errorOccurred = true;
             logger.error(`[chatStreamMessages] error: ${error.message}`);
             const errorMetadata = this.errorTracker.recordError(ApiCallType.STREAM_CHAT_MESSAGES, error);
             const { eventManager } = firebot.modules;
-            eventManager.triggerEvent(
-                IntegrationConstants.INTEGRATION_ID,
-                "api-error",
-                errorMetadata as unknown as Record<string, unknown>
-            );
+            eventManager.triggerEvent(IntegrationConstants.INTEGRATION_ID, "api-error", errorMetadata as unknown as Record<string, unknown>);
         });
 
-        stream.on('end', () => {
-            logger.debug('[chatStreamMessages] chat stream ended');
+        stream.on("end", () => {
+            logger.debug("[chatStreamMessages] chat stream ended");
             if (!errorOccurred) {
                 this.errorTracker.recordSuccess(ApiCallType.STREAM_CHAT_MESSAGES);
             }
@@ -110,20 +103,18 @@ export class ChatStreamClient {
      */
     static getMessageTypeString(type?: number): string {
         if (type === undefined) {
-            return 'UNKNOWN';
+            return "UNKNOWN";
         }
-        return YouTubeMessageTypeStrings[type as keyof typeof YouTubeMessageTypeStrings] || 'UNKNOWN';
+        return YouTubeMessageTypeStrings[type as keyof typeof YouTubeMessageTypeStrings] || "UNKNOWN";
     }
 
     /**
      * Format message for display
      */
     static formatMessage(message: LiveChatMessage): string {
-        const author = message.authorDetails?.displayName || 'Unknown';
+        const author = message.authorDetails?.displayName || "Unknown";
         const type = this.getMessageTypeString(message.snippet?.type);
-        const text = message.snippet?.displayMessage ||
-                    message.snippet?.textMessageDetails?.messageText ||
-                    '[No text]';
+        const text = message.snippet?.displayMessage || message.snippet?.textMessageDetails?.messageText || "[No text]";
 
         return `[${type}] ${author}: ${text}`;
     }

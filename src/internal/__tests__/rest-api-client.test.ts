@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { RestApiClient } from "../rest-api-client";
+
 import { logger } from "../../main";
 import { ErrorTracker } from "../error-tracker";
+import { RestApiClient } from "../rest-api-client";
 
 // Mock google-auth-library first
 const mockOAuth2Client = {
@@ -119,9 +120,7 @@ describe("RestApiClient", () => {
                     }
                 }
             });
-            expect(logger.debug).toHaveBeenCalledWith(
-                expect.stringContaining("Sending YouTube chat message chunk 1/1 to chat test-chat-id")
-            );
+            expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining("Sending YouTube chat message chunk 1/1 to chat test-chat-id"));
         });
 
         it("should return false when no active application is selected", async () => {
@@ -133,9 +132,7 @@ describe("RestApiClient", () => {
             const result = await restApiClient.sendChatMessage("Test message");
 
             expect(result).toBe(false);
-            expect(logger.error).toHaveBeenCalledWith(
-                "Cannot send YouTube chat message: No active application selected"
-            );
+            expect(logger.error).toHaveBeenCalledWith("Cannot send YouTube chat message: No active application selected");
             expect(mockLiveChatMessages.insert).not.toHaveBeenCalled();
         });
 
@@ -148,9 +145,7 @@ describe("RestApiClient", () => {
             const result = await restApiClient.sendChatMessage("Test message");
 
             expect(result).toBe(false);
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining("Cannot send YouTube chat message: Active application")
-            );
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Cannot send YouTube chat message: Active application"));
             expect(mockLiveChatMessages.insert).not.toHaveBeenCalled();
         });
 
@@ -173,9 +168,7 @@ describe("RestApiClient", () => {
             const result = await restApiClient.sendChatMessage("Test message");
 
             expect(result).toBe(false);
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining("Cannot send YouTube chat message: Active application")
-            );
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Cannot send YouTube chat message: Active application"));
             expect(mockLiveChatMessages.insert).not.toHaveBeenCalled();
         });
 
@@ -185,9 +178,7 @@ describe("RestApiClient", () => {
             const result = await restApiClient.sendChatMessage("Test message");
 
             expect(result).toBe(false);
-            expect(logger.error).toHaveBeenCalledWith(
-                "Cannot send YouTube chat message: No active live chat"
-            );
+            expect(logger.error).toHaveBeenCalledWith("Cannot send YouTube chat message: No active live chat");
             expect(mockLiveChatMessages.insert).not.toHaveBeenCalled();
         });
 
@@ -198,9 +189,7 @@ describe("RestApiClient", () => {
             const result = await restApiClient.sendChatMessage("Test message");
 
             expect(result).toBe(false);
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining("Error sending YouTube chat message")
-            );
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Error sending YouTube chat message"));
         });
 
         it("should log detailed error information when available", async () => {
@@ -213,9 +202,7 @@ describe("RestApiClient", () => {
             const result = await restApiClient.sendChatMessage("Test message");
 
             expect(result).toBe(false);
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining("YouTube API error details")
-            );
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("YouTube API error details"));
         });
 
         it("should return false on non-200 status response", async () => {
@@ -227,9 +214,7 @@ describe("RestApiClient", () => {
             const result = await restApiClient.sendChatMessage("Test message");
 
             expect(result).toBe(false);
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining("Failed to send chunk 1/1. Status: 500")
-            );
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Failed to send chunk 1/1. Status: 500"));
         });
 
         it("should handle empty message text", async () => {

@@ -27,7 +27,7 @@ export const selectApplicationEffect: Firebot.EffectType<selectApplicationEffect
     `,
     optionsController: ($scope, backendCommunicator: any) => {
         try {
-            const response = backendCommunicator.fireEventSync('youTube:getApplications');
+            const response = backendCommunicator.fireEventSync("youTube:getApplications");
             if (response.errorMessage) {
                 $scope.hasNoApplications = true;
                 backendCommunicator.fireEventAsync("mage-youtube-integration:log", {
@@ -79,7 +79,7 @@ export const selectApplicationEffect: Firebot.EffectType<selectApplicationEffect
         }
 
         try {
-            const response = backendCommunicator.fireEventSync('youTube:getApplications');
+            const response = backendCommunicator.fireEventSync("youTube:getApplications");
             if (response.errorMessage) {
                 backendCommunicator.fireEventAsync("mage-youtube-integration:log", {
                     level: "warn",

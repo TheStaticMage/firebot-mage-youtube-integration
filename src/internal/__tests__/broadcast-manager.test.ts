@@ -288,9 +288,7 @@ describe("BroadcastManager.findLiveBroadcast", () => {
             recordApiCall: jest.fn()
         });
 
-        await expect(broadcastManager.findLiveBroadcast("test-token", undefined, "app-id"))
-            .rejects
-            .toThrow(/Multiple active YouTube streams detected/);
+        await expect(broadcastManager.findLiveBroadcast("test-token", undefined, "app-id")).rejects.toThrow(/Multiple active YouTube streams detected/);
     });
 
     it("throws error when multiple matching broadcasts for channel ID", async () => {
@@ -322,9 +320,7 @@ describe("BroadcastManager.findLiveBroadcast", () => {
             recordApiCall: jest.fn()
         });
 
-        await expect(broadcastManager.findLiveBroadcast("test-token", "UCrDkAvwXgOFDjlW9wqyYeIQ", "app-id"))
-            .rejects
-            .toThrow(/Multiple active streams for channel/);
+        await expect(broadcastManager.findLiveBroadcast("test-token", "UCrDkAvwXgOFDjlW9wqyYeIQ", "app-id")).rejects.toThrow(/Multiple active streams for channel/);
     });
 
     it("records quota consumption on successful call", async () => {
@@ -354,10 +350,6 @@ describe("BroadcastManager.findLiveBroadcast", () => {
 
         await broadcastManager.findLiveBroadcast("test-token", undefined, "app-id");
 
-        expect(mockQuotaManager.recordApiCall).toHaveBeenCalledWith(
-            "app-id",
-            "liveBroadcasts.list",
-            expect.any(Number)
-        );
+        expect(mockQuotaManager.recordApiCall).toHaveBeenCalledWith("app-id", "liveBroadcasts.list", expect.any(Number));
     });
 });

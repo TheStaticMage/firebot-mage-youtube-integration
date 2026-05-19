@@ -1,5 +1,5 @@
-import { errorTypeFilter, ComparisonType } from "../error-type";
 import { ErrorCategory } from "../../internal/error-constants";
+import { ComparisonType, errorTypeFilter } from "../error-type";
 
 describe("errorTypeFilter", () => {
     const createEventData = (errorCategory: ErrorCategory) => ({

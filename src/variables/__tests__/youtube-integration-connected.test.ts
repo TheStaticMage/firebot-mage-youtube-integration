@@ -14,13 +14,14 @@ describe("youtubeIntegrationConnectedVariable.evaluator", () => {
         jest.clearAllMocks();
     });
 
-    const makeTrigger = (eventData?: any): Trigger => ({
-        type: "event",
-        metadata: {
-            username: "testuser",
-            eventData
-        }
-    } as Trigger);
+    const makeTrigger = (eventData?: any): Trigger =>
+        ({
+            type: "event",
+            metadata: {
+                username: "testuser",
+                eventData
+            }
+        }) as Trigger;
 
     it("returns connected status from eventData when present and true", () => {
         const trigger = makeTrigger({

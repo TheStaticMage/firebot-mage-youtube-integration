@@ -296,9 +296,7 @@ describe("QuotaManager", () => {
 
             const delay = quotaManager.calculateDelay(quotaSettings);
             expect(delay).toBeNull();
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining("Invalid dailyQuota")
-            );
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Invalid dailyQuota"));
         });
 
         it("should return null for invalid max stream hours", () => {
@@ -311,9 +309,7 @@ describe("QuotaManager", () => {
 
             const delay = quotaManager.calculateDelay(quotaSettings);
             expect(delay).toBeNull();
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining("Invalid maxStreamHours")
-            );
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Invalid maxStreamHours"));
         });
     });
 
@@ -427,9 +423,7 @@ describe("QuotaManager", () => {
             quotaManager.recordApiCall("app1", "streamList", 9900);
 
             quotaManager.isQuotaAvailable("app1", 200, 10000);
-            expect(logger.warn).toHaveBeenCalledWith(
-                expect.stringContaining("Quota exhausted")
-            );
+            expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("Quota exhausted"));
         });
     });
 
@@ -465,9 +459,7 @@ describe("QuotaManager", () => {
 
             const updatedUsage = quotaManager.getQuotaUsage("app1");
             expect(updatedUsage?.quotaUnitsUsed).toBe(0);
-            expect(logger.info).toHaveBeenCalledWith(
-                expect.stringContaining("Resetting quota")
-            );
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("Resetting quota"));
         });
 
         it("should not reset quota when midnight PT has not passed", () => {
@@ -517,13 +509,9 @@ describe("QuotaManager", () => {
             quotaLimit: number;
             threshold: number;
         }[] => {
-            const triggerEvent = firebot.modules.eventManager
-                .triggerEvent as jest.Mock;
+            const triggerEvent = firebot.modules.eventManager.triggerEvent as jest.Mock;
             return triggerEvent.mock.calls
-                .filter(
-                    (call: [string, string, Record<string, unknown>]) =>
-                        call[1] === "quota-threshold-crossed"
-                )
+                .filter((call: [string, string, Record<string, unknown>]) => call[1] === "quota-threshold-crossed")
                 .map(
                     (call: [string, string, Record<string, unknown>]) =>
                         call[2] as unknown as {
@@ -784,9 +772,7 @@ describe("QuotaManager", () => {
                 quotaManager.recordApiCall("app1", "streamList", 950);
 
                 expect(mockAttemptQuotaFailover).toHaveBeenCalledWith("app1");
-                expect(logger.info).toHaveBeenCalledWith(
-                    "Failover threshold 95% reached for application app1, attempting automatic failover"
-                );
+                expect(logger.info).toHaveBeenCalledWith("Failover threshold 95% reached for application app1, attempting automatic failover");
             });
 
             it("should not trigger failover when threshold is disabled", () => {
@@ -848,9 +834,7 @@ describe("QuotaManager", () => {
         it("should return settings from integration", () => {
             const expectedSettings = { some: "settings" };
             mockIntegration.getSettings.mockReturnValue(expectedSettings);
-            const quotaManagerWithIntegration = new QuotaManager(
-                mockIntegration as any
-            );
+            const quotaManagerWithIntegration = new QuotaManager(mockIntegration as any);
 
             const result = quotaManagerWithIntegration.getSettings();
 

@@ -1,5 +1,5 @@
+import { ApiCallType, ErrorCategory } from "../error-constants";
 import { ErrorTracker } from "../error-tracker";
-import { ErrorCategory, ApiCallType } from "../error-constants";
 
 describe("ErrorTracker", () => {
     let errorTracker: ErrorTracker;

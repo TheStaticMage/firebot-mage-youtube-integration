@@ -27,14 +27,10 @@ jest.mock("../../util/datafile", () => ({
 }));
 
 jest.mock("../application-utils", () => ({
-    isApplicationReady: jest.fn(app => app.ready),
+    isApplicationReady: jest.fn((app) => app.ready),
     updateApplicationReadyStatus: jest.fn(),
-    getApplicationStatusMessage: jest.fn(app =>
-        (app.ready ? "Ready" : "Awaiting connection")
-    ),
-    validateApplication: jest.fn(
-        app => !!(app.id && app.name && app.clientId && app.clientSecret)
-    ),
+    getApplicationStatusMessage: jest.fn((app) => (app.ready ? "Ready" : "Awaiting connection")),
+    validateApplication: jest.fn((app) => !!(app.id && app.name && app.clientId && app.clientSecret)),
     createApplication: jest.fn((id, name) => ({
         id,
         name,
@@ -63,7 +59,6 @@ describe("ApplicationManager", () => {
 
     beforeEach(() => {
         // Get reference to the mocked fs functions
-        const mockedMain = jest.requireMock("../../main");
         mockFs = require("fs");
 
         applicationManager = new ApplicationManager();
@@ -91,11 +86,7 @@ describe("ApplicationManager", () => {
 
             await applicationManager.initialize();
 
-            expect(logger.info).toHaveBeenCalledWith(
-                expect.stringContaining(
-                    "ApplicationManager initialized with 0 applications"
-                )
-            );
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("ApplicationManager initialized with 0 applications"));
         });
 
         it("should load existing applications from file", async () => {
@@ -120,11 +111,7 @@ describe("ApplicationManager", () => {
 
             await applicationManager.initialize();
 
-            expect(logger.info).toHaveBeenCalledWith(
-                expect.stringContaining(
-                    "ApplicationManager initialized with 1 applications"
-                )
-            );
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("ApplicationManager initialized with 1 applications"));
         });
 
         it("should handle invalid file format gracefully", async () => {
@@ -133,14 +120,8 @@ describe("ApplicationManager", () => {
 
             await applicationManager.initialize();
 
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining("Failed to load applications data")
-            );
-            expect(logger.info).toHaveBeenCalledWith(
-                expect.stringContaining(
-                    "ApplicationManager initialized with 0 applications"
-                )
-            );
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Failed to load applications data"));
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("ApplicationManager initialized with 0 applications"));
         });
     });
 
@@ -216,25 +197,15 @@ describe("ApplicationManager", () => {
     describe("getReadyApplications", () => {
         beforeEach(async () => {
             await applicationManager.initialize();
-            await applicationManager.addApplication(
-                "Ready App",
-                "client1",
-                "secret1"
-            );
-            await applicationManager.addApplication(
-                "Not Ready App",
-                "client2",
-                "secret2"
-            );
+            await applicationManager.addApplication("Ready App", "client1", "secret1");
+            await applicationManager.addApplication("Not Ready App", "client2", "secret2");
         });
 
         it("should return only ready applications", () => {
             const { isApplicationReady } = require("../application-utils");
 
             // Mock ready status
-            isApplicationReady.mockImplementation(
-                (app: any) => app.name === "Ready App"
-            );
+            isApplicationReady.mockImplementation((app: any) => app.name === "Ready App");
 
             const readyAppsMap = applicationManager.getReadyApplications();
             const readyAppsList = Object.values(readyAppsMap);
@@ -249,12 +220,7 @@ describe("ApplicationManager", () => {
         });
 
         it("should add new application successfully", async () => {
-            const app = await applicationManager.addApplication(
-                "New App",
-                "client1",
-                "secret1",
-                mockQuotaSettings
-            );
+            const app = await applicationManager.addApplication("New App", "client1", "secret1", mockQuotaSettings);
 
             expect(app.name).toBe("New App");
             expect(app.clientId).toBe("client1");
@@ -264,11 +230,7 @@ describe("ApplicationManager", () => {
         });
 
         it("should trim whitespace from inputs", async () => {
-            const app = await applicationManager.addApplication(
-                "  Trim App  ",
-                "  client1  ",
-                "  secret1  "
-            );
+            const app = await applicationManager.addApplication("  Trim App  ", "  client1  ", "  secret1  ");
 
             expect(app.name).toBe("Trim App");
             expect(app.clientId).toBe("client1");
@@ -276,58 +238,41 @@ describe("ApplicationManager", () => {
         });
 
         it("should throw error for missing name", async () => {
-            await expect(
-                applicationManager.addApplication("", "client1", "secret1")
-            ).rejects.toThrow("Application name is required");
+            await expect(applicationManager.addApplication("", "client1", "secret1")).rejects.toThrow("Application name is required");
         });
 
         it("should throw error for missing client ID", async () => {
-            await expect(
-                applicationManager.addApplication("Test App", "", "secret1")
-            ).rejects.toThrow("Client ID is required");
+            await expect(applicationManager.addApplication("Test App", "", "secret1")).rejects.toThrow("Client ID is required");
         });
 
         it("should throw error for missing client secret", async () => {
-            await expect(
-                applicationManager.addApplication("Test App", "client1", "")
-            ).rejects.toThrow("Client secret is required");
+            await expect(applicationManager.addApplication("Test App", "client1", "")).rejects.toThrow("Client secret is required");
         });
 
         it("should throw error for duplicate name", async () => {
             await applicationManager.addApplication("Test App", "client1", "secret1");
-            await expect(
-                applicationManager.addApplication("Test App", "client2", "secret2")
-            ).rejects.toThrow('Application with name "Test App" already exists');
+            await expect(applicationManager.addApplication("Test App", "client2", "secret2")).rejects.toThrow('Application with name "Test App" already exists');
         });
 
         it("should throw error for case-insensitive duplicate name", async () => {
             await applicationManager.addApplication("Test App", "client1", "secret1");
-            await expect(
-                applicationManager.addApplication("test app", "client2", "secret2")
-            ).rejects.toThrow('Application with name "test app" already exists');
+            await expect(applicationManager.addApplication("test app", "client2", "secret2")).rejects.toThrow('Application with name "test app" already exists');
         });
     });
 
     describe("updateApplication", () => {
         beforeEach(async () => {
             await applicationManager.initialize();
-            await applicationManager.addApplication(
-                "Original App",
-                "client1",
-                "secret1"
-            );
+            await applicationManager.addApplication("Original App", "client1", "secret1");
         });
 
         it("should update application successfully", async () => {
             const appsMap = applicationManager.getApplications();
             const apps = Object.values(appsMap);
-            const updatedApp = await applicationManager.updateApplication(
-                apps[0].id,
-                {
-                    name: "Updated App",
-                    clientId: "new-client"
-                }
-            );
+            const updatedApp = await applicationManager.updateApplication(apps[0].id, {
+                name: "Updated App",
+                clientId: "new-client"
+            });
 
             expect(updatedApp.name).toBe("Updated App");
             expect(updatedApp.clientId).toBe("new-client");
@@ -335,27 +280,15 @@ describe("ApplicationManager", () => {
         });
 
         it("should throw error for non-existent application", async () => {
-            await expect(
-                applicationManager.updateApplication("nonexistent", {
-                    name: "New Name"
-                })
-            ).rejects.toThrow('Application with ID "nonexistent" not found');
+            await expect(applicationManager.updateApplication("nonexistent", { name: "New Name" })).rejects.toThrow('Application with ID "nonexistent" not found');
         });
 
         it("should throw error for duplicate name", async () => {
-            await applicationManager.addApplication(
-                "Another App",
-                "client2",
-                "secret2"
-            );
+            await applicationManager.addApplication("Another App", "client2", "secret2");
             const appsMap = applicationManager.getApplications();
             const apps = Object.values(appsMap);
 
-            await expect(
-                applicationManager.updateApplication(apps[0].id, {
-                    name: "Another App"
-                })
-            ).rejects.toThrow('Application with name "Another App" already exists');
+            await expect(applicationManager.updateApplication(apps[0].id, { name: "Another App" })).rejects.toThrow('Application with name "Another App" already exists');
         });
     });
 
@@ -376,9 +309,7 @@ describe("ApplicationManager", () => {
         });
 
         it("should throw error for non-existent application", async () => {
-            await expect(
-                applicationManager.removeApplication("nonexistent")
-            ).rejects.toThrow('Application with ID "nonexistent" not found');
+            await expect(applicationManager.removeApplication("nonexistent")).rejects.toThrow('Application with ID "nonexistent" not found');
         });
 
         it("should clear active application if it was removed", async () => {
@@ -412,9 +343,7 @@ describe("ApplicationManager", () => {
         });
 
         it("should throw error for non-existent application", async () => {
-            await expect(
-                applicationManager.setActiveApplication("nonexistent")
-            ).rejects.toThrow('Application with ID "nonexistent" not found');
+            await expect(applicationManager.setActiveApplication("nonexistent")).rejects.toThrow('Application with ID "nonexistent" not found');
         });
 
         it("should throw error for not authorized application", async () => {
@@ -422,11 +351,7 @@ describe("ApplicationManager", () => {
             const apps = Object.values(appsMap);
             // Apps created without refresh tokens cannot be set as active
 
-            await expect(
-                applicationManager.setActiveApplication(apps[0].id)
-            ).rejects.toThrow(
-                'Application "Test App" is not authorized. Please authorize it first.'
-            );
+            await expect(applicationManager.setActiveApplication(apps[0].id)).rejects.toThrow('Application "Test App" is not authorized. Please authorize it first.');
         });
     });
 
@@ -464,27 +389,17 @@ describe("ApplicationManager", () => {
         it("should update ready status successfully", async () => {
             const appsMap = applicationManager.getApplications();
             const apps = Object.values(appsMap);
-            const {
-                updateApplicationReadyStatus: mockUpdateReadyStatus
-            } = require("../application-utils");
+            const { updateApplicationReadyStatus: mockUpdateReadyStatus } = require("../application-utils");
 
             await applicationManager.updateApplicationReadyStatus(apps[0].id, true);
 
-            expect(mockUpdateReadyStatus).toHaveBeenCalledWith(
-                expect.anything(),
-                true
-            );
+            expect(mockUpdateReadyStatus).toHaveBeenCalledWith(expect.anything(), true);
         });
 
         it("should warn for non-existent application", async () => {
-            await applicationManager.updateApplicationReadyStatus(
-                "nonexistent",
-                true
-            );
+            await applicationManager.updateApplicationReadyStatus("nonexistent", true);
 
-            expect(logger.warn).toHaveBeenCalledWith(
-                "Attempted to update ready status for non-existent application: nonexistent"
-            );
+            expect(logger.warn).toHaveBeenCalledWith("Attempted to update ready status for non-existent application: nonexistent");
         });
 
         it("should clear active application if it becomes not ready", async () => {
@@ -520,21 +435,11 @@ describe("ApplicationManager", () => {
         });
 
         it("should return correct statistics with mixed applications", async () => {
-            await applicationManager.addApplication(
-                "Ready App",
-                "client1",
-                "secret1"
-            );
-            await applicationManager.addApplication(
-                "Not Ready App",
-                "client2",
-                "secret2"
-            );
+            await applicationManager.addApplication("Ready App", "client1", "secret1");
+            await applicationManager.addApplication("Not Ready App", "client2", "secret2");
 
             const { isApplicationReady } = require("../application-utils");
-            isApplicationReady.mockImplementation(
-                (app: any) => app.name === "Ready App"
-            );
+            isApplicationReady.mockImplementation((app: any) => app.name === "Ready App");
 
             const stats = applicationManager.getStatistics();
 
@@ -564,16 +469,8 @@ describe("ApplicationManager", () => {
         });
 
         it("should set ready status based on refresh token", async () => {
-            await applicationManager.addApplication(
-                "With Token",
-                "client1",
-                "secret1"
-            );
-            await applicationManager.addApplication(
-                "Without Token",
-                "client2",
-                "secret2"
-            );
+            await applicationManager.addApplication("With Token", "client1", "secret1");
+            await applicationManager.addApplication("Without Token", "client2", "secret2");
 
             const appsMap = applicationManager.getApplications();
             const apps = Object.values(appsMap);
@@ -583,9 +480,7 @@ describe("ApplicationManager", () => {
 
             await applicationManager.validateAllApplications();
 
-            const {
-                updateApplicationReadyStatus: mockUpdateReadyStatus
-            } = require("../application-utils");
+            const { updateApplicationReadyStatus: mockUpdateReadyStatus } = require("../application-utils");
             // Application with refresh token should be marked as ready
             // Application without refresh token should be marked as not ready
             expect(mockUpdateReadyStatus).toHaveBeenCalledWith(apps[0], true);
@@ -620,9 +515,7 @@ describe("ApplicationManager", () => {
 
             await applicationManager.initialize();
 
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining("Failed to load applications data")
-            );
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Failed to load applications data"));
         });
 
         it("should handle save errors", async () => {
@@ -630,9 +523,7 @@ describe("ApplicationManager", () => {
                 throw new Error("Write error");
             });
 
-            await expect(
-                applicationManager.addApplication("Test App", "client1", "secret1")
-            ).rejects.toThrow("Write error");
+            await expect(applicationManager.addApplication("Test App", "client1", "secret1")).rejects.toThrow("Write error");
         });
     });
 });

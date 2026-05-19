@@ -46,7 +46,7 @@ export const chatEffect: Firebot.EffectType<chatEffectParams> = {
     `,
     optionsController: ($scope, backendCommunicator: any) => {
         try {
-            const characterLimit: number = backendCommunicator.fireEventSync('mage-youtube-integration:getCharacterLimit');
+            const characterLimit: number = backendCommunicator.fireEventSync("mage-youtube-integration:getCharacterLimit");
             if (characterLimit) {
                 $scope.characterLimit = characterLimit;
             } else {

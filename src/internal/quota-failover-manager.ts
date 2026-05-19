@@ -56,7 +56,7 @@ export class QuotaFailoverManager {
             const applications = Object.values(applicationsMap);
 
             // Halt if there is no other application configured
-            const otherApplications = applications.filter(app => app.id !== currentApplicationId);
+            const otherApplications = applications.filter((app) => app.id !== currentApplicationId);
             if (otherApplications.length === 0) {
                 logger.info("No other applications configured, cannot failover");
                 return;
@@ -65,7 +65,7 @@ export class QuotaFailoverManager {
             // Step 2: Filter out applications at or above threshold
             const rawThreshold = settings.advanced?.automaticFailoverThreshold ?? FAILOVER_THRESHOLD_DEFAULT;
             const failoverThreshold = Math.max(1, Math.min(100, rawThreshold));
-            const eligibleApplications: {app: YouTubeOAuthApplication, usagePercent: number, usage: any}[] = [];
+            const eligibleApplications: { app: YouTubeOAuthApplication; usagePercent: number; usage: any }[] = [];
 
             for (const app of otherApplications) {
                 // Skip applications with 0 daily quota (prevent divide-by-zero)
@@ -125,21 +125,13 @@ export class QuotaFailoverManager {
                     }
 
                     // Test by polling broadcast status
-                    await this.integration.getBroadcastManager().findLiveBroadcast(
-                        accessToken,
-                        this.integration.getCurrentChannelId() ?? undefined,
-                        app.id
-                    );
+                    await this.integration.getBroadcastManager().findLiveBroadcast(accessToken, this.integration.getCurrentChannelId() ?? undefined, app.id);
 
                     // If poll succeeds, activate this application
                     logger.info(`Broadcast status poll succeeded for application ${app.name}, activating`);
 
                     // Activate the application
-                    await this.integration.getApplicationManager().setActiveApplication(
-                        app.id,
-                        ApplicationActivationCause.AUTOMATIC_QUOTA_FAILOVER,
-                        this.integration.isConnected()
-                    );
+                    await this.integration.getApplicationManager().setActiveApplication(app.id, ApplicationActivationCause.AUTOMATIC_QUOTA_FAILOVER, this.integration.isConnected());
 
                     // If the integration is connected, switch the active polling application
                     if (this.integration.isConnected() && this.integration.getCurrentActiveApplicationId()) {

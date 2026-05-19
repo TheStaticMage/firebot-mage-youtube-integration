@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { CommandHandler, CommandRunner } from '../command';
+
 import { firebot } from "../../main";
+import { CommandHandler, CommandRunner } from "../command";
 
 // Mock firebot modules
 jest.mock("../../main", () => ({
@@ -82,11 +83,11 @@ describe("CommandHandler", () => {
         jest.clearAllMocks();
         commandHandler = new CommandHandler();
 
-        mockGetAllActiveCommands = (firebot.modules.commandManager.getAllActiveCommands as unknown as jest.Mock);
-        mockSaveCustomCommand = (firebot.modules.commandManager.saveCustomCommand as unknown as jest.Mock);
-        mockRunRestrictionPredicates = (firebot.modules.restrictionManager.runRestrictionPredicates as unknown as jest.Mock);
-        mockProcessEffects = (firebot.modules.effectRunner.processEffects as unknown as jest.Mock);
-        mockFrontendCommunicatorSend = (firebot.modules.frontendCommunicator.send as unknown as jest.Mock);
+        mockGetAllActiveCommands = firebot.modules.commandManager.getAllActiveCommands as unknown as jest.Mock;
+        mockSaveCustomCommand = firebot.modules.commandManager.saveCustomCommand as unknown as jest.Mock;
+        mockRunRestrictionPredicates = firebot.modules.restrictionManager.runRestrictionPredicates as unknown as jest.Mock;
+        mockProcessEffects = firebot.modules.effectRunner.processEffects as unknown as jest.Mock;
+        mockFrontendCommunicatorSend = firebot.modules.frontendCommunicator.send as unknown as jest.Mock;
     });
 
     describe("Basic Command Triggering", () => {
@@ -316,12 +317,7 @@ describe("CommandRunner", () => {
         it("should parse command trigger and arguments", () => {
             const mockCommand = createMockCommand();
 
-            const userCmd = commandRunner.buildUserCommand(
-                mockCommand,
-                "!test arg1 arg2",
-                "testuser",
-                ["moderator"]
-            );
+            const userCmd = commandRunner.buildUserCommand(mockCommand, "!test arg1 arg2", "testuser", ["moderator"]);
 
             expect(userCmd.trigger).toBe("!test");
             expect(userCmd.args).toEqual(["arg1", "arg2"]);
@@ -335,11 +331,7 @@ describe("CommandRunner", () => {
                 treatQuotedTextAsSingleArg: true
             });
 
-            const userCmd = commandRunner.buildUserCommand(
-                mockCommand,
-                '!echo "hello world" "another arg"',
-                "testuser"
-            );
+            const userCmd = commandRunner.buildUserCommand(mockCommand, '!echo "hello world" "another arg"', "testuser");
 
             expect(userCmd.args).toEqual(["hello world", "another arg"]);
         });

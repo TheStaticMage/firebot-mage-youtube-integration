@@ -17,12 +17,13 @@ describe("youtubeChannelIdVariable.evaluator", () => {
         jest.clearAllMocks();
     });
 
-    const makeTrigger = (): Trigger => ({
-        type: "event",
-        metadata: {
-            username: "testuser"
-        }
-    } as Trigger);
+    const makeTrigger = (): Trigger =>
+        ({
+            type: "event",
+            metadata: {
+                username: "testuser"
+            }
+        }) as Trigger;
 
     it("returns channel ID when available", () => {
         const trigger = makeTrigger();

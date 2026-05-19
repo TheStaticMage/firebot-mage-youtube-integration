@@ -1,7 +1,7 @@
-import type { IntegrationData } from "@crowbartools/firebot-custom-scripts-types";
+import { IntegrationData } from "@crowbartools/firebot-custom-scripts-types";
 import { checkPlatformLibPing } from "@thestaticmage/mage-platform-lib-client";
 import { EventEmitter } from "events";
-import * as fs from "fs";
+import fs from "fs";
 import { IntegrationConstants } from "./constants";
 import { chatEffect } from "./effects/chat";
 import { selectApplicationEffect } from "./effects/select-application";
@@ -21,16 +21,14 @@ import { ChatMessageQueue } from "./internal/chat-message-queue";
 import { ChatStreamClient } from "./internal/chatstream-client";
 import { ErrorTracker } from "./internal/error-tracker";
 import { MultiAuthManager } from "./internal/multi-auth-manager";
-import {
-    FAILOVER_THRESHOLD_DEFAULT,
-    QuotaFailoverManager
-} from "./internal/quota-failover-manager";
+import { FAILOVER_THRESHOLD_DEFAULT, QuotaFailoverManager } from "./internal/quota-failover-manager";
 import { QuotaManager } from "./internal/quota-manager";
 import { RestApiClient } from "./internal/rest-api-client";
 import { YouTubeUserManager } from "./internal/youtube-user-manager";
 import { firebot, logger } from "./main";
+import { youtubeOnlyWhenLiveRestriction } from "./restrictions/youtube-only-when-live";
 import { registerRoutes, unregisterRoutes } from "./server/server";
-import type { ApplicationStorage, YouTubeOAuthApplication } from "./types";
+import { ApplicationStorage, YouTubeOAuthApplication } from "./types";
 import { registerUIExtensions } from "./ui-extensions";
 import { getDataFilePath } from "./util/datafile";
 import { youtubeApplicationActivationCauseVariable } from "./variables/youtube-application-activation-cause";
@@ -87,27 +85,13 @@ export class YouTubeIntegration extends EventEmitter {
     // Managers for production integration
     private errorTracker: ErrorTracker = new ErrorTracker();
     private applicationManager: ApplicationManager = new ApplicationManager();
-    private broadcastManager: BroadcastManager = new BroadcastManager(
-        this,
-        this.errorTracker
-    );
+    private broadcastManager: BroadcastManager = new BroadcastManager(this, this.errorTracker);
     private chatManager: ChatManager | null = null;
-    private multiAuthManager: MultiAuthManager = new MultiAuthManager(
-        this.errorTracker,
-        this.applicationManager
-    );
+    private multiAuthManager: MultiAuthManager = new MultiAuthManager(this.errorTracker, this.applicationManager);
     private quotaManager: QuotaManager = new QuotaManager(this);
-    private quotaFailoverManager: QuotaFailoverManager = new QuotaFailoverManager(
-        this,
-        this.quotaManager
-    );
-    private restApiClient: RestApiClient = new RestApiClient(
-        this,
-        this.errorTracker
-    );
-    private chatMessageQueue: ChatMessageQueue = new ChatMessageQueue(message =>
-        this.restApiClient.sendChatMessage(message)
-    );
+    private quotaFailoverManager: QuotaFailoverManager = new QuotaFailoverManager(this, this.quotaManager);
+    private restApiClient: RestApiClient = new RestApiClient(this, this.errorTracker);
+    private chatMessageQueue: ChatMessageQueue = new ChatMessageQueue((message) => this.restApiClient.sendChatMessage(message));
     private youtubeUserManager: YouTubeUserManager = new YouTubeUserManager();
 
     // Stream monitoring
@@ -118,7 +102,7 @@ export class YouTubeIntegration extends EventEmitter {
     private currentChannelId: string | null = null;
     private currentBroadcastPrivacyStatus: BroadcastPrivacyStatus | null = null;
     private currentActiveApplicationId: string | null = null;
-    private isStreamLive = false;
+    isStreamLive = false;
 
     // Data file paths
     private dataFilePath = "";
@@ -145,10 +129,7 @@ export class YouTubeIntegration extends EventEmitter {
     // Whether to insert YT chat messages into the Firebot chat dashboard.
     private chatFeed = true;
 
-    init(
-        _linked: boolean,
-        integrationData: IntegrationData<IntegrationParameters>
-    ) {
+    init(_linked: boolean, integrationData: IntegrationData<IntegrationParameters>) {
         logger.info("YouTube integration initializing...");
 
         // Load settings
@@ -157,60 +138,31 @@ export class YouTubeIntegration extends EventEmitter {
         }
 
         // Register event source
-        const { eventManager, httpServer, replaceVariableManager } =
-            firebot.modules;
+        const { eventManager, httpServer, replaceVariableManager } = firebot.modules;
         eventManager.registerEventSource(YouTubeEventSource);
         logger.debug("YouTube event source registered");
 
         // Register variables
-        replaceVariableManager.registerReplaceVariable(
-            youtubeApplicationActivationCauseVariable
-        );
-        replaceVariableManager.registerReplaceVariable(
-            youtubeApplicationIdVariable
-        );
-        replaceVariableManager.registerReplaceVariable(
-            youtubeApplicationNameVariable
-        );
+        replaceVariableManager.registerReplaceVariable(youtubeApplicationActivationCauseVariable);
+        replaceVariableManager.registerReplaceVariable(youtubeApplicationIdVariable);
+        replaceVariableManager.registerReplaceVariable(youtubeApplicationNameVariable);
         replaceVariableManager.registerReplaceVariable(youtubeChannelIdVariable);
-        replaceVariableManager.registerReplaceVariable(
-            youtubeErrorCategoryVariable
-        );
-        replaceVariableManager.registerReplaceVariable(
-            youtubeErrorConsecutiveFailuresVariable
-        );
+        replaceVariableManager.registerReplaceVariable(youtubeErrorCategoryVariable);
+        replaceVariableManager.registerReplaceVariable(youtubeErrorConsecutiveFailuresVariable);
         replaceVariableManager.registerReplaceVariable(youtubeErrorMessageVariable);
-        replaceVariableManager.registerReplaceVariable(
-            youtubeIntegrationConnectedVariable
-        );
+        replaceVariableManager.registerReplaceVariable(youtubeIntegrationConnectedVariable);
         replaceVariableManager.registerReplaceVariable(youtubeLiveChatIdVariable);
-        replaceVariableManager.registerReplaceVariable(
-            youtubePreviousApplicationIdVariable
-        );
-        replaceVariableManager.registerReplaceVariable(
-            youtubePrivacyStatusVariable
-        );
+        replaceVariableManager.registerReplaceVariable(youtubePreviousApplicationIdVariable);
+        replaceVariableManager.registerReplaceVariable(youtubePrivacyStatusVariable);
         replaceVariableManager.registerReplaceVariable(youtubeVideoIdVariable);
-        replaceVariableManager.registerReplaceVariable(
-            youtubeQuotaConsumedVariable
-        );
+        replaceVariableManager.registerReplaceVariable(youtubeQuotaConsumedVariable);
         replaceVariableManager.registerReplaceVariable(youtubeQuotaLimitVariable);
-        replaceVariableManager.registerReplaceVariable(
-            youtubeQuotaThresholdVariable
-        );
+        replaceVariableManager.registerReplaceVariable(youtubeQuotaThresholdVariable);
         logger.debug("YouTube variables registered");
 
         // Additional events for variables
-        replaceVariableManager.addEventToVariable(
-            "chatMessage",
-            IntegrationConstants.INTEGRATION_ID,
-            "chat-message"
-        );
-        replaceVariableManager.addEventToVariable(
-            "chatMessage",
-            IntegrationConstants.INTEGRATION_ID,
-            "viewer-arrived"
-        );
+        replaceVariableManager.addEventToVariable("chatMessage", IntegrationConstants.INTEGRATION_ID, "chat-message");
+        replaceVariableManager.addEventToVariable("chatMessage", IntegrationConstants.INTEGRATION_ID, "viewer-arrived");
 
         // Register filters
         const { eventFilterManager } = firebot.modules;
@@ -227,43 +179,34 @@ export class YouTubeIntegration extends EventEmitter {
 
         // Register frontend communicator listeners
         const { frontendCommunicator } = firebot.modules;
-        frontendCommunicator.on(
-            "mage-youtube-integration:getCharacterLimit",
-            () => {
-                return IntegrationConstants.YOUTUBE_CHAT_MESSAGE_CHARACTER_LIMIT;
-            }
-        );
-        frontendCommunicator.on(
-            "mage-youtube-integration:log",
-            (data: { level: string; message: string }) => {
-                const level = data.level || "info";
-                const message = data.message || "";
+        frontendCommunicator.on("mage-youtube-integration:getCharacterLimit", () => {
+            return IntegrationConstants.YOUTUBE_CHAT_MESSAGE_CHARACTER_LIMIT;
+        });
+        frontendCommunicator.on("mage-youtube-integration:log", (data: { level: string; message: string }) => {
+            const level = data.level || "info";
+            const message = data.message || "";
 
-                switch (level) {
-                    case "debug":
-                        logger.debug(message);
-                        break;
-                    case "info":
-                        logger.info(message);
-                        break;
-                    case "warn":
-                        logger.warn(message);
-                        break;
-                    case "error":
-                        logger.error(message);
-                        break;
-                    default:
-                        logger.info(message);
-                        break;
-                }
+            switch (level) {
+                case "debug":
+                    logger.debug(message);
+                    break;
+                case "info":
+                    logger.info(message);
+                    break;
+                case "warn":
+                    logger.warn(message);
+                    break;
+                case "error":
+                    logger.error(message);
+                    break;
+                default:
+                    logger.info(message);
+                    break;
             }
-        );
-        frontendCommunicator.onAsync(
-            "send-chat-message",
-            async (payload: InboundSendChatMessage) => {
-                return this.handleChatMessageTypedInChatFeed(payload);
-            }
-        );
+        });
+        frontendCommunicator.onAsync("send-chat-message", async (payload: InboundSendChatMessage) => {
+            return this.handleChatMessageTypedInChatFeed(payload);
+        });
         logger.debug("Frontend communicator listeners registered");
 
         // Register UI Extension communicator listeners
@@ -276,27 +219,14 @@ export class YouTubeIntegration extends EventEmitter {
         effectManager.registerEffect(selectApplicationEffect);
 
         // Add events to effects, filters, and variables
-        effectManager.addEventToEffect(
-            "firebot:chat-feed-custom-highlight",
-            IntegrationConstants.INTEGRATION_ID,
-            "chat-message"
-        );
-        effectManager.addEventToEffect(
-            "firebot:chat-feed-custom-highlight",
-            IntegrationConstants.INTEGRATION_ID,
-            "viewer-arrived"
-        );
-        effectManager.addEventToEffect(
-            "firebot:chat-feed-message-hide",
-            IntegrationConstants.INTEGRATION_ID,
-            "chat-message"
-        );
+        effectManager.addEventToEffect("firebot:chat-feed-custom-highlight", IntegrationConstants.INTEGRATION_ID, "chat-message");
+        effectManager.addEventToEffect("firebot:chat-feed-custom-highlight", IntegrationConstants.INTEGRATION_ID, "viewer-arrived");
+        effectManager.addEventToEffect("firebot:chat-feed-message-hide", IntegrationConstants.INTEGRATION_ID, "chat-message");
         logger.debug("YouTube effects registered");
 
         // Register restrictions
         const { restrictionManager } = firebot.modules;
-        const youtubeOnlyWhenLive = require("./restrictions/youtube-only-when-live");
-        restrictionManager.registerRestriction(youtubeOnlyWhenLive);
+        restrictionManager.registerRestriction(youtubeOnlyWhenLiveRestriction);
         logger.debug("YouTube restrictions registered");
 
         // Register UI extensions
@@ -324,17 +254,11 @@ export class YouTubeIntegration extends EventEmitter {
     async connect() {
         logger.info("YouTube integration connecting...");
 
-        const pingResult = await checkPlatformLibPing(
-            this.getPlatformLibPingPort()
-        );
+        const pingResult = await checkPlatformLibPing(this.getPlatformLibPingPort());
         if (!pingResult.success) {
-            logger.error(
-                `Platform library ping failed: ${pingResult.errorMessage || "Unknown error"}`
-            );
+            logger.error(`Platform library ping failed: ${pingResult.errorMessage || "Unknown error"}`);
             await this.disconnect();
-            this.sendCriticalErrorNotification(
-                `Platform library ping failed. ${pingResult.errorMessage || "Please verify that the platform library is loaded."}`
-            );
+            this.sendCriticalErrorNotification(`Platform library ping failed. ${pingResult.errorMessage || "Please verify that the platform library is loaded."}`);
             return;
         }
 
@@ -344,9 +268,7 @@ export class YouTubeIntegration extends EventEmitter {
             const applications = Object.values(applicationsMap);
 
             if (applications.length === 0) {
-                throw new Error(
-                    "No YouTube applications configured. Please add an application in the YouTube Applications settings."
-                );
+                throw new Error("No YouTube applications configured. Please add an application in the YouTube Applications settings.");
             }
 
             // Step 1: Determine active application
@@ -355,13 +277,11 @@ export class YouTubeIntegration extends EventEmitter {
 
             // If no previously-active application, find first application with a refresh token
             if (!activeApp || !activeApp.refreshToken) {
-                activeApp = applications.find(app => app.refreshToken) || null;
+                activeApp = applications.find((app) => app.refreshToken) || null;
             }
 
             if (!activeApp) {
-                throw new Error(
-                    "No YouTube applications with valid refresh tokens available. Please authorize an application in the YouTube Applications settings."
-                );
+                throw new Error("No YouTube applications with valid refresh tokens available. Please authorize an application in the YouTube Applications settings.");
             }
 
             const activeApplicationId = activeApp.id;
@@ -369,25 +289,15 @@ export class YouTubeIntegration extends EventEmitter {
             // Restore or set the active application if needed
             const currentActive = this.applicationManager.getActiveApplication();
             if (!currentActive || currentActive.id !== activeApplicationId) {
-                logger.info(
-                    `Setting active application: ${activeApp.name} (${activeApplicationId})`
-                );
-                await this.applicationManager.setActiveApplication(
-                    activeApplicationId,
-                    ApplicationActivationCause.AUTHORIZED_FIRST_APPLICATION,
-                    this.connected
-                );
+                logger.info(`Setting active application: ${activeApp.name} (${activeApplicationId})`);
+                await this.applicationManager.setActiveApplication(activeApplicationId, ApplicationActivationCause.AUTHORIZED_FIRST_APPLICATION, this.connected);
             }
 
-            logger.info(
-                `Using active application: ${activeApp.name} (${activeApplicationId})`
-            );
+            logger.info(`Using active application: ${activeApp.name} (${activeApplicationId})`);
 
             // Step 2: Initialize MultiAuthManager with all applications and start background refresh
             await this.multiAuthManager.initialize(applications);
-            logger.info(
-                `Initialized MultiAuthManager with ${applications.length} application(s) - background refresh started`
-            );
+            logger.info(`Initialized MultiAuthManager with ${applications.length} application(s) - background refresh started`);
 
             // Step 3: Refresh all authorized applications to populate token expiration times
             logger.debug("Refreshing tokens for all authorized applications...");
@@ -396,67 +306,42 @@ export class YouTubeIntegration extends EventEmitter {
                     try {
                         await this.multiAuthManager.refreshApplicationToken(app.id);
                     } catch (error: any) {
-                        logger.warn(
-                            `Failed to refresh token for application "${app.name}": ${error.message}`
-                        );
+                        logger.warn(`Failed to refresh token for application "${app.name}": ${error.message}`);
                     }
                 }
             }
 
             // Step 4: Verify active application is still ready, or find another ready application
-            let finalActiveApp =
-                this.applicationManager.getApplication(activeApplicationId);
+            let finalActiveApp = this.applicationManager.getApplication(activeApplicationId);
             if (!finalActiveApp?.ready) {
-                logger.warn(
-                    `Previously selected active application "${activeApp.name}" is no longer ready. Searching for another ready application.`
-                );
+                logger.warn(`Previously selected active application "${activeApp.name}" is no longer ready. Searching for another ready application.`);
 
                 // Find first ready application
-                const readyApp = applications.find(
-                    app => app.ready && app.refreshToken
-                );
+                const readyApp = applications.find((app) => app.ready && app.refreshToken);
 
                 if (!readyApp) {
-                    throw new Error(
-                        "No YouTube applications with valid credentials available. Please re-authorize an application in the YouTube Applications settings."
-                    );
+                    throw new Error("No YouTube applications with valid credentials available. Please re-authorize an application in the YouTube Applications settings.");
                 }
 
                 // Switch to the ready application
-                logger.info(
-                    `Switching to ready application: ${readyApp.name} (${readyApp.id})`
-                );
-                await this.applicationManager.setActiveApplication(
-                    readyApp.id,
-                    ApplicationActivationCause.AUTHORIZED_FIRST_APPLICATION,
-                    this.connected
-                );
+                logger.info(`Switching to ready application: ${readyApp.name} (${readyApp.id})`);
+                await this.applicationManager.setActiveApplication(readyApp.id, ApplicationActivationCause.AUTHORIZED_FIRST_APPLICATION, this.connected);
                 finalActiveApp = readyApp;
             }
 
             // Step 5: Get access token for active application
-            const accessToken = await this.multiAuthManager.getAccessToken(
-                finalActiveApp.id
-            );
+            const accessToken = await this.multiAuthManager.getAccessToken(finalActiveApp.id);
             if (!accessToken) {
-                throw new Error(
-                    `Failed to get access token for active application "${finalActiveApp.name}".`
-                );
+                throw new Error(`Failed to get access token for active application "${finalActiveApp.name}".`);
             }
             logger.info("YouTube OAuth connected successfully");
 
             // Step 6: Find active live stream
             logger.info("Searching for active YouTube broadcast...");
-            const broadcastInfo = await this.broadcastManager.findLiveBroadcast(
-                accessToken,
-                undefined,
-                finalActiveApp.id
-            );
+            const broadcastInfo = await this.broadcastManager.findLiveBroadcast(accessToken, undefined, finalActiveApp.id);
 
             if (!broadcastInfo) {
-                logger.warn(
-                    "No active YouTube broadcast found. Starting offline monitoring."
-                );
+                logger.warn("No active YouTube broadcast found. Starting offline monitoring.");
                 this.connected = true;
                 this.currentActiveApplicationId = finalActiveApp.id;
 
@@ -472,9 +357,7 @@ export class YouTubeIntegration extends EventEmitter {
                 // Register HTTP operation handlers for platform-lib
                 registerRoutes(this);
 
-                logger.info(
-                    "YouTube integration connected successfully (no broadcast found)"
-                );
+                logger.info("YouTube integration connected successfully (no broadcast found)");
                 return;
             }
 
@@ -484,10 +367,7 @@ export class YouTubeIntegration extends EventEmitter {
             this.currentBroadcastId = broadcastInfo.broadcastId;
             this.currentChannelId = broadcastInfo.channelId;
             this.currentBroadcastPrivacyStatus = broadcastInfo.privacyStatus ?? null;
-            await this.startChatStreaming(
-                broadcastInfo.liveChatId,
-                finalActiveApp.id
-            );
+            await this.startChatStreaming(broadcastInfo.liveChatId, finalActiveApp.id);
 
             this.connected = true;
 
@@ -509,12 +389,9 @@ export class YouTubeIntegration extends EventEmitter {
     }
 
     /**
-	 * Start streaming chat for a specific liveChatId
-	 */
-    private async startChatStreaming(
-        liveChatId: string,
-        activeApplicationId: string
-    ): Promise<void> {
+     * Start streaming chat for a specific liveChatId
+     */
+    private async startChatStreaming(liveChatId: string, activeApplicationId: string): Promise<void> {
         // Stop any existing stream first
         if (this.chatManager) {
             await this.chatManager.stopChatStreaming();
@@ -523,25 +400,16 @@ export class YouTubeIntegration extends EventEmitter {
         this.currentLiveChatId = liveChatId;
 
         // Create ChatManager with ChatStreamClient factory and integration reference
-        this.chatManager = new ChatManager(
-            logger,
-            this.quotaManager,
-            this.multiAuthManager,
-            () => new ChatStreamClient(this, this.errorTracker),
-            this,
-            this.youtubeUserManager
-        );
+        this.chatManager = new ChatManager(logger, this.quotaManager, this.multiAuthManager, () => new ChatStreamClient(this, this.errorTracker), this, this.youtubeUserManager);
 
         // Start streaming (ChatManager will retrieve token internally)
         await this.chatManager.startChatStreaming(liveChatId);
-        logger.debug(
-            `Chat streaming started for application ${activeApplicationId}`
-        );
+        logger.debug(`Chat streaming started for application ${activeApplicationId}`);
     }
 
     /**
-	 * Handle stream offline event (called by ChatManager when offlineAt detected)
-	 */
+     * Handle stream offline event (called by ChatManager when offlineAt detected)
+     */
     async handleStreamOffline(): Promise<void> {
         logger.info("YouTube stream offline detected");
         triggerStreamOffline();
@@ -564,8 +432,8 @@ export class YouTubeIntegration extends EventEmitter {
     }
 
     /**
-	 * Handle stream online event (called when broadcast found during offline monitoring)
-	 */
+     * Handle stream online event (called when broadcast found during offline monitoring)
+     */
     private async handleStreamOnline(broadcastInfo: any): Promise<void> {
         logger.info("YouTube stream online detected");
 
@@ -585,16 +453,13 @@ export class YouTubeIntegration extends EventEmitter {
         // Start chat streaming
         const liveChatId = broadcastInfo.liveChatId as string | null;
         if (liveChatId != null && this.currentActiveApplicationId != null) {
-            await this.startChatStreaming(
-                liveChatId,
-                this.currentActiveApplicationId
-            );
+            await this.startChatStreaming(liveChatId, this.currentActiveApplicationId);
         }
     }
 
     /**
-	 * Start offline monitoring (10-second broadcast checks to detect when stream comes online)
-	 */
+     * Start offline monitoring (10-second broadcast checks to detect when stream comes online)
+     */
     private startOfflineMonitoring(): void {
         if (this.offlineMonitoringInterval) {
             clearInterval(this.offlineMonitoringInterval);
@@ -609,9 +474,7 @@ export class YouTubeIntegration extends EventEmitter {
             try {
                 await this.checkForBroadcast();
             } catch (error: any) {
-                logger.error(
-                    `Error checking for broadcast during offline monitoring: ${error.message}`
-                );
+                logger.error(`Error checking for broadcast during offline monitoring: ${error.message}`);
             } finally {
                 this.offlineMonitoringInProgress = false;
             }
@@ -621,8 +484,8 @@ export class YouTubeIntegration extends EventEmitter {
     }
 
     /**
-	 * Stop offline monitoring
-	 */
+     * Stop offline monitoring
+     */
     private stopOfflineMonitoring(): void {
         if (this.offlineMonitoringInterval) {
             clearInterval(this.offlineMonitoringInterval);
@@ -632,8 +495,8 @@ export class YouTubeIntegration extends EventEmitter {
     }
 
     /**
-	 * Check for live broadcast (used during offline monitoring)
-	 */
+     * Check for live broadcast (used during offline monitoring)
+     */
     private async checkForBroadcast(): Promise<void> {
         if (!this.connected || !this.currentActiveApplicationId) {
             return;
@@ -641,34 +504,22 @@ export class YouTubeIntegration extends EventEmitter {
 
         try {
             // Verify active application is still ready
-            const activeApp = this.applicationManager.getApplication(
-                this.currentActiveApplicationId || ""
-            );
+            const activeApp = this.applicationManager.getApplication(this.currentActiveApplicationId || "");
             if (!activeApp || !activeApp.ready) {
                 logger.error("Active application is no longer ready. Disconnecting.");
-                this.sendCriticalErrorNotification(
-                    "Active YouTube application is no longer ready. Disconnecting."
-                );
+                this.sendCriticalErrorNotification("Active YouTube application is no longer ready. Disconnecting.");
                 await this.disconnect();
                 return;
             }
 
-            const accessToken = await this.multiAuthManager.getAccessToken(
-                this.currentActiveApplicationId
-            );
+            const accessToken = await this.multiAuthManager.getAccessToken(this.currentActiveApplicationId);
             if (!accessToken) {
-                logger.error(
-                    "Failed to get access token for active application during broadcast check."
-                );
+                logger.error("Failed to get access token for active application during broadcast check.");
                 await this.disconnect();
                 return;
             }
 
-            const broadcastInfo = await this.broadcastManager.findLiveBroadcast(
-                accessToken,
-                undefined,
-                this.currentActiveApplicationId
-            );
+            const broadcastInfo = await this.broadcastManager.findLiveBroadcast(accessToken, undefined, this.currentActiveApplicationId);
 
             if (broadcastInfo) {
                 await this.handleStreamOnline(broadcastInfo);
@@ -677,9 +528,7 @@ export class YouTubeIntegration extends EventEmitter {
             // Check if it's a quota error
             if (this.quotaManager.isQuotaExceededError(error)) {
                 logger.error("YouTube API quota exceeded. Disconnecting integration.");
-                this.sendCriticalErrorNotification(
-                    "YouTube API quota exceeded. Please wait until quota resets."
-                );
+                this.sendCriticalErrorNotification("YouTube API quota exceeded. Please wait until quota resets.");
                 await this.disconnect();
             } else {
                 logger.error(`Broadcast check failed: ${error.message}`);
@@ -714,9 +563,7 @@ export class YouTubeIntegration extends EventEmitter {
 
         // Destroy multi-auth manager and stop all background refresh timers
         this.multiAuthManager.destroy();
-        logger.debug(
-            "Background token refresh timers destroyed for all applications"
-        );
+        logger.debug("Background token refresh timers destroyed for all applications");
 
         this.currentLiveChatId = null;
         this.currentBroadcastId = null;
@@ -734,9 +581,7 @@ export class YouTubeIntegration extends EventEmitter {
         logger.info("YouTube integration disconnected successfully");
     }
 
-    async onUserSettingsUpdate(
-        integrationData: IntegrationData<IntegrationParameters>
-    ) {
+    async onUserSettingsUpdate(integrationData: IntegrationData<IntegrationParameters>) {
         if (integrationData.userSettings) {
             logger.debug("YouTube integration user settings updated.");
             this.settings = JSON.parse(JSON.stringify(integrationData.userSettings));
@@ -756,61 +601,43 @@ export class YouTubeIntegration extends EventEmitter {
     }
 
     /**
-	 * Attempt automatic quota failover to another application
-	 * @param currentApplicationId The application whose quota threshold was crossed
-	 */
-    public async attemptQuotaFailover(
-        currentApplicationId: string
-    ): Promise<void> {
+     * Attempt automatic quota failover to another application
+     * @param currentApplicationId The application whose quota threshold was crossed
+     */
+    public async attemptQuotaFailover(currentApplicationId: string): Promise<void> {
         await this.quotaFailoverManager.attemptQuotaFailover(currentApplicationId);
     }
 
-    private async handleChatMessageTypedInChatFeed(
-        payload: InboundSendChatMessage
-    ): Promise<boolean> {
+    private async handleChatMessageTypedInChatFeed(payload: InboundSendChatMessage): Promise<boolean> {
         if (!this.settings.chat.chatSend) {
-            logger.debug(
-                "handleChatMessageTypedInChatFeed: Not sending message typed in chat feed: This option is disabled in the settings."
-            );
+            logger.debug("handleChatMessageTypedInChatFeed: Not sending message typed in chat feed: This option is disabled in the settings.");
             return false;
         }
 
         if (!this.connected) {
-            logger.warn(
-                "handleChatMessageTypedInChatFeed: YouTube integration not connected. Ignoring inbound chat message."
-            );
+            logger.warn("handleChatMessageTypedInChatFeed: YouTube integration not connected. Ignoring inbound chat message.");
             return false;
         }
 
         if (!this.isLive()) {
-            logger.debug(
-                "handleChatMessageTypedInChatFeed: Not sending message typed in chat feed: No active live chat."
-            );
+            logger.debug("handleChatMessageTypedInChatFeed: Not sending message typed in chat feed: No active live chat.");
             return false;
         }
 
         if (!payload?.message || payload.message.trim() === "") {
-            logger.debug(
-                "handleChatMessageTypedInChatFeed: Not sending message typed in chat feed: Message is empty."
-            );
+            logger.debug("handleChatMessageTypedInChatFeed: Not sending message typed in chat feed: Message is empty.");
             return false;
         }
 
         if (payload.accountType === "Bot") {
-            logger.debug(
-                "handleChatMessageTypedInChatFeed: YouTube chat integration does not support sending as Bot. Sending as streamer instead."
-            );
+            logger.debug("handleChatMessageTypedInChatFeed: YouTube chat integration does not support sending as Bot. Sending as streamer instead.");
         }
 
         if (payload.replyToMessageId) {
-            logger.debug(
-                "handleChatMessageTypedInChatFeed: Replying to specific messages is not supported for YouTube chat."
-            );
+            logger.debug("handleChatMessageTypedInChatFeed: Replying to specific messages is not supported for YouTube chat.");
         }
 
-        logger.debug(
-            `handleChatMessageTypedInChatFeed: Sending message typed in chat feed: ${payload.message}`
-        );
+        logger.debug(`handleChatMessageTypedInChatFeed: Sending message typed in chat feed: ${payload.message}`);
         return this.restApiClient.sendChatMessage(payload.message);
     }
 
@@ -873,8 +700,8 @@ export class YouTubeIntegration extends EventEmitter {
     }
 
     /**
-	 * Get access token for active application
-	 */
+     * Get access token for active application
+     */
     async getActiveApplicationAccessToken(): Promise<string> {
         const activeApp = this.applicationManager.getActiveApplication();
         if (!activeApp) {
@@ -886,9 +713,9 @@ export class YouTubeIntegration extends EventEmitter {
     }
 
     /**
-	 * Switch to a different active application
-	 * If currently connected, seamlessly switches streaming to the new application
-	 */
+     * Switch to a different active application
+     * If currently connected, seamlessly switches streaming to the new application
+     */
     async switchActiveApplication(newApplicationId: string): Promise<void> {
         const newApp = this.applicationManager.getApplication(newApplicationId);
         if (!newApp) {
@@ -903,15 +730,9 @@ export class YouTubeIntegration extends EventEmitter {
         this.currentActiveApplicationId = newApplicationId;
 
         // Update active application in ApplicationManager
-        await this.applicationManager.setActiveApplication(
-            newApplicationId,
-            ApplicationActivationCause.USER_CLICKED,
-            this.connected
-        );
+        await this.applicationManager.setActiveApplication(newApplicationId, ApplicationActivationCause.USER_CLICKED, this.connected);
 
-        logger.info(
-            `Active application switched from ${previousApplicationId} to ${newApplicationId} (${newApp.name})`
-        );
+        logger.info(`Active application switched from ${previousApplicationId} to ${newApplicationId} (${newApp.name})`);
 
         // If connected, restart streaming with new application
         if (this.connected && this.currentLiveChatId) {
@@ -926,18 +747,12 @@ export class YouTubeIntegration extends EventEmitter {
 
                 // Restart chat streaming with new application
                 await this.startChatStreaming(this.currentLiveChatId, newApplicationId);
-                logger.info(
-                    "Chat streaming restarted successfully with new active application"
-                );
+                logger.info("Chat streaming restarted successfully with new active application");
             } catch (error: any) {
-                logger.error(
-                    `Failed to restart chat streaming with new application: ${error.message}`
-                );
+                logger.error(`Failed to restart chat streaming with new application: ${error.message}`);
                 // If seamless switch fails, disconnect to prevent inconsistent state
                 await this.disconnect();
-                this.sendCriticalErrorNotification(
-                    `Failed to switch applications: ${error.message}`
-                );
+                this.sendCriticalErrorNotification(`Failed to switch applications: ${error.message}`);
                 throw error;
             }
         }
@@ -946,16 +761,12 @@ export class YouTubeIntegration extends EventEmitter {
     sendCriticalErrorNotification(message: string) {
         const { frontendCommunicator } = firebot.modules;
         frontendCommunicator.send("error", `YouTube Integration: ${message}`);
-        logger.info(
-            `Pop-up critical notification sent: ${JSON.stringify(message)}`
-        );
+        logger.info(`Pop-up critical notification sent: ${JSON.stringify(message)}`);
     }
 
     sendChatFeedErrorNotification(message: string) {
         if (this.settings.advanced.suppressChatFeedNotifications) {
-            logger.warn(
-                `Chat feed notifications suppressed. Not sending this message: ${JSON.stringify(message)}`
-            );
+            logger.warn(`Chat feed notifications suppressed. Not sending this message: ${JSON.stringify(message)}`);
             return;
         }
 
@@ -969,12 +780,9 @@ export class YouTubeIntegration extends EventEmitter {
     }
 
     /**
-	 * Notify UI about application status changes
-	 */
-    notifyApplicationStatusChange(
-        applicationId: string,
-        app: YouTubeOAuthApplication
-    ): void {
+     * Notify UI about application status changes
+     */
+    notifyApplicationStatusChange(applicationId: string, app: YouTubeOAuthApplication): void {
         const { frontendCommunicator } = firebot.modules;
 
         // Send status change event to UI
@@ -986,23 +794,18 @@ export class YouTubeIntegration extends EventEmitter {
             name: app.name
         });
 
-        logger.debug(
-            `Notified UI of application status change: ${app.name} - ${displayStatus}`
-        );
+        logger.debug(`Notified UI of application status change: ${app.name} - ${displayStatus}`);
     }
 
     /**
-	 * Serialize applications for UI (with formatted status messages)
-	 */
-    private serializeApplicationsForUI(
-        applicationsMap: Record<string, YouTubeOAuthApplication>
-    ): Record<string, any> {
+     * Serialize applications for UI (with formatted status messages)
+     */
+    private serializeApplicationsForUI(applicationsMap: Record<string, YouTubeOAuthApplication>): Record<string, any> {
         const serializedMap: Record<string, any> = {};
         for (const [id, app] of Object.entries(applicationsMap)) {
             const quotaUsage = this.quotaManager.getQuotaUsage(id);
             const quotaUnitsUsed = quotaUsage?.quotaUnitsUsed || 0;
-            const pollingIntervalDisplay =
-                this.quotaManager.getPollingIntervalDisplayText(app.quotaSettings);
+            const pollingIntervalDisplay = this.quotaManager.getPollingIntervalDisplayText(app.quotaSettings);
             serializedMap[id] = {
                 id: app.id,
                 name: app.name,
@@ -1014,8 +817,7 @@ export class YouTubeIntegration extends EventEmitter {
                     dailyQuota: app.quotaSettings.dailyQuota,
                     maxStreamHours: app.quotaSettings.maxStreamHours,
                     overridePollingDelay: app.quotaSettings.overridePollingDelay,
-                    customPollingDelaySeconds:
-						app.quotaSettings.customPollingDelaySeconds
+                    customPollingDelaySeconds: app.quotaSettings.customPollingDelaySeconds
                 },
                 quotaUnitsUsed: quotaUnitsUsed,
                 pollingIntervalDisplay: pollingIntervalDisplay
@@ -1025,30 +827,20 @@ export class YouTubeIntegration extends EventEmitter {
     }
 
     /**
-	 * Register HTTP endpoints for multi-application OAuth
-	 */
+     * Register HTTP endpoints for multi-application OAuth
+     */
     private registerHttpEndpoints(httpServer: any): void {
         // Endpoint: /integrations/{prefix}/link/{appId}/streamer - Redirects to Google OAuth for specific app
-        httpServer.registerCustomRoute(
-            IntegrationConstants.INTEGRATION_URI,
-            "link/:appId/streamer",
-            "GET",
-            this.handleLinkCallback.bind(this)
-        );
+        httpServer.registerCustomRoute(IntegrationConstants.INTEGRATION_URI, "link/:appId/streamer", "GET", this.handleLinkCallback.bind(this));
 
         // Endpoint: /integrations/{prefix}/auth/callback - Handles OAuth callback for any app
-        httpServer.registerCustomRoute(
-            IntegrationConstants.INTEGRATION_URI,
-            "auth/callback",
-            "GET",
-            this.handleAuthCallback.bind(this)
-        );
+        httpServer.registerCustomRoute(IntegrationConstants.INTEGRATION_URI, "auth/callback", "GET", this.handleAuthCallback.bind(this));
     }
 
     /**
-	 * Handle the /link/{appId}/streamer endpoint
-	 * Redirects user to Google OAuth consent screen for specific application
-	 */
+     * Handle the /link/{appId}/streamer endpoint
+     * Redirects user to Google OAuth consent screen for specific application
+     */
     private async handleLinkCallback(req: any, res: any): Promise<void> {
         const { appid } = req.params; // It comes through as lowercase
         const appId = appid as string;
@@ -1073,9 +865,7 @@ export class YouTubeIntegration extends EventEmitter {
 
         try {
             // Initialize multi-auth manager with current applications
-            const applications = Object.values(
-                this.applicationManager.getApplications()
-            );
+            const applications = Object.values(this.applicationManager.getApplications());
             await this.multiAuthManager.updateApplications(applications);
 
             // Generate state with CSRF protection
@@ -1084,82 +874,57 @@ export class YouTubeIntegration extends EventEmitter {
                 timestamp: Date.now()
             });
 
-            const authUrl = this.multiAuthManager.generateAuthorizationUrl(
-                appId,
-                state
-            );
-            logger.debug(
-                `Redirecting user to authorization URL for application ${appId}: ${authUrl}`
-            );
+            const authUrl = this.multiAuthManager.generateAuthorizationUrl(appId, state);
+            logger.debug(`Redirecting user to authorization URL for application ${appId}: ${authUrl}`);
             res.redirect(authUrl);
         } catch (error: any) {
-            logger.error(
-                `Error handling link callback for application ${appId}: ${error.message}`
-            );
+            logger.error(`Error handling link callback for application ${appId}: ${error.message}`);
             res.status(500).send(`Error handling link callback: ${error.message}`);
         }
     }
 
     /**
-	 * Handle the OAuth callback from Google
-	 * Exchange the authorization code for tokens
-	 */
+     * Handle the OAuth callback from Google
+     * Exchange the authorization code for tokens
+     */
     private async handleAuthCallback(req: any, res: any): Promise<void> {
         // Get current applications from ApplicationManager
-        const applications = Object.values(
-            this.applicationManager.getApplications()
-        );
+        const applications = Object.values(this.applicationManager.getApplications());
         await this.multiAuthManager.updateApplications(applications);
 
         // Delegate to multi-auth manager and get the authorized app ID. Note:
         // ApplicationAuthManager.setTokens() writes directly to disk via
         // ApplicationManager, so no manual sync is needed here
-        const authorizedAppId = await this.multiAuthManager.handleAuthCallback(
-            req,
-            res
-        );
+        const authorizedAppId = await this.multiAuthManager.handleAuthCallback(req, res);
 
         // Conditionally set the newly authorized application as active if it's the only one
         if (authorizedAppId) {
             const allApps = Object.values(this.applicationManager.getApplications());
-            const authorizedApps = allApps.filter(app => app.refreshToken);
+            const authorizedApps = allApps.filter((app) => app.refreshToken);
 
             if (authorizedApps.length === 1) {
                 // This is the ONLY authorized app - set it as active
                 try {
-                    await this.applicationManager.setActiveApplication(
-                        authorizedAppId,
-                        ApplicationActivationCause.AUTHORIZED_FIRST_APPLICATION,
-                        this.connected
-                    );
+                    await this.applicationManager.setActiveApplication(authorizedAppId, ApplicationActivationCause.AUTHORIZED_FIRST_APPLICATION, this.connected);
                     if (this.connected) {
-                        logger.info(
-                            `Set newly authorized app as active (only authorized app, integration connected): ${authorizedAppId}`
-                        );
+                        logger.info(`Set newly authorized app as active (only authorized app, integration connected): ${authorizedAppId}`);
                     } else {
-                        logger.info(
-                            `Set newly authorized app as pending active (only authorized app, integration disconnected): ${authorizedAppId}`
-                        );
+                        logger.info(`Set newly authorized app as pending active (only authorized app, integration disconnected): ${authorizedAppId}`);
                     }
                 } catch (error: any) {
-                    logger.error(
-                        `Failed to set active application after authorization: ${error.message}`
-                    );
+                    logger.error(`Failed to set active application after authorization: ${error.message}`);
                 }
             } else if (authorizedApps.length > 1) {
                 // Other authorized apps exist - don't change active app
-                logger.info(
-                    `Newly authorized app is Ready but not active (${authorizedApps.length} authorized apps exist)`
-                );
+                logger.info(`Newly authorized app is Ready but not active (${authorizedApps.length} authorized apps exist)`);
             }
         }
     }
 
     /**
-	 * Save integration token data (OAuth refresh token).
-	 * Compatibility wrapper for integration-level token persistence;
-	 * per-application OAuth is managed by ApplicationManager.
-	 */
+     * Save integration token data (OAuth refresh token)
+     * Legacy method - OAuth is now managed per-application via ApplicationManager
+     */
     saveIntegrationTokenData(tokenData: { refreshToken: string }): void {
         const data: IntegrationFileData = {
             refreshToken: tokenData.refreshToken
@@ -1170,9 +935,9 @@ export class YouTubeIntegration extends EventEmitter {
     }
 
     /**
-	 * Unlink integration (revoke OAuth)
-	 * Called by AuthManager when user unlinks account
-	 */
+     * Unlink integration (revoke OAuth)
+     * Called by AuthManager when user unlinks account
+     */
     async unlinkIntegration(): Promise<void> {
         logger.debug("Unlinking YouTube integration...");
 
@@ -1191,9 +956,9 @@ export class YouTubeIntegration extends EventEmitter {
     }
 
     /**
-	 * Register UI Extension communicator listeners
-	 * Handles requests from the YouTube Applications UI extension
-	 */
+     * Register UI Extension communicator listeners
+     * Handles requests from the YouTube Applications UI extension
+     */
     private registerUIExtensionListeners(frontendCommunicator: any): void {
         // Get all applications (returns application IDs and basic info only)
         frontendCommunicator.on("youTube:getApplications", () => {
@@ -1221,171 +986,126 @@ export class YouTubeIntegration extends EventEmitter {
         });
 
         // Get application details (including credentials for editing)
-        frontendCommunicator.on(
-            "youTube:getApplicationDetails",
-            (data: { applicationId: string }) => {
-                try {
-                    const app = this.applicationManager.getApplication(
-                        data.applicationId
-                    );
-                    if (!app) {
-                        return {
-                            errorMessage: `Application with ID "${data.applicationId}" not found`
-                        };
-                    }
-                    return {
-                        id: app.id,
-                        name: app.name,
-                        clientId: app.clientId,
-                        clientSecret: app.clientSecret,
-                        quotaSettings: {
-                            dailyQuota: app.quotaSettings.dailyQuota,
-                            maxStreamHours: app.quotaSettings.maxStreamHours,
-                            overridePollingDelay: app.quotaSettings.overridePollingDelay,
-                            customPollingDelaySeconds:
-								app.quotaSettings.customPollingDelaySeconds
-                        }
-                    };
-                } catch (error: any) {
-                    logger.error(`Error getting application details: ${error.message}`);
-                    return { errorMessage: error.message };
+        frontendCommunicator.on("youTube:getApplicationDetails", (data: { applicationId: string }) => {
+            try {
+                const app = this.applicationManager.getApplication(data.applicationId);
+                if (!app) {
+                    return { errorMessage: `Application with ID "${data.applicationId}" not found` };
                 }
+                return {
+                    id: app.id,
+                    name: app.name,
+                    clientId: app.clientId,
+                    clientSecret: app.clientSecret,
+                    quotaSettings: {
+                        dailyQuota: app.quotaSettings.dailyQuota,
+                        maxStreamHours: app.quotaSettings.maxStreamHours,
+                        overridePollingDelay: app.quotaSettings.overridePollingDelay,
+                        customPollingDelaySeconds: app.quotaSettings.customPollingDelaySeconds
+                    }
+                };
+            } catch (error: any) {
+                logger.error(`Error getting application details: ${error.message}`);
+                return { errorMessage: error.message };
             }
-        );
+        });
 
         // Set active application
-        frontendCommunicator.onAsync(
-            "youTube:setActiveApplication",
-            async (data: { applicationId: string | null }) => {
-                try {
-                    if (data.applicationId) {
-                        await this.applicationManager.setActiveApplication(
-                            data.applicationId,
-                            ApplicationActivationCause.USER_CLICKED,
-                            this.connected
-                        );
-                    } else {
-                        await this.applicationManager.clearActiveApplication();
-                    }
-                    return { success: true };
-                } catch (error: any) {
-                    logger.error(`Error setting active application: ${error.message}`);
-                    return { errorMessage: error.message };
+        frontendCommunicator.onAsync("youTube:setActiveApplication", async (data: { applicationId: string | null }) => {
+            try {
+                if (data.applicationId) {
+                    await this.applicationManager.setActiveApplication(data.applicationId, ApplicationActivationCause.USER_CLICKED, this.connected);
+                } else {
+                    await this.applicationManager.clearActiveApplication();
                 }
+                return { success: true };
+            } catch (error: any) {
+                logger.error(`Error setting active application: ${error.message}`);
+                return { errorMessage: error.message };
             }
-        );
+        });
 
         // Save application
-        frontendCommunicator.onAsync(
-            "youTube:saveApplication",
-            async (data: { applicationId: string; application: any }) => {
-                try {
-                    const { applicationId, application } = data;
-                    const existingApp =
-                        this.applicationManager.getApplication(applicationId);
+        frontendCommunicator.onAsync("youTube:saveApplication", async (data: { applicationId: string; application: any }) => {
+            try {
+                const { applicationId, application } = data;
+                const existingApp = this.applicationManager.getApplication(applicationId);
 
-                    if (existingApp) {
-                        // Update existing application (preserves refreshToken)
-                        await this.applicationManager.updateApplication(applicationId, {
-                            name: application.name,
-                            clientId: application.clientId,
-                            clientSecret: application.clientSecret,
-                            quotaSettings: application.quotaSettings
-                        });
-                    } else {
-                        // Add new application (refreshToken will be added during OAuth flow)
-                        await this.applicationManager.addApplication(
-                            application.name,
-                            application.clientId,
-                            application.clientSecret,
-                            application.quotaSettings
-                        );
-                    }
-
-                    const applicationsMap = this.applicationManager.getApplications();
-                    const serializedMap =
-                        this.serializeApplicationsForUI(applicationsMap);
-                    return { success: true, applications: serializedMap };
-                } catch (error: any) {
-                    logger.error(`Error saving application: ${error.message}`);
-                    return { errorMessage: error.message };
+                if (existingApp) {
+                    // Update existing application (preserves refreshToken)
+                    await this.applicationManager.updateApplication(applicationId, {
+                        name: application.name,
+                        clientId: application.clientId,
+                        clientSecret: application.clientSecret,
+                        quotaSettings: application.quotaSettings
+                    });
+                } else {
+                    // Add new application (refreshToken will be added during OAuth flow)
+                    await this.applicationManager.addApplication(application.name, application.clientId, application.clientSecret, application.quotaSettings);
                 }
+
+                const applicationsMap = this.applicationManager.getApplications();
+                const serializedMap = this.serializeApplicationsForUI(applicationsMap);
+                return { success: true, applications: serializedMap };
+            } catch (error: any) {
+                logger.error(`Error saving application: ${error.message}`);
+                return { errorMessage: error.message };
             }
-        );
+        });
 
         // Delete application
-        frontendCommunicator.onAsync(
-            "youTube:deleteApplication",
-            async (data: { applicationId: string }) => {
-                try {
-                    await this.applicationManager.removeApplication(data.applicationId);
-                    const applicationsMap = this.applicationManager.getApplications();
-                    const serializedMap =
-                        this.serializeApplicationsForUI(applicationsMap);
-                    return { success: true, applications: serializedMap };
-                } catch (error: any) {
-                    logger.error(`Error deleting application: ${error.message}`);
-                    return { errorMessage: error.message };
-                }
+        frontendCommunicator.onAsync("youTube:deleteApplication", async (data: { applicationId: string }) => {
+            try {
+                await this.applicationManager.removeApplication(data.applicationId);
+                const applicationsMap = this.applicationManager.getApplications();
+                const serializedMap = this.serializeApplicationsForUI(applicationsMap);
+                return { success: true, applications: serializedMap };
+            } catch (error: any) {
+                logger.error(`Error deleting application: ${error.message}`);
+                return { errorMessage: error.message };
             }
-        );
+        });
 
         // Deauthorize application
-        frontendCommunicator.onAsync(
-            "youTube:deauthorizeApplication",
-            async (data: { applicationId: string }) => {
-                try {
-                    const app = this.applicationManager.getApplication(
-                        data.applicationId
-                    );
-                    if (!app) {
-                        throw new Error(
-                            `Application with ID "${data.applicationId}" not found`
-                        );
-                    }
-
-                    // Clear the refresh token and mark as not ready
-                    app.refreshToken = "";
-                    await this.applicationManager.updateApplicationReadyStatus(
-                        data.applicationId,
-                        false,
-                        "Authorization required"
-                    );
-
-                    // Clear the auth manager for this application
-                    this.multiAuthManager.clearApplicationAuth(data.applicationId);
-
-                    const applicationsMap = this.applicationManager.getApplications();
-                    const serializedMap =
-                        this.serializeApplicationsForUI(applicationsMap);
-                    return { success: true, applications: serializedMap };
-                } catch (error: any) {
-                    logger.error(`Error deauthorizing application: ${error.message}`);
-                    return { errorMessage: error.message };
+        frontendCommunicator.onAsync("youTube:deauthorizeApplication", async (data: { applicationId: string }) => {
+            try {
+                const app = this.applicationManager.getApplication(data.applicationId);
+                if (!app) {
+                    throw new Error(`Application with ID "${data.applicationId}" not found`);
                 }
+
+                // Clear the refresh token and mark as not ready
+                app.refreshToken = "";
+                await this.applicationManager.updateApplicationReadyStatus(data.applicationId, false, "Authorization required");
+
+                // Clear the auth manager for this application
+                this.multiAuthManager.clearApplicationAuth(data.applicationId);
+
+                const applicationsMap = this.applicationManager.getApplications();
+                const serializedMap = this.serializeApplicationsForUI(applicationsMap);
+                return { success: true, applications: serializedMap };
+            } catch (error: any) {
+                logger.error(`Error deauthorizing application: ${error.message}`);
+                return { errorMessage: error.message };
             }
-        );
+        });
 
         // Refresh application states
-        frontendCommunicator.onAsync(
-            "youTube:refreshApplicationStates",
-            async () => {
-                try {
-                    logger.debug("Refresh application states request received");
-                    const applicationsMap = this.applicationManager.getApplications();
-                    const serializedMap =
-                        this.serializeApplicationsForUI(applicationsMap);
+        frontendCommunicator.onAsync("youTube:refreshApplicationStates", async () => {
+            try {
+                logger.debug("Refresh application states request received");
+                const applicationsMap = this.applicationManager.getApplications();
+                const serializedMap = this.serializeApplicationsForUI(applicationsMap);
 
-                    // Notify UI of updated state
-                    frontendCommunicator.send("youTube:applicationsUpdated", {});
+                // Notify UI of updated state
+                frontendCommunicator.send("youTube:applicationsUpdated", {});
 
-                    return { success: true, applications: serializedMap };
-                } catch (error: any) {
-                    logger.error(`Error refreshing application states: ${error.message}`);
-                    return { errorMessage: error.message };
-                }
+                return { success: true, applications: serializedMap };
+            } catch (error: any) {
+                logger.error(`Error refreshing application states: ${error.message}`);
+                return { errorMessage: error.message };
             }
-        );
+        });
 
         // Get integration connection status
         frontendCommunicator.on("youTube:getIntegrationStatus", () => {
@@ -1416,9 +1136,7 @@ export class YouTubeIntegration extends EventEmitter {
                     await this.connect();
                     return { success: true, connected: this.connected };
                 }
-                logger.debug(
-                    "Connect integration requested but integration is already connected"
-                );
+                logger.debug("Connect integration requested but integration is already connected");
                 return { success: true, connected: this.connected };
             } catch (error: any) {
                 logger.error(`Error connecting integration: ${error.message}`);

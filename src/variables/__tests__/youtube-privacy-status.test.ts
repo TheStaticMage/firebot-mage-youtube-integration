@@ -17,12 +17,13 @@ describe("youtubePrivacyStatusVariable.evaluator", () => {
         jest.clearAllMocks();
     });
 
-    const makeTrigger = (): Trigger => ({
-        type: "event",
-        metadata: {
-            username: "testuser"
-        }
-    } as Trigger);
+    const makeTrigger = (): Trigger =>
+        ({
+            type: "event",
+            metadata: {
+                username: "testuser"
+            }
+        }) as Trigger;
 
     it("returns privacy status 'public' when available", () => {
         const trigger = makeTrigger();

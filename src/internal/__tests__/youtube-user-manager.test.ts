@@ -1,11 +1,4 @@
-import {
-    getOrCreateUser,
-    getUserById,
-    getUserByUsername,
-    incrementChatMessages,
-    setUserRoles,
-    updateLastSeen
-} from "@thestaticmage/mage-platform-lib-client";
+import { getOrCreateUser, getUserById, getUserByUsername, incrementChatMessages, setUserRoles, updateLastSeen } from "@thestaticmage/mage-platform-lib-client";
 import { YouTubeUserManager } from "../youtube-user-manager";
 
 jest.mock("@thestaticmage/mage-platform-lib-client");
@@ -165,12 +158,7 @@ describe("YouTubeUserManager", () => {
                 created: true
             });
 
-            const result = await manager.getOrCreateViewer(
-                "UC123456",
-                "testuser",
-                "Test User",
-                "https://example.com/pic.jpg"
-            );
+            const result = await manager.getOrCreateViewer("UC123456", "testuser", "Test User", "https://example.com/pic.jpg");
 
             expect(result).toEqual({
                 userId: "yUC123456",
