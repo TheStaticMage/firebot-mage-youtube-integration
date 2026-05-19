@@ -1,5 +1,3 @@
-/* eslint-disable global-require */
-/* eslint-disable import/no-dynamic-require */
 /**
  *  Copies the built script .js to Firebot's scripts folder
  */
@@ -19,8 +17,8 @@ const main = async () => {
     const updateScriptVersion = async (filePath, version) => {
         const fileContent = await fs.readFile(filePath, 'utf8');
         const updatedContent = fileContent.replace(
-            /const scriptVersion = '.*?';/,
-            `const scriptVersion = '${version}';`
+            /const scriptVersion = ".*?";/,
+            `const scriptVersion = "${version}";`
         );
         await fs.writeFile(filePath, updatedContent, 'utf8');
     };

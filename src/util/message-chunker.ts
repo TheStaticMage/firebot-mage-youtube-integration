@@ -8,7 +8,7 @@
  */
 export function chunkMessage(message: string, maxLen: number): string[] {
     // Collapse multiple whitespaces into single spaces
-    const normalized = message.replace(/\s+/g, ' ').trim();
+    const normalized = message.replace(/\s+/g, " ").trim();
 
     const segments: string[] = [];
     let remaining = normalized;
@@ -19,7 +19,7 @@ export function chunkMessage(message: string, maxLen: number): string[] {
             break;
         }
 
-        let splitIdx = remaining.lastIndexOf(' ', maxLen);
+        let splitIdx = remaining.lastIndexOf(" ", maxLen);
 
         if (splitIdx === -1 || splitIdx < maxLen * 0.5) {
             splitIdx = maxLen;

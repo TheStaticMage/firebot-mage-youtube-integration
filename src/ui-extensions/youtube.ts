@@ -1,9 +1,4 @@
-import {
-    AngularJsComponent,
-    AngularJsFactory,
-    AngularJsPage,
-    UIExtension
-} from "@crowbartools/firebot-custom-scripts-types/types/modules/ui-extension-manager";
+import { AngularJsComponent, AngularJsFactory, AngularJsPage, UIExtension } from "@crowbartools/firebot-custom-scripts-types/types/modules/ui-extension-manager";
 import { YouTubeOAuthApplication } from "../types";
 
 function youTubeApplicationsServiceFunction(backendCommunicator: any): any {
@@ -379,7 +374,10 @@ const youTubePage: AngularJsPage = {
             const firstLetter = localPart.charAt(0);
             const localMask = "*".repeat(localPart.length - 1);
 
-            const domainMask = domainPart.split(".").map(segment => "*".repeat(segment.length)).join(".");
+            const domainMask = domainPart
+                .split(".")
+                .map((segment) => "*".repeat(segment.length))
+                .join(".");
 
             return `${firstLetter}${localMask}@${domainMask}`;
         };
@@ -392,7 +390,7 @@ const youTubePage: AngularJsPage = {
             const response = youTubeApplicationsService.getApplications();
             if (response.errorMessage) {
                 ngToast.create({
-                    className: 'danger',
+                    className: "danger",
                     content: `Error loading applications: ${response.errorMessage}`
                 });
                 return;
@@ -403,7 +401,7 @@ const youTubePage: AngularJsPage = {
 
             const apps = Object.entries(response.applications || {})
                 .map(([id, app]: [string, any]) => ({
-                    ...(app),
+                    ...app,
                     id
                 }))
                 .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
@@ -414,7 +412,7 @@ const youTubePage: AngularJsPage = {
             const status = youTubeApplicationsService.getIntegrationStatus();
             if (status.errorMessage) {
                 ngToast.create({
-                    className: 'danger',
+                    className: "danger",
                     content: `Error getting integration status: ${status.errorMessage}`
                 });
                 return;
@@ -426,7 +424,7 @@ const youTubePage: AngularJsPage = {
             const status = youTubeApplicationsService.getChatStreamingStatus();
             if (status.errorMessage) {
                 ngToast.create({
-                    className: 'danger',
+                    className: "danger",
                     content: `Error getting chat streaming status: ${status.errorMessage}`
                 });
                 return false;
@@ -444,19 +442,19 @@ const youTubePage: AngularJsPage = {
                 const response = await youTubeApplicationsService.connectIntegration();
                 if (response.errorMessage) {
                     ngToast.create({
-                        className: 'danger',
+                        className: "danger",
                         content: `Error connecting integration: ${response.errorMessage}`
                     });
                     return;
                 }
                 ngToast.create({
-                    className: 'success',
-                    content: 'Integration connected successfully'
+                    className: "success",
+                    content: "Integration connected successfully"
                 });
                 $scope.loadApplications();
             } catch (error: any) {
                 ngToast.create({
-                    className: 'danger',
+                    className: "danger",
                     content: `Error connecting integration: ${error.message}`
                 });
             }
@@ -479,7 +477,7 @@ const youTubePage: AngularJsPage = {
             const app = $scope.applications.find((a: any) => a.id === applicationId);
             if (!app) {
                 ngToast.create({
-                    className: 'danger',
+                    className: "danger",
                     content: "Error: Application not found"
                 });
                 return;
@@ -489,7 +487,7 @@ const youTubePage: AngularJsPage = {
             const details = youTubeApplicationsService.getApplicationDetails(applicationId);
             if (details.errorMessage) {
                 ngToast.create({
-                    className: 'danger',
+                    className: "danger",
                     content: `Error loading application details: ${details.errorMessage}`
                 });
                 return;
@@ -520,14 +518,14 @@ const youTubePage: AngularJsPage = {
             const response = await youTubeApplicationsService.deleteApplication(applicationId);
             if (response.errorMessage) {
                 ngToast.create({
-                    className: 'danger',
+                    className: "danger",
                     content: `Error deleting application: ${response.errorMessage}`
                 });
                 return;
             }
 
             ngToast.create({
-                className: 'success',
+                className: "success",
                 content: `Application "${$scope.applicationName}" deleted successfully.`
             });
 
@@ -538,14 +536,14 @@ const youTubePage: AngularJsPage = {
             const response = await youTubeApplicationsService.setActiveApplication(applicationId);
             if (response.errorMessage) {
                 ngToast.create({
-                    className: 'danger',
+                    className: "danger",
                     content: `Error setting active application: ${response.errorMessage}`
                 });
                 return;
             }
 
             ngToast.create({
-                className: 'success',
+                className: "success",
                 content: `Active application updated.`
             });
 
@@ -556,7 +554,7 @@ const youTubePage: AngularJsPage = {
             const app = $scope.applications.find((a: any) => a.id === applicationId);
             if (!app) {
                 ngToast.create({
-                    className: 'danger',
+                    className: "danger",
                     content: "Error: Application not found"
                 });
                 return;
@@ -579,7 +577,7 @@ const youTubePage: AngularJsPage = {
                         $scope.loadApplications();
 
                         ngToast.create({
-                            className: 'success',
+                            className: "success",
                             content: `Application "${app.name}" authorized successfully!`
                         });
                     }
@@ -587,16 +585,19 @@ const youTubePage: AngularJsPage = {
             }, 1000); // Poll every 1 second
 
             // Stop polling after 10 minutes
-            setTimeout(() => {
-                clearInterval(pollInterval);
-            }, 10 * 60 * 1000);
+            setTimeout(
+                () => {
+                    clearInterval(pollInterval);
+                },
+                10 * 60 * 1000
+            );
         };
 
         $scope.deauthorizeButton = (applicationId: string) => {
             const app = $scope.applications.find((a: any) => a.id === applicationId);
             if (!app) {
                 ngToast.create({
-                    className: 'danger',
+                    className: "danger",
                     content: "Error: Application not found"
                 });
                 return;
@@ -614,14 +615,14 @@ const youTubePage: AngularJsPage = {
             const response = await youTubeApplicationsService.deauthorizeApplication(applicationId);
             if (response.errorMessage) {
                 ngToast.create({
-                    className: 'danger',
+                    className: "danger",
                     content: `Error deauthorizing application: ${response.errorMessage}`
                 });
                 return;
             }
 
             ngToast.create({
-                className: 'success',
+                className: "success",
                 content: `Application "${app?.name}" deauthorized.`
             });
 
@@ -633,14 +634,14 @@ const youTubePage: AngularJsPage = {
             const response = await youTubeApplicationsService.refreshApplicationStates();
             if (response.errorMessage) {
                 ngToast.create({
-                    className: 'danger',
+                    className: "danger",
                     content: `Error refreshing application states: ${response.errorMessage}`
                 });
                 return;
             }
 
             ngToast.create({
-                className: 'success',
+                className: "success",
                 content: `Application states refreshed.`
             });
 
@@ -668,14 +669,14 @@ const youTubePage: AngularJsPage = {
             const response = await youTubeApplicationsService.saveApplication(applicationId, application);
             if (response.errorMessage) {
                 ngToast.create({
-                    className: 'danger',
+                    className: "danger",
                     content: `Error saving application: ${response.errorMessage}`
                 });
                 return;
             }
 
             ngToast.create({
-                className: 'success',
+                className: "success",
                 content: `Application "${applicationName}" saved successfully.`
             });
 
@@ -716,7 +717,7 @@ const youTubePage: AngularJsPage = {
         startAutoRefresh();
 
         // Stop auto-refresh when the scope is destroyed
-        $scope.$on('$destroy', () => {
+        $scope.$on("$destroy", () => {
             stopAutoRefresh();
         });
 
@@ -750,12 +751,12 @@ const youTubePage: AngularJsPage = {
                 // Optionally show a toast notification
                 if (data.ready) {
                     ngToast.create({
-                        className: 'success',
+                        className: "success",
                         content: `Application "${data.name}" is now ready.`
                     });
                 } else {
                     ngToast.create({
-                        className: 'warning',
+                        className: "warning",
                         content: `Application "${data.name}" is no longer ready: ${data.status}`
                     });
                 }

@@ -17,12 +17,13 @@ describe("youtubeVideoIdVariable.evaluator", () => {
         jest.clearAllMocks();
     });
 
-    const makeTrigger = (): Trigger => ({
-        type: "event",
-        metadata: {
-            username: "testuser"
-        }
-    } as Trigger);
+    const makeTrigger = (): Trigger =>
+        ({
+            type: "event",
+            metadata: {
+                username: "testuser"
+            }
+        }) as Trigger;
 
     it("returns video ID when available", () => {
         const trigger = makeTrigger();

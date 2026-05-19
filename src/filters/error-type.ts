@@ -28,7 +28,7 @@ export const errorTypeFilter: EventFilter = {
         return filterSettings.value as string;
     },
     valueIsStillValid: () => true,
-    presetValues: () : { value: string; display: string }[] => {
+    presetValues: (): { value: string; display: string }[] => {
         // These need to be kept in sync with ErrorCategory enum in error-constants.ts
         enum ErrorCategory {
             UNAUTHENTICATED = "Unauthenticated",
@@ -38,7 +38,7 @@ export const errorTypeFilter: EventFilter = {
             INVALID_REQUEST = "InvalidRequest",
             NETWORK_ERROR = "NetworkError",
             UNKNOWN = "Unknown"
-        };
+        }
 
         return Object.entries(ErrorCategory).map(([, value]) => ({
             value: value as string,

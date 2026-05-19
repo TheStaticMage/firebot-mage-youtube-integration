@@ -11,14 +11,7 @@ import { firebot, logger } from "../main";
 /**
  * Trigger viewer arrived event
  */
-export function triggerViewerArrived(
-    username: string,
-    userId: string,
-    userDisplayName: string,
-    messageText: string,
-    chatMessage: FirebotChatMessage,
-    twitchUserRoles: string[]
-): void {
+export function triggerViewerArrived(username: string, userId: string, userDisplayName: string, messageText: string, chatMessage: FirebotChatMessage, twitchUserRoles: string[]): void {
     const { eventManager } = firebot.modules;
 
     const metadata = {
@@ -37,9 +30,5 @@ export function triggerViewerArrived(
 
     logger.debug(`Triggering viewer-arrived event for user: ${userDisplayName} (${userId})`);
 
-    eventManager.triggerEvent(
-        IntegrationConstants.INTEGRATION_ID,
-        "viewer-arrived",
-        metadata as unknown as Record<string, unknown>
-    );
+    eventManager.triggerEvent(IntegrationConstants.INTEGRATION_ID, "viewer-arrived", metadata as unknown as Record<string, unknown>);
 }

@@ -2,7 +2,7 @@ import { IntegrationDefinition } from "@crowbartools/firebot-custom-scripts-type
 import { IntegrationConstants } from "./constants";
 import { FAILOVER_THRESHOLD_DEFAULT } from "./internal/quota-failover-manager";
 
-export { integration } from './integration-singleton';
+export { integration } from "./integration-singleton";
 
 export const definition: IntegrationDefinition = {
     id: IntegrationConstants.INTEGRATION_ID,

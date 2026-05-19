@@ -1,4 +1,4 @@
-import { consecutiveErrorsFilter, ComparisonType } from "../consecutive-errors";
+import { ComparisonType, consecutiveErrorsFilter } from "../consecutive-errors";
 
 describe("consecutiveErrorsFilter", () => {
     const createEventData = (consecutiveFailures: number) => ({

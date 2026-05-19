@@ -25,6 +25,7 @@ import { QuotaManager } from "./internal/quota-manager";
 import { RestApiClient } from "./internal/rest-api-client";
 import { YouTubeUserManager } from "./internal/youtube-user-manager";
 import { firebot, logger } from "./main";
+import { youtubeOnlyWhenLiveRestriction } from "./restrictions/youtube-only-when-live";
 import { registerRoutes, unregisterRoutes } from "./server/server";
 import { ApplicationStorage, YouTubeOAuthApplication } from "./types";
 import { registerUIExtensions } from "./ui-extensions";
@@ -89,7 +90,7 @@ export class YouTubeIntegration extends EventEmitter {
     private quotaManager: QuotaManager = new QuotaManager(this);
     private quotaFailoverManager: QuotaFailoverManager = new QuotaFailoverManager(this, this.quotaManager);
     private restApiClient: RestApiClient = new RestApiClient(this, this.errorTracker);
-    private chatMessageQueue: ChatMessageQueue = new ChatMessageQueue(message => this.restApiClient.sendChatMessage(message));
+    private chatMessageQueue: ChatMessageQueue = new ChatMessageQueue((message) => this.restApiClient.sendChatMessage(message));
     private youtubeUserManager: YouTubeUserManager = new YouTubeUserManager();
 
     // Stream monitoring
@@ -100,7 +101,7 @@ export class YouTubeIntegration extends EventEmitter {
     private currentChannelId: string | null = null;
     private currentBroadcastPrivacyStatus: BroadcastPrivacyStatus | null = null;
     private currentActiveApplicationId: string | null = null;
-    private isStreamLive = false;
+    isStreamLive = false;
 
     // Data file paths
     private dataFilePath = "";
@@ -177,10 +178,10 @@ export class YouTubeIntegration extends EventEmitter {
 
         // Register frontend communicator listeners
         const { frontendCommunicator } = firebot.modules;
-        frontendCommunicator.on('mage-youtube-integration:getCharacterLimit', () => {
+        frontendCommunicator.on("mage-youtube-integration:getCharacterLimit", () => {
             return IntegrationConstants.YOUTUBE_CHAT_MESSAGE_CHARACTER_LIMIT;
         });
-        frontendCommunicator.on('mage-youtube-integration:log', (data: { level: string; message: string }) => {
+        frontendCommunicator.on("mage-youtube-integration:log", (data: { level: string; message: string }) => {
             const level = data.level || "info";
             const message = data.message || "";
 
@@ -224,8 +225,7 @@ export class YouTubeIntegration extends EventEmitter {
 
         // Register restrictions
         const { restrictionManager } = firebot.modules;
-        const youtubeOnlyWhenLive = require("./restrictions/youtube-only-when-live");
-        restrictionManager.registerRestriction(youtubeOnlyWhenLive);
+        restrictionManager.registerRestriction(youtubeOnlyWhenLiveRestriction);
         logger.debug("YouTube restrictions registered");
 
         // Register UI extensions
@@ -276,7 +276,7 @@ export class YouTubeIntegration extends EventEmitter {
 
             // If no previously-active application, find first application with a refresh token
             if (!activeApp || !activeApp.refreshToken) {
-                activeApp = applications.find(app => app.refreshToken) || null;
+                activeApp = applications.find((app) => app.refreshToken) || null;
             }
 
             if (!activeApp) {
@@ -316,7 +316,7 @@ export class YouTubeIntegration extends EventEmitter {
                 logger.warn(`Previously selected active application "${activeApp.name}" is no longer ready. Searching for another ready application.`);
 
                 // Find first ready application
-                const readyApp = applications.find(app => app.ready && app.refreshToken);
+                const readyApp = applications.find((app) => app.ready && app.refreshToken);
 
                 if (!readyApp) {
                     throw new Error("No YouTube applications with valid credentials available. Please re-authorize an application in the YouTube Applications settings.");
@@ -380,7 +380,6 @@ export class YouTubeIntegration extends EventEmitter {
             registerRoutes(this);
 
             logger.info("YouTube integration connected successfully");
-
         } catch (error: any) {
             logger.error(`Failed to connect YouTube integration: ${error.message}`);
             this.sendCriticalErrorNotification(`Failed to connect: ${error.message}`);
@@ -494,7 +493,6 @@ export class YouTubeIntegration extends EventEmitter {
         }
     }
 
-
     /**
      * Check for live broadcast (used during offline monitoring)
      */
@@ -539,7 +537,7 @@ export class YouTubeIntegration extends EventEmitter {
 
     private getPlatformLibPingPort(): number {
         const { settings } = firebot.firebot;
-        return settings.getSetting("WebServerPort") as number || 7472;
+        return (settings.getSetting("WebServerPort") as number) || 7472;
     }
 
     async disconnect() {
@@ -832,20 +830,10 @@ export class YouTubeIntegration extends EventEmitter {
      */
     private registerHttpEndpoints(httpServer: any): void {
         // Endpoint: /integrations/{prefix}/link/{appId}/streamer - Redirects to Google OAuth for specific app
-        httpServer.registerCustomRoute(
-            IntegrationConstants.INTEGRATION_URI,
-            "link/:appId/streamer",
-            "GET",
-            this.handleLinkCallback.bind(this)
-        );
+        httpServer.registerCustomRoute(IntegrationConstants.INTEGRATION_URI, "link/:appId/streamer", "GET", this.handleLinkCallback.bind(this));
 
         // Endpoint: /integrations/{prefix}/auth/callback - Handles OAuth callback for any app
-        httpServer.registerCustomRoute(
-            IntegrationConstants.INTEGRATION_URI,
-            "auth/callback",
-            "GET",
-            this.handleAuthCallback.bind(this)
-        );
+        httpServer.registerCustomRoute(IntegrationConstants.INTEGRATION_URI, "auth/callback", "GET", this.handleAuthCallback.bind(this));
     }
 
     /**
@@ -911,7 +899,7 @@ export class YouTubeIntegration extends EventEmitter {
         // Conditionally set the newly authorized application as active if it's the only one
         if (authorizedAppId) {
             const allApps = Object.values(this.applicationManager.getApplications());
-            const authorizedApps = allApps.filter(app => app.refreshToken);
+            const authorizedApps = allApps.filter((app) => app.refreshToken);
 
             if (authorizedApps.length === 1) {
                 // This is the ONLY authorized app - set it as active
@@ -974,7 +962,7 @@ export class YouTubeIntegration extends EventEmitter {
      */
     private registerUIExtensionListeners(frontendCommunicator: any): void {
         // Get all applications (returns application IDs and basic info only)
-        frontendCommunicator.on('youTube:getApplications', () => {
+        frontendCommunicator.on("youTube:getApplications", () => {
             try {
                 const applicationsMap = this.applicationManager.getApplications();
                 const serializedMap = this.serializeApplicationsForUI(applicationsMap);
@@ -986,7 +974,7 @@ export class YouTubeIntegration extends EventEmitter {
         });
 
         // Get active application
-        frontendCommunicator.on('youTube:getActiveApplication', () => {
+        frontendCommunicator.on("youTube:getActiveApplication", () => {
             try {
                 const activeApp = this.applicationManager.getActiveApplication();
                 return {
@@ -999,7 +987,7 @@ export class YouTubeIntegration extends EventEmitter {
         });
 
         // Get application details (including credentials for editing)
-        frontendCommunicator.on('youTube:getApplicationDetails', (data: { applicationId: string }) => {
+        frontendCommunicator.on("youTube:getApplicationDetails", (data: { applicationId: string }) => {
             try {
                 const app = this.applicationManager.getApplication(data.applicationId);
                 if (!app) {
@@ -1024,7 +1012,7 @@ export class YouTubeIntegration extends EventEmitter {
         });
 
         // Set active application
-        frontendCommunicator.onAsync('youTube:setActiveApplication', async (data: { applicationId: string | null }) => {
+        frontendCommunicator.onAsync("youTube:setActiveApplication", async (data: { applicationId: string | null }) => {
             try {
                 if (data.applicationId) {
                     await this.applicationManager.setActiveApplication(data.applicationId, ApplicationActivationCause.USER_CLICKED, this.connected);
@@ -1039,7 +1027,7 @@ export class YouTubeIntegration extends EventEmitter {
         });
 
         // Save application
-        frontendCommunicator.onAsync('youTube:saveApplication', async (data: { applicationId: string; application: any }) => {
+        frontendCommunicator.onAsync("youTube:saveApplication", async (data: { applicationId: string; application: any }) => {
             try {
                 const { applicationId, application } = data;
                 const existingApp = this.applicationManager.getApplication(applicationId);
@@ -1054,12 +1042,7 @@ export class YouTubeIntegration extends EventEmitter {
                     });
                 } else {
                     // Add new application (refreshToken will be added during OAuth flow)
-                    await this.applicationManager.addApplication(
-                        application.name,
-                        application.clientId,
-                        application.clientSecret,
-                        application.quotaSettings
-                    );
+                    await this.applicationManager.addApplication(application.name, application.clientId, application.clientSecret, application.quotaSettings);
                 }
 
                 const applicationsMap = this.applicationManager.getApplications();
@@ -1072,7 +1055,7 @@ export class YouTubeIntegration extends EventEmitter {
         });
 
         // Delete application
-        frontendCommunicator.onAsync('youTube:deleteApplication', async (data: { applicationId: string }) => {
+        frontendCommunicator.onAsync("youTube:deleteApplication", async (data: { applicationId: string }) => {
             try {
                 await this.applicationManager.removeApplication(data.applicationId);
                 const applicationsMap = this.applicationManager.getApplications();
@@ -1085,7 +1068,7 @@ export class YouTubeIntegration extends EventEmitter {
         });
 
         // Deauthorize application
-        frontendCommunicator.onAsync('youTube:deauthorizeApplication', async (data: { applicationId: string }) => {
+        frontendCommunicator.onAsync("youTube:deauthorizeApplication", async (data: { applicationId: string }) => {
             try {
                 const app = this.applicationManager.getApplication(data.applicationId);
                 if (!app) {
@@ -1109,7 +1092,7 @@ export class YouTubeIntegration extends EventEmitter {
         });
 
         // Refresh application states
-        frontendCommunicator.onAsync('youTube:refreshApplicationStates', async () => {
+        frontendCommunicator.onAsync("youTube:refreshApplicationStates", async () => {
             try {
                 logger.debug("Refresh application states request received");
                 const applicationsMap = this.applicationManager.getApplications();
@@ -1126,7 +1109,7 @@ export class YouTubeIntegration extends EventEmitter {
         });
 
         // Get integration connection status
-        frontendCommunicator.on('youTube:getIntegrationStatus', () => {
+        frontendCommunicator.on("youTube:getIntegrationStatus", () => {
             try {
                 return { connected: this.connected };
             } catch (error: any) {
@@ -1136,7 +1119,7 @@ export class YouTubeIntegration extends EventEmitter {
         });
 
         // Get chat streaming status
-        frontendCommunicator.on('youTube:getChatStreamingStatus', () => {
+        frontendCommunicator.on("youTube:getChatStreamingStatus", () => {
             try {
                 const isStreaming = this.chatManager?.isChatStreaming() ?? false;
                 return { streaming: isStreaming };
@@ -1147,7 +1130,7 @@ export class YouTubeIntegration extends EventEmitter {
         });
 
         // Connect the integration
-        frontendCommunicator.onAsync('youTube:connectIntegration', async () => {
+        frontendCommunicator.onAsync("youTube:connectIntegration", async () => {
             try {
                 if (!this.connected) {
                     logger.info("Connect integration request received from UI");
@@ -1156,7 +1139,6 @@ export class YouTubeIntegration extends EventEmitter {
                 }
                 logger.debug("Connect integration requested but integration is already connected");
                 return { success: true, connected: this.connected };
-
             } catch (error: any) {
                 logger.error(`Error connecting integration: ${error.message}`);
                 return { errorMessage: error.message };

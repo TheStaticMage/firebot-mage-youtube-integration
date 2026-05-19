@@ -1,11 +1,5 @@
-import {
-    isApplicationReady,
-    updateApplicationReadyStatus,
-    getApplicationStatusMessage,
-    validateApplication,
-    createApplication
-} from "../application-utils";
 import { YouTubeOAuthApplication } from "../../types";
+import { createApplication, getApplicationStatusMessage, isApplicationReady, updateApplicationReadyStatus, validateApplication } from "../application-utils";
 
 describe("Application Utils", () => {
     let testApp: YouTubeOAuthApplication;
@@ -62,7 +56,6 @@ describe("Application Utils", () => {
 
             expect(testApp.ready).toBe(false);
         });
-
     });
 
     describe("getApplicationStatusMessage", () => {
@@ -286,8 +279,8 @@ describe("Application Utils", () => {
                 { ...testApp, id: "app3", ready: true, refreshToken: "token" }
             ];
 
-            const readyApps = apps.filter(app => isApplicationReady(app));
-            const notReadyApps = apps.filter(app => !isApplicationReady(app));
+            const readyApps = apps.filter((app) => isApplicationReady(app));
+            const notReadyApps = apps.filter((app) => !isApplicationReady(app));
 
             expect(readyApps).toHaveLength(2);
             expect(notReadyApps).toHaveLength(1);

@@ -22,10 +22,7 @@ export function isApplicationReady(app: YouTubeOAuthApplication): boolean {
  * @param app The application to update
  * @param refreshSuccess Whether the token refresh was successful
  */
-export function updateApplicationReadyStatus(
-    app: YouTubeOAuthApplication,
-    refreshSuccess: boolean
-): void {
+export function updateApplicationReadyStatus(app: YouTubeOAuthApplication, refreshSuccess: boolean): void {
     app.ready = refreshSuccess;
 }
 
@@ -71,11 +68,7 @@ export function getApplicationStatusMessage(app: YouTubeOAuthApplication): strin
  * @returns true if the application has valid configuration
  */
 export function validateApplication(app: YouTubeOAuthApplication): boolean {
-    return !!(app.id &&
-             app.name &&
-             app.clientId &&
-             app.clientSecret &&
-             app.quotaSettings);
+    return !!(app.id && app.name && app.clientId && app.clientSecret && app.quotaSettings);
 }
 
 /**

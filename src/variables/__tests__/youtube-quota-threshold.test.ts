@@ -2,13 +2,14 @@ import { Trigger } from "@crowbartools/firebot-custom-scripts-types/types/trigge
 import { youtubeQuotaThresholdVariable } from "../youtube-quota-threshold";
 
 describe("youtubeQuotaThresholdVariable.evaluator", () => {
-    const makeTrigger = (eventData?: any): Trigger => ({
-        type: "event",
-        metadata: {
-            username: "testuser",
-            eventData
-        }
-    } as Trigger);
+    const makeTrigger = (eventData?: any): Trigger =>
+        ({
+            type: "event",
+            metadata: {
+                username: "testuser",
+                eventData
+            }
+        }) as Trigger;
 
     it("returns threshold 1 from eventData", () => {
         const trigger = makeTrigger({

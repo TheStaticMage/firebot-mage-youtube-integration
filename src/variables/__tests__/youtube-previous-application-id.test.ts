@@ -2,13 +2,14 @@ import { Trigger } from "@crowbartools/firebot-custom-scripts-types/types/trigge
 import { youtubePreviousApplicationIdVariable } from "../youtube-previous-application-id";
 
 describe("youtubePreviousApplicationIdVariable.evaluator", () => {
-    const makeTrigger = (eventData?: any): Trigger => ({
-        type: "event",
-        metadata: {
-            username: "testuser",
-            eventData
-        }
-    } as Trigger);
+    const makeTrigger = (eventData?: any): Trigger =>
+        ({
+            type: "event",
+            metadata: {
+                username: "testuser",
+                eventData
+            }
+        }) as Trigger;
 
     it("returns previous application ID from eventData when present", () => {
         const trigger = makeTrigger({

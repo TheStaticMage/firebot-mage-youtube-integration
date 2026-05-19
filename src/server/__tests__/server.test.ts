@@ -38,7 +38,7 @@ const createIntegration = (overrides: Partial<any> = {}) => ({
 
 const getSendChatHandler = () => {
     const registerCustomRoute = firebot.modules.httpServer.registerCustomRoute as jest.Mock;
-    const routeCall = registerCustomRoute.mock.calls.find(call => call[1] === "operations/send-chat-message");
+    const routeCall = registerCustomRoute.mock.calls.find((call) => call[1] === "operations/send-chat-message");
     return routeCall?.[3];
 };
 
@@ -58,10 +58,7 @@ describe("send-chat-message route", () => {
         const handler = getSendChatHandler();
         const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
 
-        await handler(
-            { body: { message: "Hello", chatter: "Streamer", offlineSendMode: "send-anyway" } },
-            res
-        );
+        await handler({ body: { message: "Hello", chatter: "Streamer", offlineSendMode: "send-anyway" } }, res);
 
         expect(res.status).toHaveBeenCalledWith(503);
         expect(res.json).toHaveBeenCalledWith({ success: false, error: "Integration not connected" });
@@ -80,10 +77,7 @@ describe("send-chat-message route", () => {
         const handler = getSendChatHandler();
         const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
 
-        await handler(
-            { body: { message: "Hello", chatter: "Streamer", offlineSendMode: "do-not-send" } },
-            res
-        );
+        await handler({ body: { message: "Hello", chatter: "Streamer", offlineSendMode: "do-not-send" } }, res);
 
         expect(res.json).toHaveBeenCalledWith({ success: false, error: "Stream offline" });
         expect(firebot.modules.frontendCommunicator.send).not.toHaveBeenCalled();
@@ -101,10 +95,7 @@ describe("send-chat-message route", () => {
         const handler = getSendChatHandler();
         const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
 
-        await handler(
-            { body: { message: "Hello", chatter: "Streamer", offlineSendMode: "chat-feed-only" } },
-            res
-        );
+        await handler({ body: { message: "Hello", chatter: "Streamer", offlineSendMode: "chat-feed-only" } }, res);
 
         expect(firebot.modules.frontendCommunicator.send).toHaveBeenCalledWith("chatUpdate", {
             fbEvent: "ChatAlert",
@@ -124,10 +115,7 @@ describe("send-chat-message route", () => {
         const handler = getSendChatHandler();
         const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
 
-        await handler(
-            { body: { message: "Hello", chatter: "Streamer", offlineSendMode: "send-anyway" } },
-            res
-        );
+        await handler({ body: { message: "Hello", chatter: "Streamer", offlineSendMode: "send-anyway" } }, res);
 
         expect(queueChatMessage).toHaveBeenCalledWith("Hello");
         expect(res.json).toHaveBeenCalledWith({ success: true });

@@ -3,13 +3,14 @@ import { ApplicationActivationCause } from "../../events";
 import { youtubeApplicationActivationCauseVariable } from "../youtube-application-activation-cause";
 
 describe("youtubeApplicationActivationCauseVariable.evaluator", () => {
-    const makeTrigger = (eventData?: any): Trigger => ({
-        type: "event",
-        metadata: {
-            username: "testuser",
-            eventData
-        }
-    } as Trigger);
+    const makeTrigger = (eventData?: any): Trigger =>
+        ({
+            type: "event",
+            metadata: {
+                username: "testuser",
+                eventData
+            }
+        }) as Trigger;
 
     it("returns cause from eventData when present", () => {
         const trigger = makeTrigger({

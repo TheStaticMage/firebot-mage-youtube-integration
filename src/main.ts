@@ -1,23 +1,23 @@
-import { Firebot, RunRequest } from '@crowbartools/firebot-custom-scripts-types';
-import { Logger } from '@crowbartools/firebot-custom-scripts-types/types/modules/logger';
-import { checkPlatformLibCompatibility } from '@thestaticmage/mage-platform-lib-client';
-import { IntegrationConstants } from './constants';
-import { definition, integration } from './integration';
+import { Firebot, RunRequest } from "@crowbartools/firebot-custom-scripts-types";
+import { Logger } from "@crowbartools/firebot-custom-scripts-types/types/modules/logger";
+import { checkPlatformLibCompatibility } from "@thestaticmage/mage-platform-lib-client";
+import { IntegrationConstants } from "./constants";
+import { definition, integration } from "./integration";
 
 export let firebot: RunRequest<any>;
 export let logger: LogWrapper;
 
-export const scriptVersion = '0.0.4';
+export const scriptVersion = "0.0.4";
 
 const script: Firebot.CustomScript = {
     getScriptManifest: () => {
         return {
-            name: 'YouTube Integration',
-            description: 'Integration with certain events for the YouTube platform.',
-            author: 'The Static Mage',
+            name: "YouTube Integration",
+            description: "Integration with certain events for the YouTube platform.",
+            author: "The Static Mage",
             version: scriptVersion,
             startupOnly: true,
-            firebotVersion: '5'
+            firebotVersion: "5"
         };
     },
     getDefaultParameters: () => {
@@ -28,12 +28,7 @@ const script: Firebot.CustomScript = {
         logger = new LogWrapper(runRequest.modules.logger);
         logger.info(`Mage YouTube Integration v${scriptVersion} initializing...`);
 
-        const platformLibCheck = await checkPlatformLibCompatibility(
-            runRequest,
-            IntegrationConstants.INTEGRATION_NAME,
-            IntegrationConstants.PLATFORM_LIB_VERSION_CONSTRAINT,
-            logger
-        );
+        const platformLibCheck = await checkPlatformLibCompatibility(runRequest, IntegrationConstants.INTEGRATION_NAME, IntegrationConstants.PLATFORM_LIB_VERSION_CONSTRAINT, logger);
 
         if (platformLibCheck.success) {
             logger.info("Platform library is compatible");

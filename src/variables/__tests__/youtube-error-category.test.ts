@@ -1,5 +1,5 @@
-import { youtubeErrorCategoryVariable } from "../youtube-error-category";
 import { ErrorCategory } from "../../internal/error-constants";
+import { youtubeErrorCategoryVariable } from "../youtube-error-category";
 
 describe("youtubeErrorCategoryVariable", () => {
     describe("evaluator", () => {
@@ -41,15 +41,7 @@ describe("youtubeErrorCategoryVariable", () => {
         });
 
         it("should handle all error categories", () => {
-            const categories = [
-                ErrorCategory.UNAUTHENTICATED,
-                ErrorCategory.QUOTA_EXCEEDED,
-                ErrorCategory.PERMISSION_DENIED,
-                ErrorCategory.NOT_FOUND,
-                ErrorCategory.INVALID_REQUEST,
-                ErrorCategory.NETWORK_ERROR,
-                ErrorCategory.UNKNOWN
-            ];
+            const categories = [ErrorCategory.UNAUTHENTICATED, ErrorCategory.QUOTA_EXCEEDED, ErrorCategory.PERMISSION_DENIED, ErrorCategory.NOT_FOUND, ErrorCategory.INVALID_REQUEST, ErrorCategory.NETWORK_ERROR, ErrorCategory.UNKNOWN];
 
             categories.forEach((category) => {
                 const trigger = {

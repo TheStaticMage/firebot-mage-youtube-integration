@@ -258,9 +258,7 @@ describe("QuotaManager", () => {
 
             const delay = quotaManager.calculateDelay(quotaSettings);
             expect(delay).toBeNull();
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining("Invalid dailyQuota")
-            );
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Invalid dailyQuota"));
         });
 
         it("should return null for invalid max stream hours", () => {
@@ -273,9 +271,7 @@ describe("QuotaManager", () => {
 
             const delay = quotaManager.calculateDelay(quotaSettings);
             expect(delay).toBeNull();
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining("Invalid maxStreamHours")
-            );
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Invalid maxStreamHours"));
         });
     });
 
@@ -385,9 +381,7 @@ describe("QuotaManager", () => {
             quotaManager.recordApiCall("app1", "streamList", 9900);
 
             quotaManager.isQuotaAvailable("app1", 200, 10000);
-            expect(logger.warn).toHaveBeenCalledWith(
-                expect.stringContaining("Quota exhausted")
-            );
+            expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("Quota exhausted"));
         });
     });
 
@@ -421,9 +415,7 @@ describe("QuotaManager", () => {
 
             const updatedUsage = quotaManager.getQuotaUsage("app1");
             expect(updatedUsage?.quotaUnitsUsed).toBe(0);
-            expect(logger.info).toHaveBeenCalledWith(
-                expect.stringContaining("Resetting quota")
-            );
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("Resetting quota"));
         });
 
         it("should not reset quota when midnight PT has not passed", () => {
@@ -471,16 +463,19 @@ describe("QuotaManager", () => {
             quotaLimit: number;
             threshold: number;
         }[] => {
-            const triggerEvent = (firebot.modules.eventManager.triggerEvent as jest.Mock);
+            const triggerEvent = firebot.modules.eventManager.triggerEvent as jest.Mock;
             return triggerEvent.mock.calls
                 .filter((call: [string, string, Record<string, unknown>]) => call[1] === "quota-threshold-crossed")
-                .map((call: [string, string, Record<string, unknown>]) => call[2] as unknown as {
-                    applicationId: string;
-                    applicationName: string;
-                    quotaConsumed: number;
-                    quotaLimit: number;
-                    threshold: number;
-                });
+                .map(
+                    (call: [string, string, Record<string, unknown>]) =>
+                        call[2] as unknown as {
+                            applicationId: string;
+                            applicationName: string;
+                            quotaConsumed: number;
+                            quotaLimit: number;
+                            threshold: number;
+                        }
+                );
         };
 
         // Helper to clear previously recorded events before testing a specific action
@@ -659,7 +654,7 @@ describe("QuotaManager", () => {
             });
         });
 
-        it ("should clamp threshold to 100% and not emit when at 100%", () => {
+        it("should clamp threshold to 100% and not emit when at 100%", () => {
             // Start at 10000/10000 = 100%
             quotaManager.recordApiCall("app1", "streamList", 10000);
             clearTriggeredEvents(); // Clear events from setup (thresholds 1-100)
@@ -671,7 +666,7 @@ describe("QuotaManager", () => {
             expect(events).toHaveLength(0);
         });
 
-        it ("should ignore negative quota usage", () => {
+        it("should ignore negative quota usage", () => {
             // Start at 500/10000 = 5%
             quotaManager.recordApiCall("app1", "streamList", 500);
             clearTriggeredEvents(); // Clear events from setup (thresholds 1-5)
@@ -683,7 +678,7 @@ describe("QuotaManager", () => {
             expect(events).toHaveLength(0);
         });
 
-        it ("should not have divide by zero error with zero daily quota", () => {
+        it("should not have divide by zero error with zero daily quota", () => {
             // Override mock to return zero daily quota
             mockGetApplication.mockImplementation((appId: string) => ({
                 id: appId,

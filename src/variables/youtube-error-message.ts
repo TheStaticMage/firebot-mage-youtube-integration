@@ -10,9 +10,7 @@ import { Trigger, TriggersObject } from "@crowbartools/firebot-custom-scripts-ty
 import { IntegrationConstants } from "../constants";
 
 const triggers: TriggersObject = {};
-triggers["event"] = [
-    `${IntegrationConstants.INTEGRATION_ID}:api-error`
-];
+triggers["event"] = [`${IntegrationConstants.INTEGRATION_ID}:api-error`];
 triggers["manual"] = true;
 
 export const youtubeErrorMessageVariable: ReplaceVariable = {

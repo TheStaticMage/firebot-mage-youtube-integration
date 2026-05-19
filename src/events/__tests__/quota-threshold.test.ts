@@ -3,8 +3,8 @@
  */
 
 import { IntegrationConstants } from "../../constants";
-import { triggerQuotaThresholdCrossed } from "../quota-threshold";
 import { firebot } from "../../main";
+import { triggerQuotaThresholdCrossed } from "../quota-threshold";
 
 jest.mock("../../main", () => ({
     firebot: {
@@ -37,11 +37,7 @@ describe("Quota threshold event trigger", () => {
             triggerQuotaThresholdCrossed(eventData);
 
             const mockEventManager = firebot.modules.eventManager;
-            expect(mockEventManager.triggerEvent).toHaveBeenCalledWith(
-                IntegrationConstants.INTEGRATION_ID,
-                "quota-threshold-crossed",
-                eventData
-            );
+            expect(mockEventManager.triggerEvent).toHaveBeenCalledWith(IntegrationConstants.INTEGRATION_ID, "quota-threshold-crossed", eventData);
         });
 
         it("should handle threshold 50 correctly", () => {
@@ -56,11 +52,7 @@ describe("Quota threshold event trigger", () => {
             triggerQuotaThresholdCrossed(eventData);
 
             const mockEventManager = firebot.modules.eventManager;
-            expect(mockEventManager.triggerEvent).toHaveBeenCalledWith(
-                IntegrationConstants.INTEGRATION_ID,
-                "quota-threshold-crossed",
-                eventData
-            );
+            expect(mockEventManager.triggerEvent).toHaveBeenCalledWith(IntegrationConstants.INTEGRATION_ID, "quota-threshold-crossed", eventData);
         });
 
         it("should handle threshold 100 correctly", () => {
@@ -75,11 +67,7 @@ describe("Quota threshold event trigger", () => {
             triggerQuotaThresholdCrossed(eventData);
 
             const mockEventManager = firebot.modules.eventManager;
-            expect(mockEventManager.triggerEvent).toHaveBeenCalledWith(
-                IntegrationConstants.INTEGRATION_ID,
-                "quota-threshold-crossed",
-                eventData
-            );
+            expect(mockEventManager.triggerEvent).toHaveBeenCalledWith(IntegrationConstants.INTEGRATION_ID, "quota-threshold-crossed", eventData);
         });
     });
 });

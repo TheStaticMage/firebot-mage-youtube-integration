@@ -23,17 +23,14 @@ export const streamerFilter: EventFilter = {
     name: "Message from Streamer",
     description: "Checks if the user triggering the event is the YouTube channel owner (streamer).",
     events: applicableEvents,
-    comparisonTypes: [
-        ComparisonType.IS,
-        ComparisonType.IS_NOT
-    ],
+    comparisonTypes: [ComparisonType.IS, ComparisonType.IS_NOT],
     valueType: "preset",
     getSelectedValueDisplay: (filterSettings: FilterSettings): string => {
         const presetValues: PresetValue[] = [
             { value: "true", display: "True" },
             { value: "false", display: "False" }
         ];
-        return presetValues.find(pv => pv.value === String(filterSettings.value))?.display ?? `??? (${String(filterSettings.value)})`;
+        return presetValues.find((pv) => pv.value === String(filterSettings.value))?.display ?? `??? (${String(filterSettings.value)})`;
     },
     valueIsStillValid: (): boolean => {
         return true;
@@ -44,22 +41,17 @@ export const streamerFilter: EventFilter = {
             { value: "false", display: "False" }
         ];
     },
-    predicate: async (
-        filterSettings,
-        eventData: EventData
-    ): Promise<boolean> => {
+    predicate: async (filterSettings, eventData: EventData): Promise<boolean> => {
         const { comparisonType, value } = filterSettings;
 
         const rawRoles = eventData.eventMeta.twitchUserRoles;
-        const roles = (!rawRoles || !Array.isArray(rawRoles)) ? [] : rawRoles;
+        const roles = !rawRoles || !Array.isArray(rawRoles) ? [] : rawRoles;
 
         const isBroadcaster = roles.includes("broadcaster");
         logger.debug(`streamerFilter: isBroadcaster=${isBroadcaster}, comparisonType=${comparisonType}, value=${value}`);
 
         const expectedValue = String(value) === "true";
-        const result = (comparisonType === ComparisonType.IS as any)
-            ? isBroadcaster === expectedValue
-            : isBroadcaster !== expectedValue;
+        const result = comparisonType === (ComparisonType.IS as any) ? isBroadcaster === expectedValue : isBroadcaster !== expectedValue;
 
         return result;
     }

@@ -13,10 +13,7 @@ const YOUTUBE_MEMBER_ICON_URL = "https://lh3.googleusercontent.com/dANFWab1-Ay5J
 /**
  * Maps a YouTube Data API liveChatMessage to our internal ChatMessage type
  */
-export function mapYouTubeChatMessageToChat(
-    youtubeMessage: any,
-    broadcaster: YouTubeUser
-): ChatMessage {
+export function mapYouTubeChatMessageToChat(youtubeMessage: any, broadcaster: YouTubeUser): ChatMessage {
     const authorDetails = youtubeMessage.authorDetails;
     const snippet = youtubeMessage.snippet;
 
@@ -151,11 +148,11 @@ export class FirebotChatHelpers {
         }
         firebotChatMessage.parts = messageParts;
 
-        firebotChatMessage.isFounder = msg.sender.identity.badges.some(b => b.type === "founder");
-        firebotChatMessage.isBroadcaster = msg.sender.identity.badges.some(b => b.type === "broadcaster");
-        firebotChatMessage.isMod = msg.sender.identity.badges.some(b => b.type === "moderator");
-        firebotChatMessage.isSubscriber = msg.sender.identity.badges.some(b => b.type === "subscriber");
-        firebotChatMessage.isVip = msg.sender.identity.badges.some(b => b.type === "vip");
+        firebotChatMessage.isFounder = msg.sender.identity.badges.some((b) => b.type === "founder");
+        firebotChatMessage.isBroadcaster = msg.sender.identity.badges.some((b) => b.type === "broadcaster");
+        firebotChatMessage.isMod = msg.sender.identity.badges.some((b) => b.type === "moderator");
+        firebotChatMessage.isSubscriber = msg.sender.identity.badges.some((b) => b.type === "subscriber");
+        firebotChatMessage.isVip = msg.sender.identity.badges.some((b) => b.type === "vip");
 
         firebotChatMessage.roles = this.getTwitchRoles(msg.sender.identity);
 

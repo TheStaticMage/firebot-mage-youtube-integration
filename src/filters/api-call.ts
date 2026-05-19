@@ -28,7 +28,7 @@ export const apiCallFilter: EventFilter = {
         return filterSettings.value as string;
     },
     valueIsStillValid: () => true,
-    presetValues: () : { value: string; display: string }[] => {
+    presetValues: (): { value: string; display: string }[] => {
         // These need to be kept in sync with ApiCallType enum in error-constants.ts
         enum ApiCallType {
             SEND_CHAT_MESSAGE = "SendChatMessage",

@@ -263,9 +263,7 @@ describe("QuotaFailoverManager", () => {
             await failoverManager["attemptQuotaFailover"](currentAppId);
 
             // Assert - threshold should be clamped to 100
-            expect(triggerQuotaFailover).toHaveBeenCalledWith(
-                expect.objectContaining({ threshold: 100 })
-            );
+            expect(triggerQuotaFailover).toHaveBeenCalledWith(expect.objectContaining({ threshold: 100 }));
         });
 
         it("should allow failover threshold of 100 without clamping", async () => {
@@ -327,9 +325,7 @@ describe("QuotaFailoverManager", () => {
 
             await failoverManager["attemptQuotaFailover"](currentAppId);
 
-            expect(triggerQuotaFailover).toHaveBeenCalledWith(
-                expect.objectContaining({ threshold: 100 })
-            );
+            expect(triggerQuotaFailover).toHaveBeenCalledWith(expect.objectContaining({ threshold: 100 }));
         });
 
         it("should clamp failover threshold to 100 when value is 420", async () => {
@@ -391,9 +387,7 @@ describe("QuotaFailoverManager", () => {
 
             await failoverManager["attemptQuotaFailover"](currentAppId);
 
-            expect(triggerQuotaFailover).toHaveBeenCalledWith(
-                expect.objectContaining({ threshold: 100 })
-            );
+            expect(triggerQuotaFailover).toHaveBeenCalledWith(expect.objectContaining({ threshold: 100 }));
         });
 
         it("should clamp failover threshold to 1 when value is 0", async () => {
@@ -454,9 +448,7 @@ describe("QuotaFailoverManager", () => {
 
             await failoverManager["attemptQuotaFailover"](currentAppId);
 
-            expect(triggerQuotaFailover).toHaveBeenCalledWith(
-                expect.objectContaining({ threshold: 1 })
-            );
+            expect(triggerQuotaFailover).toHaveBeenCalledWith(expect.objectContaining({ threshold: 1 }));
         });
 
         it("should clamp failover threshold to 1 when value is -1", async () => {
@@ -517,9 +509,7 @@ describe("QuotaFailoverManager", () => {
 
             await failoverManager["attemptQuotaFailover"](currentAppId);
 
-            expect(triggerQuotaFailover).toHaveBeenCalledWith(
-                expect.objectContaining({ threshold: 1 })
-            );
+            expect(triggerQuotaFailover).toHaveBeenCalledWith(expect.objectContaining({ threshold: 1 }));
         });
     });
 });

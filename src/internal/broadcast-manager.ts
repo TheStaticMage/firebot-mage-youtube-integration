@@ -53,14 +53,14 @@ export class BroadcastManager {
             const response = await this.youtube.liveBroadcasts.list({
                 // eslint-disable-next-line camelcase
                 access_token: accessToken,
-                part: ['id', 'snippet', 'contentDetails', 'status'],
-                broadcastStatus: 'active',
+                part: ["id", "snippet", "contentDetails", "status"],
+                broadcastStatus: "active",
                 maxResults: 10 // Get up to 10 to detect multiples
             });
 
             // Record quota consumption
             const quotaManager = this.integration.getQuotaManager();
-            quotaManager.recordApiCall(applicationId, 'liveBroadcasts.list', QUOTA_COSTS.LIVE_BROADCASTS_LIST);
+            quotaManager.recordApiCall(applicationId, "liveBroadcasts.list", QUOTA_COSTS.LIVE_BROADCASTS_LIST);
 
             this.errorTracker.recordSuccess(ApiCallType.GET_LIVE_BROADCASTS);
 
@@ -100,28 +100,22 @@ export class BroadcastManager {
             logger.debug(`Found ${broadcasts.length} active broadcasts`);
 
             if (!channelId) {
-                const titles = broadcasts.map(b => `"${b.snippet?.title}"`).join(", ");
-                throw new Error(
-                    `Multiple active YouTube streams detected (${broadcasts.length}): ${titles}. ` +
-                    `Please specify a Channel ID in integration settings to filter by channel.`
-                );
+                const titles = broadcasts.map((b) => `"${b.snippet?.title}"`).join(", ");
+                throw new Error(`Multiple active YouTube streams detected (${broadcasts.length}): ${titles}. ` + `Please specify a Channel ID in integration settings to filter by channel.`);
             }
 
             // Filter by channel ID
-            const matchingBroadcasts = broadcasts.filter(b => b.snippet?.channelId === channelId);
+            const matchingBroadcasts = broadcasts.filter((b) => b.snippet?.channelId === channelId);
 
             if (matchingBroadcasts.length === 0) {
                 logger.warn(`No broadcasts found for channel ID: ${channelId}`);
-                logger.debug(`Available channels: ${broadcasts.map(b => b.snippet?.channelId).join(", ")}`);
+                logger.debug(`Available channels: ${broadcasts.map((b) => b.snippet?.channelId).join(", ")}`);
                 return null;
             }
 
             if (matchingBroadcasts.length > 1) {
-                const titles = matchingBroadcasts.map(b => `"${b.snippet?.title}"`).join(", ");
-                throw new Error(
-                    `Multiple active streams for channel ${channelId}: ${titles}. ` +
-                    `Cannot determine which stream to connect to.`
-                );
+                const titles = matchingBroadcasts.map((b) => `"${b.snippet?.title}"`).join(", ");
+                throw new Error(`Multiple active streams for channel ${channelId}: ${titles}. ` + `Cannot determine which stream to connect to.`);
             }
 
             // Found exactly one matching broadcast
@@ -144,10 +138,9 @@ export class BroadcastManager {
             logger.info(`Found active broadcast for channel: "${broadcast.snippet?.title}" (${broadcast.id})`);
             logger.debug(`Live chat ID: ${liveChatId}`);
             return { liveChatId, broadcastId, channelId: channelIdResult, privacyStatus };
-
         } catch (error: any) {
             // If it's our own error (multiple streams), re-throw
-            if (error.message?.includes('Multiple active')) {
+            if (error.message?.includes("Multiple active")) {
                 throw error;
             }
 
@@ -155,11 +148,7 @@ export class BroadcastManager {
             logger.error(`Error finding active broadcasts: ${error.message}`);
 
             const { eventManager } = firebot.modules;
-            eventManager.triggerEvent(
-                IntegrationConstants.INTEGRATION_ID,
-                "api-error",
-                errorMetadata as unknown as Record<string, unknown>
-            );
+            eventManager.triggerEvent(IntegrationConstants.INTEGRATION_ID, "api-error", errorMetadata as unknown as Record<string, unknown>);
 
             throw new Error(`Failed to query YouTube broadcasts: ${error.message}`);
         }
@@ -179,13 +168,13 @@ export class BroadcastManager {
             const response = await this.youtube.liveBroadcasts.list({
                 // eslint-disable-next-line camelcase
                 access_token: accessToken,
-                part: ['snippet', 'status'],
+                part: ["snippet", "status"],
                 id: [liveChatId]
             });
 
             // Record quota consumption
             const quotaManager = this.integration.getQuotaManager();
-            quotaManager.recordApiCall(applicationId, 'liveBroadcasts.list', QUOTA_COSTS.LIVE_BROADCASTS_LIST);
+            quotaManager.recordApiCall(applicationId, "liveBroadcasts.list", QUOTA_COSTS.LIVE_BROADCASTS_LIST);
 
             this.errorTracker.recordSuccess(ApiCallType.GET_LIVE_BROADCASTS);
 
@@ -198,18 +187,13 @@ export class BroadcastManager {
             const status = broadcast.status?.lifeCycleStatus;
 
             // Active statuses
-            return status === 'live' || status === 'liveStarting';
-
+            return status === "live" || status === "liveStarting";
         } catch (error: any) {
             const errorMetadata = this.errorTracker.recordError(ApiCallType.GET_LIVE_BROADCASTS, error);
             logger.error(`Error checking live chat status: ${error.message}`);
 
             const { eventManager } = firebot.modules;
-            eventManager.triggerEvent(
-                IntegrationConstants.INTEGRATION_ID,
-                "api-error",
-                errorMetadata as unknown as Record<string, unknown>
-            );
+            eventManager.triggerEvent(IntegrationConstants.INTEGRATION_ID, "api-error", errorMetadata as unknown as Record<string, unknown>);
 
             return false;
         }

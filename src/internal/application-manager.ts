@@ -1,15 +1,10 @@
 import { randomUUID } from "crypto";
+import { IntegrationConstants } from "../constants";
+import { ApplicationActivationCause } from "../events";
 import { firebot, logger } from "../main";
 import { ApplicationStorage, QuotaSettings, YouTubeOAuthApplication } from "../types";
 import { getDataFilePath } from "../util/datafile";
-import {
-    createApplication,
-    isApplicationReady,
-    updateApplicationReadyStatus,
-    validateApplication
-} from "./application-utils";
-import { IntegrationConstants } from "../constants";
-import { ApplicationActivationCause } from "../events";
+import { createApplication, isApplicationReady, updateApplicationReadyStatus, validateApplication } from "./application-utils";
 
 /**
  * ApplicationManager handles YouTube OAuth application storage and management
@@ -27,7 +22,7 @@ export class ApplicationManager {
         activeApplicationId: null
     };
     private dataFilePath = "";
-    private initialized = false;
+    initialized = false;
 
     /**
      * Initialize the data file path (synchronous)
@@ -103,12 +98,7 @@ export class ApplicationManager {
      * @returns Created application
      * @throws Error if validation fails
      */
-    async addApplication(
-        name: string,
-        clientId: string,
-        clientSecret: string,
-        quotaSettings?: QuotaSettings
-    ): Promise<YouTubeOAuthApplication> {
+    async addApplication(name: string, clientId: string, clientSecret: string, quotaSettings?: QuotaSettings): Promise<YouTubeOAuthApplication> {
         // Validate input
         if (!name || !name.trim()) {
             throw new Error("Application name is required");
@@ -125,9 +115,7 @@ export class ApplicationManager {
         // Check for duplicate names
         // This is to avoid confusing the user
         const trimmedName = name.trim();
-        const existingApp = Object.values(this.getApplications()).find(app =>
-            app.name.toLowerCase() === trimmedName.toLowerCase()
-        );
+        const existingApp = Object.values(this.getApplications()).find((app) => app.name.toLowerCase() === trimmedName.toLowerCase());
 
         if (existingApp) {
             throw new Error(`Application with name "${trimmedName}" already exists`);
@@ -137,9 +125,7 @@ export class ApplicationManager {
         // This is because quota is per application and the calculations will be
         // incorrect if multiple applications share the same client ID
         const trimmedClientId = clientId.trim();
-        const duplicateClientId = Object.values(this.getApplications()).find(app =>
-            app.clientId === trimmedClientId
-        );
+        const duplicateClientId = Object.values(this.getApplications()).find((app) => app.clientId === trimmedClientId);
 
         if (duplicateClientId) {
             throw new Error(`An application with the same client ID already exists`);
@@ -183,9 +169,7 @@ export class ApplicationManager {
         // Check for duplicate names if name is being updated
         if (updates.name && updates.name !== existingApp.name) {
             const trimmedName = updates.name.trim();
-            const duplicateApp = Object.values(this.getApplications()).find(app =>
-                app.id !== id && app.name.toLowerCase() === trimmedName.toLowerCase()
-            );
+            const duplicateApp = Object.values(this.getApplications()).find((app) => app.id !== id && app.name.toLowerCase() === trimmedName.toLowerCase());
 
             if (duplicateApp) {
                 throw new Error(`Application with name "${trimmedName}" already exists`);
@@ -212,9 +196,7 @@ export class ApplicationManager {
         // Check for duplicate client ID if credentials are being updated
         if (updates.clientId) {
             const clientIdToCheck = updatedApp.clientId;
-            const duplicateClientId = Object.values(this.getApplications()).find(app =>
-                app.id !== id && app.clientId === clientIdToCheck
-            );
+            const duplicateClientId = Object.values(this.getApplications()).find((app) => app.id !== id && app.clientId === clientIdToCheck);
 
             if (duplicateClientId) {
                 throw new Error(`An application with the same client ID already exists`);
@@ -302,7 +284,7 @@ export class ApplicationManager {
         // If the integration is connected and the active application changed, switch polling
         if (connected && applicationChanged && previousActiveId) {
             try {
-                // Dynamically import to avoid circular dependency
+                // biome-ignore lint/style/noCommonJs: Circular dependency
                 const { integration } = require("../integration-singleton");
                 if (integration && integration.switchActiveApplication) {
                     logger.debug(`Notifying integration to switch polling from ${previousActiveId} to ${id}`);
@@ -328,7 +310,6 @@ export class ApplicationManager {
             await this.saveApplications();
         }
     }
-
 
     /**
      * Update application ready status
@@ -505,7 +486,7 @@ export class ApplicationManager {
         hasActive: boolean;
     } {
         const apps = Object.values(this.getApplications());
-        const readyApps = apps.filter(app => isApplicationReady(app));
+        const readyApps = apps.filter((app) => isApplicationReady(app));
 
         return {
             total: apps.length,
@@ -520,6 +501,7 @@ export class ApplicationManager {
      */
     private notifyApplicationStatusChange(id: string, app: YouTubeOAuthApplication): void {
         try {
+            // biome-ignore lint/style/noCommonJs: Circular dependency
             const { integration } = require("../integration-singleton");
             if (integration && integration.notifyApplicationStatusChange) {
                 integration.notifyApplicationStatusChange(id, app);

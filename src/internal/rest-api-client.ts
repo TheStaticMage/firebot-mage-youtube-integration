@@ -39,10 +39,7 @@ export class RestApiClient {
             throw new Error(`No access token available for active application "${activeApp.name}"`);
         }
 
-        const oauth2Client = new OAuth2Client(
-            activeApp.clientId,
-            activeApp.clientSecret
-        );
+        const oauth2Client = new OAuth2Client(activeApp.clientId, activeApp.clientSecret);
 
         oauth2Client.setCredentials({
             // eslint-disable-next-line camelcase
@@ -79,9 +76,7 @@ export class RestApiClient {
 
             const activeApp = applicationsStorage.applications[activeApplicationId];
             if (!activeApp || !activeApp.ready) {
-                logger.error(
-                    `Cannot send YouTube chat message: Active application "${activeApp?.name || activeApplicationId}" is not ready`
-                );
+                logger.error(`Cannot send YouTube chat message: Active application "${activeApp?.name || activeApplicationId}" is not ready`);
                 return false;
             }
 
@@ -121,7 +116,7 @@ export class RestApiClient {
                 });
 
                 // Record quota consumption for each chunk
-                quotaManager.recordApiCall(activeApplicationId, 'liveChatMessages.insert', QUOTA_COSTS.LIVE_CHAT_MESSAGES_INSERT);
+                quotaManager.recordApiCall(activeApplicationId, "liveChatMessages.insert", QUOTA_COSTS.LIVE_CHAT_MESSAGES_INSERT);
 
                 if (response.status === 200) {
                     logger.debug(`Successfully sent chunk ${i + 1}/${chunks.length}. Message ID: ${response.data.id}`);
@@ -134,11 +129,7 @@ export class RestApiClient {
                     logger.error(`Failed to send chunk ${i + 1}/${chunks.length}. Status: ${response.status}`);
 
                     const { eventManager } = firebot.modules;
-                    eventManager.triggerEvent(
-                        IntegrationConstants.INTEGRATION_ID,
-                        "api-error",
-                        errorMetadata as unknown as Record<string, unknown>
-                    );
+                    eventManager.triggerEvent(IntegrationConstants.INTEGRATION_ID, "api-error", errorMetadata as unknown as Record<string, unknown>);
 
                     return false;
                 }
@@ -146,7 +137,6 @@ export class RestApiClient {
 
             logger.debug(`Successfully sent all ${chunks.length} chunk(s)`);
             return true;
-
         } catch (error: any) {
             const errorMetadata = this.errorTracker.recordError(ApiCallType.SEND_CHAT_MESSAGE, error);
             logger.error(`Error sending YouTube chat message: ${error}`);
@@ -155,11 +145,7 @@ export class RestApiClient {
             }
 
             const { eventManager } = firebot.modules;
-            eventManager.triggerEvent(
-                IntegrationConstants.INTEGRATION_ID,
-                "api-error",
-                errorMetadata as unknown as Record<string, unknown>
-            );
+            eventManager.triggerEvent(IntegrationConstants.INTEGRATION_ID, "api-error", errorMetadata as unknown as Record<string, unknown>);
 
             return false;
         }

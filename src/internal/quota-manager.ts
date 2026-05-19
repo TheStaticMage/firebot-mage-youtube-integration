@@ -12,13 +12,15 @@
  * - Support manual override of calculated delays
  */
 
+import fs from "fs";
 import { DateTime } from "luxon";
-import { firebot, logger } from "../main";
-import type { YouTubeIntegration } from "../integration-singleton";
-import { QuotaSettings } from "../types";
-import { QuotaTrackingStorage, QuotaUsage, QUOTA_COSTS, QUOTA_PROPERTIES } from "../types/quota-tracking";
-import { getDataFilePath } from "../util/datafile";
+import path from "path";
 import { triggerQuotaThresholdCrossed } from "../events/quota-threshold";
+import type { YouTubeIntegration } from "../integration-singleton";
+import { logger } from "../main";
+import { QuotaSettings } from "../types";
+import { QUOTA_COSTS, QUOTA_PROPERTIES, QuotaTrackingStorage, QuotaUsage } from "../types/quota-tracking";
+import { getDataFilePath } from "../util/datafile";
 import { FAILOVER_THRESHOLD_DEFAULT } from "./quota-failover-manager";
 
 export class QuotaManager {
@@ -92,13 +94,10 @@ export class QuotaManager {
         // Calculate delay based on quota budget
         const maxStreamSeconds = maxStreamHours * 3600;
         const delayMilliseconds =
-            1000.0 * (maxStreamSeconds - (dailyQuota * QuotaManager.QUOTA_TARGET_PERCENT * QUOTA_PROPERTIES.STREAM_LIST_DURATION_SECONDS / QUOTA_COSTS.STREAM_LIST)) /
-            ((dailyQuota * QuotaManager.QUOTA_TARGET_PERCENT / QUOTA_COSTS.STREAM_LIST) - 1);
+            (1000.0 * (maxStreamSeconds - (dailyQuota * QuotaManager.QUOTA_TARGET_PERCENT * QUOTA_PROPERTIES.STREAM_LIST_DURATION_SECONDS) / QUOTA_COSTS.STREAM_LIST)) /
+            ((dailyQuota * QuotaManager.QUOTA_TARGET_PERCENT) / QUOTA_COSTS.STREAM_LIST - 1);
 
-        logger.debug(
-            `Quota calculation: dailyQuota=${dailyQuota}, maxStreamHours=${maxStreamHours}, ` +
-            `delayMilliseconds=${delayMilliseconds.toFixed(3)}ms`
-        );
+        logger.debug(`Quota calculation: dailyQuota=${dailyQuota}, maxStreamHours=${maxStreamHours}, ` + `delayMilliseconds=${delayMilliseconds.toFixed(3)}ms`);
 
         return delayMilliseconds < 0 ? 0 : Math.round(delayMilliseconds);
     }
@@ -118,19 +117,19 @@ export class QuotaManager {
         // Check for googleapis error structure
         if (error.code === 403) {
             const reason = error.errors?.[0]?.reason;
-            if (reason === 'quotaExceeded') {
+            if (reason === "quotaExceeded") {
                 logger.error("YouTube API quota exceeded");
                 return true;
             }
-            if (reason === 'rateLimitExceeded') {
+            if (reason === "rateLimitExceeded") {
                 logger.error("YouTube API rate limit exceeded");
                 return true;
             }
         }
 
         // Check for gRPC error with quota messages
-        const message = error.message?.toLowerCase() || '';
-        if (message.includes('quota') && message.includes('exceed')) {
+        const message = error.message?.toLowerCase() || "";
+        if (message.includes("quota") && message.includes("exceed")) {
             logger.error("Detected quota exceeded from error message");
             return true;
         }
@@ -234,9 +233,7 @@ export class QuotaManager {
             // Check if automatic failover should be triggered
             const failoverEnabled = this.getSettings()?.advanced?.enableAutomaticFailover;
             const rawFailoverThreshold = this.getSettings()?.advanced?.automaticFailoverThreshold ?? FAILOVER_THRESHOLD_DEFAULT;
-            const failoverThreshold = rawFailoverThreshold >= 0.5 && rawFailoverThreshold <= 100
-                ? Math.round(rawFailoverThreshold)
-                : rawFailoverThreshold;
+            const failoverThreshold = rawFailoverThreshold >= 0.5 && rawFailoverThreshold <= 100 ? Math.round(rawFailoverThreshold) : rawFailoverThreshold;
 
             for (let threshold = startThreshold; threshold <= endThreshold; threshold++) {
                 triggerQuotaThresholdCrossed({
@@ -345,7 +342,6 @@ export class QuotaManager {
      */
     private loadQuotaData(): void {
         try {
-            const fs = require("fs");
             const quotaDataPath = getDataFilePath("quota-tracking.json");
             if (!fs.existsSync(quotaDataPath)) {
                 logger.debug("Quota tracking file does not exist, starting with empty state");
@@ -397,7 +393,6 @@ export class QuotaManager {
      */
     private saveQuotaData(): void {
         try {
-            const { fs, path } = firebot.modules;
             const quotaDataPath = getDataFilePath("quota-tracking.json");
             const storage: QuotaTrackingStorage = Object.fromEntries(this.quotaData);
             const data = JSON.stringify(storage, null, 2);
