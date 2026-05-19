@@ -1,6 +1,7 @@
 import { IntegrationData } from "@crowbartools/firebot-custom-scripts-types";
 import { checkPlatformLibPing } from "@thestaticmage/mage-platform-lib-client";
 import { EventEmitter } from "events";
+import fs from "fs";
 import { IntegrationConstants } from "./constants";
 import { chatEffect } from "./effects/chat";
 import { selectApplicationEffect } from "./effects/select-application";
@@ -929,7 +930,6 @@ export class YouTubeIntegration extends EventEmitter {
             refreshToken: tokenData.refreshToken
         };
 
-        const { fs } = firebot.modules;
         fs.writeFileSync(this.dataFilePath, JSON.stringify(data, null, 2));
         logger.debug("YouTube OAuth refresh token saved to file");
     }
@@ -947,7 +947,6 @@ export class YouTubeIntegration extends EventEmitter {
         }
 
         // Delete integration data file
-        const { fs } = firebot.modules;
         if (fs.existsSync(this.dataFilePath)) {
             fs.unlinkSync(this.dataFilePath);
             logger.info("YouTube integration data file deleted");

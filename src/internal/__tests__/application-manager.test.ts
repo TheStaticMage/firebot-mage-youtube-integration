@@ -1,17 +1,14 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { logger } from "../../main";
-import { QuotaSettings } from "../../types";
+import type { QuotaSettings } from "../../types";
 import { ApplicationManager } from "../application-manager";
+
+jest.mock("fs");
 
 // Mock dependencies
 jest.mock("../../main", () => ({
     firebot: {
         modules: {
-            fs: {
-                existsSync: jest.fn(),
-                readFileSync: jest.fn(),
-                writeFileSync: jest.fn()
-            },
             eventManager: {
                 triggerEvent: jest.fn()
             }
@@ -62,8 +59,7 @@ describe("ApplicationManager", () => {
 
     beforeEach(() => {
         // Get reference to the mocked fs functions
-        const mockedMain = jest.requireMock("../../main");
-        mockFs = mockedMain.firebot.modules.fs;
+        mockFs = require("fs");
 
         applicationManager = new ApplicationManager();
         jest.clearAllMocks();

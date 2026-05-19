@@ -10,9 +10,8 @@
 
 | Plugin Version | Minimum Firebot Version |
 | --- | --- |
-| 0.0.1+ | 5.65 |
-
-- **Versions 0.0.1 and higher** require Firebot 5.65 and [firebot-mage-platform-lib](https://github.com/TheStaticMage/firebot-mage-platform-lib/) 0.0.2 or higher
+| 0.0.5+ | 5.65 or 5.66 |
+| 0.0.1 - 0.0.4 | 5.65 |
 
 ## Installation: Plugin
 

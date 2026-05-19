@@ -1,16 +1,13 @@
 import { ApplicationActivationCause } from "../events";
-import { YouTubeIntegration } from "../integration-singleton";
+import type { YouTubeIntegration } from "../integration-singleton";
 import { ApplicationManager } from "../internal/application-manager";
+
+jest.mock("fs");
 
 // Mock dependencies
 jest.mock("../main", () => ({
     firebot: {
         modules: {
-            fs: {
-                existsSync: jest.fn(),
-                readFileSync: jest.fn(),
-                writeFileSync: jest.fn()
-            },
             eventManager: {
                 registerEventSource: jest.fn(),
                 triggerEvent: jest.fn()
@@ -68,7 +65,7 @@ describe("ApplicationManager - Active Application Switching", () => {
 
         const mockedMain = jest.requireMock("../main");
         mockLogger = mockedMain.logger;
-        mockFs = mockedMain.firebot.modules.fs;
+        mockFs = require("fs");
 
         applicationManager = new ApplicationManager();
         applicationManager.initPath();

@@ -1,8 +1,9 @@
 import { randomUUID } from "crypto";
+import * as fs from "fs";
 import { IntegrationConstants } from "../constants";
-import { ApplicationActivationCause } from "../events";
+import type { ApplicationActivationCause } from "../events";
 import { firebot, logger } from "../main";
-import { ApplicationStorage, QuotaSettings, YouTubeOAuthApplication } from "../types";
+import type { ApplicationStorage, QuotaSettings, YouTubeOAuthApplication } from "../types";
 import { getDataFilePath } from "../util/datafile";
 import { createApplication, isApplicationReady, updateApplicationReadyStatus, validateApplication } from "./application-utils";
 
@@ -401,8 +402,6 @@ export class ApplicationManager {
      */
     private async loadApplications(): Promise<void> {
         try {
-            const { fs } = firebot.modules;
-
             if (!fs.existsSync(this.dataFilePath)) {
                 logger.debug("No applications data file found, starting with empty storage");
                 this.storage = {
@@ -448,8 +447,6 @@ export class ApplicationManager {
      */
     private async saveApplications(): Promise<void> {
         try {
-            const { fs } = firebot.modules;
-
             // Create a clean copy for storage (exclude transient state)
             const storageToSave: ApplicationStorage = {
                 applications: {},
