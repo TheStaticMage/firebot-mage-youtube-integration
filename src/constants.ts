@@ -21,7 +21,7 @@ export const IntegrationConstants = {
     INTEGRATION_NAME: "MageYouTubeIntegration",
     INTEGRATION_DESCRIPTION: "A preliminary, experimental, and generally not-recommended YouTube integration for Firebot.",
     INTEGRATION_URI: "mage-youtube-integration",
-    PLATFORM_LIB_VERSION_CONSTRAINT: ">=0.0.4",
+    PLATFORM_LIB_VERSION_CONSTRAINT: ">=0.0.5",
     YOUTUBE_SCOPES: ["https://www.googleapis.com/auth/youtube", "https://www.googleapis.com/auth/youtube.force-ssl"],
     YOUTUBE_CHAT_MESSAGE_CHARACTER_LIMIT: 200, // Hard limit, determined by testing
     STREAM_STATUS_CHECK_INTERVAL_MS: 10000 // Check stream status every 10 seconds
